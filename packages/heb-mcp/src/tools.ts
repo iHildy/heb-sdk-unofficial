@@ -159,6 +159,8 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
+        // Ensure buildId is available for product details fetch
+        await client.ensureBuildId();
         const product = await client.getProduct(product_id);
 
         const details = [
@@ -205,6 +207,8 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
         
         // Auto-fetch SKU if not provided
         if (!skuId) {
+          // Ensure buildId is available for product details fetch
+          await client.ensureBuildId();
           skuId = await client.getSkuId(product_id);
         }
 
@@ -325,6 +329,8 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
+        // Ensure buildId is available for order history fetch
+        await client.ensureBuildId();
         const orders = await client.getOrders({ page });
 
         if (orders.length === 0) {
