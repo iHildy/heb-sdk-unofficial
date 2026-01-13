@@ -17,7 +17,7 @@ Set the following on your server:
 - `PORT=3000`
 - `CLERK_JWKS_URL`
 - `CLERK_FRONTEND_URL` (required)
-- `CLERK_AUDIENCE` (required; should match the `aud` claim in your Clerk JWT template)
+- `CLERK_JWT_TEMPLATE_NAME` (required; should match the name of your Clerk JWT template)
 - `HEB_SESSION_ENCRYPTION_KEY` (32‑byte base64 key)
 - `HEB_SESSION_STORE_DIR` (optional, default `./data/sessions`)
 
@@ -25,7 +25,6 @@ If you want the extension to auto-fill settings from `.env`, set:
 
 - `MCP_SERVER_URL`
 - `CLERK_PUBLISHABLE_KEY`
-- `CLERK_JWT_TEMPLATE_NAME`
 
 Generate a key with:
 

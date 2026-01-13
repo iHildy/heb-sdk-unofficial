@@ -7,7 +7,7 @@ export type AuthContext = {
 };
 
 const CLERK_FRONTEND_URL = process.env.CLERK_FRONTEND_URL;
-const CLERK_AUDIENCE = process.env.CLERK_AUDIENCE;
+const CLERK_JWT_TEMPLATE_NAME = process.env.CLERK_JWT_TEMPLATE_NAME;
 const CLERK_JWKS_URL = process.env.CLERK_JWKS_URL;
 
 let cachedJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
@@ -38,14 +38,14 @@ export async function verifyClerkToken(token: string): Promise<AuthContext | nul
     if (!CLERK_FRONTEND_URL) {
       throw new Error('Missing CLERK_FRONTEND_URL for Clerk token verification.');
     }
-    if (!CLERK_AUDIENCE) {
-      throw new Error('Missing CLERK_AUDIENCE for Clerk token verification.');
+    if (!CLERK_JWT_TEMPLATE_NAME) {
+      throw new Error('Missing CLERK_JWT_TEMPLATE_NAME for Clerk token verification.');
     }
 
     const key = await getVerificationKey();
     const { payload } = await jwtVerify(token, key, {
       issuer: CLERK_FRONTEND_URL || undefined,
-      audience: CLERK_AUDIENCE || undefined,
+      audience: CLERK_JWT_TEMPLATE_NAME || undefined,
     });
 
     const userId = typeof payload.sub === 'string'
