@@ -27,11 +27,12 @@ const session = createSession(cookies);
 const heb = new HEBClient(session);
 
 // Search for products
-const products = await heb.searchSSR('organic milk', 10);
-console.log(products);
+await heb.ensureBuildId();
+const results = await heb.search('organic milk', { limit: 20 });
+console.log(results.products);
 
 // Get product details
-const product = await heb.getProduct(products[0].productId);
+const product = await heb.getProduct(results.products[0].productId);
 console.log(product.name, product.skuId, product.price);
 
 // Add to cart
@@ -75,7 +76,7 @@ Main client class with all methods:
 
 | Method | Description |
 |--------|-------------|
-| `searchSSR(query, limit?)` | Search products (SSR, reliable) |
+| `search(query, { limit? })` | Search products (Next.js data) |
 | `getProduct(productId)` | Get full product details |
 | `getSkuId(productId)` | Get just the SKU ID |
 | `addToCart(productId, skuId, qty)` | Add/update cart item |
@@ -113,7 +114,7 @@ try {
 - **Session expiry**: The `sat` token expires after ~24h. Re-extract cookies when you get auth errors.
 - **Bot protection**: The `reese84` and `incap_ses` cookies can go stale. If requests fail with 403, refresh them.
 - **Store context**: Set `CURR_SESSION_STORE` to get accurate pricing and availability for your store.
-- **SSR Search**: Use `searchSSR()` instead of `search()` — it's more reliable and doesn't require dynamic GraphQL hashes.
+- **Search data**: Product search uses the Next.js data endpoint and requires a valid buildId.
 
 ## License
 

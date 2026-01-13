@@ -36,10 +36,8 @@ export {
 // ─────────────────────────────────────────────────────────────
 export {
     searchProducts,
-    searchSSR,
     typeahead,
     typeaheadTerms,
-    type SearchFilter,
     type SearchOptions,
     type SearchProduct,
     type SearchResult,

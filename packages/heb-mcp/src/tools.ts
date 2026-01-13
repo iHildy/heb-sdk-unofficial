@@ -108,7 +108,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
     'Search for products in the H-E-B catalog',
     {
       query: z.string().describe('Search query (e.g., "cinnamon rolls", "milk")'),
-      limit: z.number().min(1).max(50).optional().describe('Max results to return (default: 10)'),
+      limit: z.number().min(1).max(20).optional().describe('Max results to return (default: 20)'),
     },
     async ({ query, limit }) => {
       const result = requireClient(getClient);
@@ -116,9 +116,10 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
-        const requestedLimit = limit ?? 10;
-        const apiLimit = Math.max(requestedLimit, 10);
-        let products = await client.searchSSR(query, apiLimit);
+        await client.ensureBuildId();
+        const results = await client.search(query);
+        const requestedLimit = limit ?? 20;
+        const products = results.products.slice(0, requestedLimit);
 
         if (products.length === 0) {
           return {
@@ -126,19 +127,14 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
           };
         }
 
-        // Slice results back to requested limit if it was < 10
-        if (products.length > requestedLimit) {
-          products = products.slice(0, requestedLimit);
-        }
-
-        const results = products.map((p, i) => 
+        const formatted = products.map((p, i) => 
           `${i + 1}. ${p.name} (ID: ${p.productId})`
         ).join('\n');
 
         return {
           content: [{ 
             type: 'text', 
-            text: `Found ${products.length} products:\n\n${results}` 
+            text: `Found ${products.length} products:\n\n${formatted}` 
           }],
         };
       } catch (error) {

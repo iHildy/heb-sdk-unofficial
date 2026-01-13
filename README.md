@@ -4,7 +4,7 @@ Unofficial TypeScript SDK for H-E-B grocery API — search, product details, and
 
 ## Features
 
-- ✅ **SSR Search** - Reliable product search without dynamic GraphQL hashes
+- ✅ **Next.js Search** - Reliable product search via data endpoint
 - ✅ **Product Details** - Full product info including nutrition, pricing, inventory
 - ✅ **Cart Management** - Add, update, remove items
 - ✅ **Typeahead** - Search suggestions with recent/trending terms
@@ -35,11 +35,12 @@ const session = createSession(cookies, 'buildId123');
 const heb = new HEBClient(session);
 
 // 3. Search for products
-const products = await heb.searchSSR('cinnamon rolls');
-console.log(products[0].name); // "H E B Bakery Two Bite Cinnamon Rolls"
+await heb.ensureBuildId();
+const results = await heb.search('cinnamon rolls', { limit: 20 });
+console.log(results.products[0].name); // "H E B Bakery Two Bite Cinnamon Rolls"
 
 // 4. Get detailed product info
-const product = await heb.getProduct(products[0].productId);
+const product = await heb.getProduct(results.products[0].productId);
 console.log(product.brand);      // "H-E-B"
 console.log(product.inStock);    // true
 console.log(product.nutrition);  // { calories: 210, ... }
@@ -70,9 +71,8 @@ The main client class wrapping all functionality.
 const heb = new HEBClient(session);
 
 // Search
-await heb.searchSSR(query, limit?)         // SSR search (recommended)
-await heb.search(query, options?)           // GraphQL search (requires dynamic hash)
-await heb.typeahead(query)                  // Get search suggestions
+await heb.search(query, { limit? })          // Product search (requires buildId)
+await heb.typeahead(query)                   // Get search suggestions
 
 // Products
 await heb.getProduct(productId)             // Full product details
@@ -89,15 +89,13 @@ await heb.removeFromCart(productId, skuId)  // Remove item
 ### Search
 
 ```typescript
-// SSR Search (recommended - doesn't require GraphQL hashes)
-const products = await heb.searchSSR('milk', 10);
+await heb.ensureBuildId();
+const results = await heb.search('milk', { limit: 20 });
 
 // Returns:
-interface SearchProduct {
-  productId: string;
-  name: string;
-  slug?: string;
-  imageUrl?: string;
+interface SearchResult {
+  products: SearchProduct[];
+  totalCount: number;
 }
 ```
 
@@ -209,7 +207,7 @@ import type {
 - **Bot Protection**: H-E-B uses Imperva/Incapsula. The `reese84` cookie is essential.
 - **Store Context**: `CURR_SESSION_STORE` affects product availability and pricing.
 - **Session Expiry**: The `sat` JWT expires. Monitor for 401 errors.
-- **GraphQL Hashes**: The `searchProductQuery` hash changes per build. Use `searchSSR()` for reliability.
+- **Search Data**: Product search uses the Next.js data endpoint and requires a valid buildId.
 
 ## License
 

@@ -7,30 +7,10 @@ Data Layer: GraphQL (Apollo) with Persisted Queries (APQ).
 CDN/Security: Akamai/Imperva (Incapusla) for bot mitigation and AWS for load balancing.
 State Management: Client-side transitions use _next/data for initial loads and GraphQL for interactive state (Cart, Search).
 1. Search & Discovery API
-H-E-B uses a hybrid approach for product discovery.
+H-E-B search results are served through a Next.js data endpoint.
 
-*   **Initial Search (SSR)**: The primary search results for a direct URL hit (e.g., `/search?q=...`) are server-side rendered. Data is embedded in the page source within the `<script id="__NEXT_DATA__">` block. Headless SDKs can parse this for SEO-friendly, non-GraphQL discovery.
-*   **Interactive Search (GraphQL)**: Filtering, pagination, and dynamic updates use the GraphQL endpoint.
-
-**Endpoint**: `POST https://www.heb.com/graphql`
-**Example Payload (searchProductQuery)**:
-```json
-{
-  "operationName": "searchProductQuery",
-  "variables": {
-    "query": "downy wrinkle release spray",
-    "page": 1,
-    "filters": []
-  },
-  "extensions": {
-    "persistedQuery": {
-      "version": 1,
-      "sha256Hash": "[DYNAMIC_HASH_PER_BUILD]"
-    }
-  }
-}
-```
-**SDK Tip**: To perform a 100% headless search without parsing HTML, use the `typeaheadContent` operation (see hashes section) or extract the `searchProductQuery` hash from the site's `_app.js` or `search.js` static chunks.
+*   **Search Data (Next.js)**: `GET https://www.heb.com/_next/data/[BUILD_ID]/en/search.json?q=...` returns a `SearchGridV2` payload with products, totals, filters, and category facets.
+*   **No GraphQL Hash Required**: The search data endpoint avoids persisted-query hash churn and provides consistent product listings for headless clients.
 2. Product Details API
 H-E-B leverages Next.js server-side props for Product Detail Pages (PDP).
 

@@ -4,9 +4,9 @@ This report summarizes observations and technical findings from programmatically
 
 ## 1. Search Behavior & Limitations
 
-### SSR vs. GraphQL Search
-- **SSR Search (`searchSSR`)**: More reliable as it avoids the need for dynamic GraphQL hashes (`persistedQuery`). It parses the HTML response, which is less likely to break between frontend builds.
-- **Deduplication**: The HTML used for SSR search often contains multiple references to the same product (e.g., in different carousel or grid sections). The SDK must dedupe by `productId` to prevent duplicate results.
+### Next.js Search Data
+- **Next.js Search (`search`)**: Uses the `_next/data/<buildId>/en/search.json?q=...` endpoint and avoids dynamic GraphQL hashes entirely.
+- **Result Shape**: Search results arrive as `SearchGridV2.items` with pricing, inventory, SKU, and facet data in a single payload.
 - **Fuzzy Matching**: The search engine is highly permissive. Searching for specific sizes (e.g., "26 oz") often returns similar products in different flavors or sizes first. Strict client-side filtering (e.g., `p.name.includes('26 Oz')`) is necessary for automation.
 
 ## 2. Cart Management Anatomy

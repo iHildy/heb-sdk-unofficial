@@ -3,7 +3,7 @@ import { getCurbsideSlots, reserveCurbsideSlot, type CurbsideSlot, type GetCurbs
 import { getDeliverySlots, reserveSlot, type DeliverySlot, type GetDeliverySlotsOptions, type ReserveSlotResult } from './delivery.js';
 import { getOrder, getOrders, type GetOrdersOptions, type Order } from './orders.js';
 import { getProductDetails, getProductImageUrl, getProductSkuId, type Product } from './product.js';
-import { searchProducts, searchSSR, typeahead, typeaheadTerms, type SearchOptions, type SearchProduct, type SearchResult, type TypeaheadResult } from './search.js';
+import { searchProducts, typeahead, typeaheadTerms, type SearchOptions, type SearchResult, type TypeaheadResult } from './search.js';
 import { buildHeaders, fetchBuildId, isSessionValid } from './session.js';
 import { searchStores, setStore, type Store } from './stores.js';
 import type { Address, HEBSession } from './types.js';
@@ -22,11 +22,12 @@ import type { Address, HEBSession } from './types.js';
  * // Create client
  * const heb = new HEBClient(session);
  * 
- * // Search for products (SSR - most reliable)
- * const products = await heb.searchSSR('cinnamon rolls');
+ * // Search for products
+ * await heb.ensureBuildId();
+ * const results = await heb.search('cinnamon rolls', { limit: 20 });
  * 
  * // Get product details
- * const product = await heb.getProduct(products[0].productId);
+ * const product = await heb.getProduct(results.products[0].productId);
  * 
  * // Add to cart
  * await heb.addToCart(product.productId, product.skuId, 2);
@@ -66,30 +67,16 @@ export class HEBClient {
   // ─────────────────────────────────────────────────────────────
 
   /**
-   * Search for products using SSR (Server-Side Rendered) search.
-   * 
-   * This is the most reliable search method as it doesn't require
-   * dynamic GraphQL hashes. Parses product URLs from HTML results.
-   * 
+   * Search for products using the Next.js data endpoint.
+   *
+   * Requires a valid buildId on the session (call ensureBuildId first if needed).
+   *
    * @param query - Search query
-   * @param limit - Max results (default: 20)
-   * 
+   * @param options - Search options
+   *
    * @example
-   * const products = await heb.searchSSR('cinnamon rolls');
-   * console.log(`Found ${products.length} products`);
-   * products.forEach(p => console.log(`${p.name} (${p.productId})`));
-   */
-  async searchSSR(query: string, limit?: number): Promise<SearchProduct[]> {
-    return searchSSR(this.session, query, limit);
-  }
-
-  /**
-   * Search for products using GraphQL.
-   * 
-   * Note: Requires dynamic hash - may fail if hash is outdated.
-   * Use `searchSSR()` for more reliable results.
-   * 
-   * @deprecated Prefer searchSSR() for reliability
+   * const results = await heb.search('cinnamon rolls', { limit: 20 });
+   * console.log(`Found ${results.products.length} products`);
    */
   async search(query: string, options?: SearchOptions): Promise<SearchResult> {
     return searchProducts(this.session, query, options);
