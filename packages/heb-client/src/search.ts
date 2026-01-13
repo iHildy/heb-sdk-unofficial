@@ -2,32 +2,6 @@ import { graphqlRequest, persistedQuery } from './api.js';
 import type { HEBSession } from './types.js';
 import { ENDPOINTS } from './types.js';
 
-// ─────────────────────────────────────────────────────────────
-// Request Throttling & Rate Limiting
-// ─────────────────────────────────────────────────────────────
-
-/** Minimum delay between search requests (ms) to avoid rate limiting */
-const MIN_REQUEST_DELAY_MS = 250;
-
-/** Last search request timestamp for throttling */
-let lastSearchTimestamp = 0;
-
-/**
- * Wait for rate limit window if needed.
- * This prevents rapid successive requests that trigger bot detection.
- */
-async function waitForRateLimit(): Promise<void> {
-  const now = Date.now();
-  const elapsed = now - lastSearchTimestamp;
-  
-  if (elapsed < MIN_REQUEST_DELAY_MS) {
-    const delay = MIN_REQUEST_DELAY_MS - elapsed;
-    await new Promise(resolve => setTimeout(resolve, delay));
-  }
-  
-  lastSearchTimestamp = Date.now();
-}
-
 /**
  * Browser-like headers for SSR requests.
  * These help bypass bot detection by mimicking real browser requests.
@@ -249,43 +223,6 @@ export async function searchProducts(
 }
 
 /**
- * Known fallback product IDs that indicate degraded API response.
- * These are the 10 products returned when rate limiting kicks in.
- */
-const FALLBACK_PRODUCT_IDS = new Set([
-  '319052',    // Fresh Broccoli Crowns
-  '377497',    // Fresh Bunch Of Bananas
-  '320117',    // Fresh Butter Lettuce
-  '319215',    // Fresh Carrots
-  '325164',    // Fresh Red Bell Pepper
-  '318717',    // Fresh Yellow Bell Pepper
-  '8727508',   // H E B Fresh Cara Cara Oranges
-  '10540517',  // H E B Fresh Gala Apples
-  '3835008',   // H E B Premium Fresh Seedless Red Grapes
-  '7944001',   // H E B Texas Roots Fresh Beefsteak Tomatoes
-]);
-
-/**
- * Check if search results appear to be a degraded fallback response.
- * H-E-B returns a static set of 10 products when rate limiting kicks in.
- */
-function isDegradedResponse(products: SearchProduct[]): boolean {
-  if (products.length !== 10) return false;
-  
-  const productIds = new Set(products.map(p => p.productId));
-  let matchCount = 0;
-  
-  for (const id of productIds) {
-    if (FALLBACK_PRODUCT_IDS.has(id)) {
-      matchCount++;
-    }
-  }
-  
-  // If 8+ of the 10 products match known fallback IDs, it's degraded
-  return matchCount >= 8;
-}
-
-/**
  * Search for products using SSR (Server-Side Rendering).
  * 
  * This fetches the HTML search page and extracts product URLs from it.
@@ -306,9 +243,6 @@ export async function searchSSR(
   query: string,
   limit = 20
 ): Promise<SearchProduct[]> {
-  // Apply rate limiting to prevent bot detection
-  await waitForRateLimit();
-  
   const searchUrl = `${ENDPOINTS.home}search?q=${encodeURIComponent(query)}`;
   
   // Build headers: combine session cookies with browser-like headers
@@ -361,15 +295,6 @@ export async function searchSSR(
     });
     
     if (products.length >= limit) break;
-  }
-  
-  // Check for degraded response (rate limiting fallback)
-  if (isDegradedResponse(products)) {
-    throw new Error(
-      'Search returned degraded results (rate limiting detected). ' +
-      'The H-E-B API is returning cached fallback data instead of actual search results. ' +
-      'Please wait a few minutes before making more search requests, or try a fresh session.'
-    );
   }
   
   return products;
