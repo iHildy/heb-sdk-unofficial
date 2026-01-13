@@ -1,0 +1,37 @@
+import type { UserButtonCtx } from '../../types';
+export declare const UserButtonContext: import("react").Context<UserButtonCtx | null>;
+export declare const useUserButtonContext: () => {
+    componentName: "UserButton";
+    navigateAfterMultiSessionSingleSignOut: () => Promise<unknown>;
+    navigateAfterSignOut: () => Promise<unknown>;
+    signInUrl: string;
+    userProfileUrl: string;
+    afterMultiSessionSingleSignOutUrl: string;
+    afterSignOutUrl: string;
+    afterSwitchSessionUrl: string;
+    userProfileMode: "navigation" | "modal";
+    menutItems: import("@/ui/utils/createCustomMenuItems").MenuItem[];
+    showName?: boolean;
+    defaultOpen?: boolean;
+    __experimental_asStandalone?: boolean | ((opened: boolean) => void);
+    appearance?: import("@clerk/types").UserButtonTheme;
+    userProfileProps?: Pick<import("@clerk/types").UserProfileProps, "additionalOAuthScopes" | "appearance" | "customPages" | "apiKeysProps">;
+    mode?: "modal" | "mounted";
+} | {
+    componentName: "UserButton";
+    navigateAfterMultiSessionSingleSignOut: () => Promise<unknown>;
+    navigateAfterSignOut: () => Promise<unknown>;
+    signInUrl: string;
+    userProfileUrl: string;
+    afterMultiSessionSingleSignOutUrl: string;
+    afterSignOutUrl: string;
+    afterSwitchSessionUrl: string;
+    userProfileMode: "navigation" | "modal";
+    menutItems: import("@/ui/utils/createCustomMenuItems").MenuItem[];
+    showName?: boolean;
+    defaultOpen?: boolean;
+    __experimental_asStandalone?: boolean | ((opened: boolean) => void);
+    appearance?: import("@clerk/types").UserButtonTheme;
+    userProfileProps?: Pick<import("@clerk/types").UserProfileProps, "additionalOAuthScopes" | "appearance" | "customPages" | "apiKeysProps">;
+    mode?: "modal" | "mounted";
+};

@@ -1,0 +1,38 @@
+import type { ActClaim, CheckAuthorization, GetToken, SessionJSON, SessionJSONSnapshot, SessionResource, SessionStatus, SessionTask, SessionVerificationResource, SessionVerifyAttemptFirstFactorParams, SessionVerifyAttemptSecondFactorParams, SessionVerifyCreateParams, SessionVerifyPrepareFirstFactorParams, SessionVerifyPrepareSecondFactorParams, TokenResource, UserResource } from '@clerk/shared/types';
+import { BaseResource, PublicUserData } from './internal';
+export declare class Session extends BaseResource implements SessionResource {
+    #private;
+    pathRoot: string;
+    id: string;
+    status: SessionStatus;
+    lastActiveAt: Date;
+    lastActiveToken: TokenResource | null;
+    lastActiveOrganizationId: string | null;
+    actor: ActClaim | null;
+    user: UserResource | null;
+    publicUserData: PublicUserData;
+    factorVerificationAge: [number, number] | null;
+    tasks: Array<SessionTask> | null;
+    expireAt: Date;
+    abandonAt: Date;
+    createdAt: Date;
+    updatedAt: Date;
+    static isSessionResource(resource: unknown): resource is Session;
+    constructor(data: SessionJSON | SessionJSONSnapshot);
+    end: () => Promise<SessionResource>;
+    remove: () => Promise<SessionResource>;
+    touch: () => Promise<SessionResource>;
+    clearCache: () => void;
+    getToken: GetToken;
+    checkAuthorization: CheckAuthorization;
+    startVerification: ({ level }: SessionVerifyCreateParams) => Promise<SessionVerificationResource>;
+    prepareFirstFactorVerification: (factor: SessionVerifyPrepareFirstFactorParams) => Promise<SessionVerificationResource>;
+    attemptFirstFactorVerification: (attemptFactor: SessionVerifyAttemptFirstFactorParams) => Promise<SessionVerificationResource>;
+    verifyWithPasskey: () => Promise<SessionVerificationResource>;
+    prepareSecondFactorVerification: (params: SessionVerifyPrepareSecondFactorParams) => Promise<SessionVerificationResource>;
+    attemptSecondFactorVerification: (attemptFactor: SessionVerifyAttemptSecondFactorParams) => Promise<SessionVerificationResource>;
+    protected fromJSON(data: SessionJSON | SessionJSONSnapshot | null): this;
+    __internal_toSnapshot(): SessionJSONSnapshot;
+    private _getToken;
+    get currentTask(): SessionTask;
+}

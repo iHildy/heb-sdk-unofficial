@@ -1,0 +1,14 @@
+import React from 'react';
+import type { FlowMetadata } from '../elements/contexts';
+import type { ThemableCssProp } from '../styledSystem';
+type FlowRootProps = React.PropsWithChildren & FlowMetadata & {
+    sx?: ThemableCssProp;
+};
+type FlowPartProps = React.PropsWithChildren<Pick<FlowMetadata, 'part'>>;
+export declare const Flow: {
+    Root: (props: FlowRootProps & {
+        isFlowReady?: boolean;
+    }) => import("@emotion/react/jsx-runtime").JSX.Element;
+    Part: (props: FlowPartProps) => import("@emotion/react/jsx-runtime").JSX.Element;
+};
+export {};

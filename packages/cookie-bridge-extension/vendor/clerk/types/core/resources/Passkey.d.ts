@@ -1,0 +1,28 @@
+import type { DeletedObjectResource, PasskeyJSON, PasskeyJSONSnapshot, PasskeyResource, PasskeyVerificationResource, UpdatePasskeyParams } from '@clerk/shared/types';
+import { BaseResource } from './internal';
+export declare class Passkey extends BaseResource implements PasskeyResource {
+    id: string;
+    pathRoot: string;
+    verification: PasskeyVerificationResource | null;
+    name: string | null;
+    lastUsedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    constructor(data: PasskeyJSON | PasskeyJSONSnapshot);
+    private static create;
+    private static attemptVerification;
+    /**
+     * Developers should not be able to create a new Passkeys from an already instanced object
+     */
+    static registerPasskey(): Promise<Passkey>;
+    /**
+     * PATCH /v1/me/passkeys/{passkeyIdentificationID}
+     */
+    update: (params: UpdatePasskeyParams) => Promise<PasskeyResource>;
+    /**
+     * DELETE /v1/me/passkeys/{passkeyIdentificationID}
+     */
+    delete: () => Promise<DeletedObjectResource>;
+    protected fromJSON(data: PasskeyJSON | PasskeyJSONSnapshot | null): this;
+    __internal_toSnapshot(): PasskeyJSONSnapshot;
+}

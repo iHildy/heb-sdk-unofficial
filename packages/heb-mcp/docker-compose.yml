@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  heb-mcp:
+    build:
+      context: ../..
+      dockerfile: packages/heb-mcp/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - MCP_MODE=remote
+      - PORT=3000
+      - CLERK_JWKS_URL=${CLERK_JWKS_URL}
+      - CLERK_JWT_PUBLIC_KEY=${CLERK_JWT_PUBLIC_KEY}
+      - CLERK_FRONTEND_URL=${CLERK_FRONTEND_URL}
+      - CLERK_AUDIENCE=${CLERK_AUDIENCE}
+      - HEB_SESSION_ENCRYPTION_KEY=${HEB_SESSION_ENCRYPTION_KEY}
+      - HEB_SESSION_STORE_DIR=/data/sessions
+    restart: unless-stopped
+    volumes:
+      - heb-mcp-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  heb-mcp-data:

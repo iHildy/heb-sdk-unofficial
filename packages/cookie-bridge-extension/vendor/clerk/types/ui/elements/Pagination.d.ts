@@ -1,0 +1,23 @@
+import { Button } from '../customizables';
+import type { ElementDescriptor, ElementId } from '../customizables/elementDescriptors';
+import type { PropsOfComponent, ThemableCssProp } from '../styledSystem';
+export type PageButtonProps = PropsOfComponent<typeof Button> & {
+    isActive?: boolean;
+    icon?: React.ComponentType | React.ReactElement;
+    iconElementDescriptor?: ElementDescriptor;
+    iconElementId?: ElementId;
+    iconSx?: ThemableCssProp;
+};
+type PaginationProps = {
+    page: number;
+    count: number;
+    rowInfo?: {
+        startingRow: number;
+        endingRow: number;
+        allRowsCount: number;
+    };
+    siblingCount?: number;
+    onChange?: (page: number) => void;
+};
+export declare const Pagination: (props: PaginationProps) => import("@emotion/react/jsx-runtime").JSX.Element;
+export {};

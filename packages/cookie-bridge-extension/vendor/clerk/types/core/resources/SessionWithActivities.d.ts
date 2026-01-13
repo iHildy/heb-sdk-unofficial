@@ -1,0 +1,16 @@
+import type { ActClaim, SessionActivity, SessionWithActivitiesJSON, SessionWithActivitiesResource } from '@clerk/shared/types';
+import { BaseResource } from './internal';
+export declare class SessionWithActivities extends BaseResource implements SessionWithActivitiesResource {
+    pathRoot: string;
+    id: string;
+    status: string;
+    abandonAt: Date;
+    expireAt: Date;
+    lastActiveAt: Date;
+    latestActivity: SessionActivity;
+    actor: ActClaim | null;
+    constructor(data: SessionWithActivitiesJSON, pathRoot: string);
+    static retrieve(): Promise<SessionWithActivities[]>;
+    revoke(): Promise<this>;
+    protected fromJSON(data: SessionWithActivitiesJSON | null): this;
+}

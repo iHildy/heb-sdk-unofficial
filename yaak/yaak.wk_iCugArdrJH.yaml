@@ -1,0 +1,14 @@
+type: workspace
+model: workspace
+id: wk_iCugArdrJH
+createdAt: 2026-01-11T20:19:38.764167
+updatedAt: 2026-01-11T20:19:38.764168
+authentication: {}
+authenticationType: null
+description: ''
+headers: []
+name: heb-api
+encryptionKeyChallenge: null
+settingValidateCertificates: true
+settingFollowRedirects: true
+settingRequestTimeout: 0

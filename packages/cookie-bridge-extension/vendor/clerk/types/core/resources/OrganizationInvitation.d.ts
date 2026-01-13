@@ -1,0 +1,18 @@
+import type { CreateBulkOrganizationInvitationParams, CreateOrganizationInvitationParams, OrganizationCustomRoleKey, OrganizationInvitationJSON, OrganizationInvitationResource, OrganizationInvitationStatus } from '@clerk/shared/types';
+import { BaseResource } from './internal';
+export declare class OrganizationInvitation extends BaseResource implements OrganizationInvitationResource {
+    id: string;
+    emailAddress: string;
+    organizationId: string;
+    publicMetadata: OrganizationInvitationPublicMetadata;
+    status: OrganizationInvitationStatus;
+    role: OrganizationCustomRoleKey;
+    roleName: string;
+    createdAt: Date;
+    updatedAt: Date;
+    static create(organizationId: string, { emailAddress, role }: CreateOrganizationInvitationParams): Promise<OrganizationInvitationResource>;
+    static createBulk(organizationId: string, params: CreateBulkOrganizationInvitationParams): Promise<OrganizationInvitationResource[]>;
+    constructor(data: OrganizationInvitationJSON);
+    revoke: () => Promise<OrganizationInvitation>;
+    protected fromJSON(data: OrganizationInvitationJSON | null): this;
+}

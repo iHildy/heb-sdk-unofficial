@@ -1,0 +1,13 @@
+import React from 'react';
+export declare const InvisibleRootBox: React.FunctionComponent<{
+    className: string;
+} & {
+    children?: React.ReactNode | undefined;
+} & {
+    isFlowReady?: boolean;
+} & {
+    elementDescriptor?: import("../customizables/elementDescriptors").ElementDescriptor | Array<import("../customizables/elementDescriptors").ElementDescriptor | undefined>;
+    elementId?: import("../customizables/elementDescriptors").ElementId;
+    css?: never;
+    sx?: import("../styledSystem").ThemableCssProp;
+}>;

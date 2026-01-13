@@ -1,0 +1,15 @@
+/**
+ * Abstracts native browser event listener registration.
+ * Instead, this helper exposes hooks (eg. onPageVisible) that handle
+ * specific use cases.
+ *
+ * This is an effort to decouple event handling from the Clerk singleton,
+ * any future events should be handled here.
+ *
+ * @internal
+ */
+export declare const createPageLifecycle: () => {
+    onPageFocus: (..._args: any[]) => void;
+} | {
+    onPageFocus: (cb: () => void) => void;
+};

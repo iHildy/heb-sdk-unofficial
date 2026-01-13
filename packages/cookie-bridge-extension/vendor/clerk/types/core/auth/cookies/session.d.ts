@@ -1,0 +1,11 @@
+export type SessionCookieHandler = {
+    set: (token: string) => void;
+    remove: () => void;
+    get: () => string | undefined;
+};
+/**
+ * Create a short-lived JS cookie to store the current user JWT.
+ * The cookie is used by the Clerk backend SDKs to identify
+ * the authenticated user.
+ */
+export declare const createSessionCookie: (cookieSuffix: string) => SessionCookieHandler;

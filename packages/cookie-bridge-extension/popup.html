@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>HEB Bridge</title>
+  <style>
+    body { width: 260px; padding: 12px; font-family: Arial, sans-serif; }
+    h3 { margin: 0 0 8px; text-align: center; }
+    label { display: block; font-size: 11px; margin: 8px 0 4px; }
+    input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; box-sizing: border-box; }
+    button { width: 100%; padding: 8px; margin-top: 8px; cursor: pointer; background: #E02020; color: white; border: none; border-radius: 4px; }
+    button.secondary { background: #4A4A4A; }
+    button:hover { opacity: 0.9; }
+    .status { margin: 8px 0; font-size: 12px; text-align: center; }
+    .divider { height: 1px; background: #eee; margin: 10px 0; }
+    #clerk-signin { min-height: 120px; }
+  </style>
+</head>
+<body>
+  <h3>HEB Bridge</h3>
+  <div class="status" id="status">Ready</div>
+
+  <label for="serverUrl">Server URL</label>
+  <input id="serverUrl" placeholder="https://mcp.example.com" />
+
+  <label for="clerkKey">Clerk Publishable Key</label>
+  <input id="clerkKey" placeholder="pk_live_..." />
+
+  <label for="jwtTemplate">JWT Template Name (optional)</label>
+  <input id="jwtTemplate" placeholder="heb-mcp" />
+
+  <button id="saveBtn" class="secondary">Save Settings</button>
+
+  <div class="divider"></div>
+
+  <div id="authSection">
+    <div id="authStatus" class="status">Not signed in</div>
+    <div id="clerk-signin"></div>
+    <button id="signOutBtn" class="secondary" style="display:none;">Sign Out</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <button id="syncBtn">Sync Cookies</button>
+
+  <script src="vendor/clerk/clerk.browser.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

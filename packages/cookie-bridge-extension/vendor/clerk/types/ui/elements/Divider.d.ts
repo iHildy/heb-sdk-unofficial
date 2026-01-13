@@ -1,0 +1,9 @@
+import type { LocalizationKey } from '../customizables';
+import { Flex } from '../customizables';
+import type { PropsOfComponent } from '../styledSystem';
+type DividerProps = Omit<PropsOfComponent<typeof Flex>, 'elementDescriptor'> & {
+    dividerText?: LocalizationKey;
+};
+export declare const Divider: (props: DividerProps) => import("@emotion/react/jsx-runtime").JSX.Element;
+export declare const VerticalDivider: (props: DividerProps) => import("@emotion/react/jsx-runtime").JSX.Element;
+export {};

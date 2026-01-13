@@ -1,0 +1,21 @@
+{
+  "name": "heb-sdk-unofficial",
+  "private": true,
+  "description": "Unofficial H-E-B SDK monorepo",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "rm -rf packages/*/dist",
+    "sync:extension-config": "node packages/cookie-bridge-extension/scripts/sync-env.mjs"
+  },
+  "packageManager": "pnpm@10.15.1",
+  "devDependencies": {
+    "@clerk/clerk-js": "^5.119.1",
+    "dotenv": "^17.2.3",
+    "tsx": "^4.21.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

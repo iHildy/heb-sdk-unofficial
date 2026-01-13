@@ -1,0 +1,99 @@
+type: http_request
+model: http_request
+id: rq_uRTTt8LTVJ
+createdAt: 2026-01-11T20:19:44.928123
+updatedAt: 2026-01-11T20:20:52.724972
+workspaceId: wk_iCugArdrJH
+folderId: null
+authentication: {}
+authenticationType: null
+body:
+  text: '{"operationName":"cartItemV2","variables":{"userIsLoggedIn":true,"productId":"3835007","skuId":"3343","quantity":10},"extensions":{"persistedQuery":{"version":1,"sha256Hash":"ade8ec1365c185244d42f9cc4c13997fec4b633ac3c38ff39558df92b210c6d0"}}}'
+bodyType: application/json
+description: ''
+headers:
+- enabled: true
+  name: accept
+  value: '*/*'
+  id: null
+- enabled: true
+  name: accept-language
+  value: en-US,en;q=0.9
+  id: null
+- enabled: true
+  name: amplitude-device-id
+  value: h-176e3411-e8e2-4e1f-918e-aa76e93d0a19
+  id: null
+- enabled: true
+  name: apollographql-client-name
+  value: WebPlatform-Solar (Production)
+  id: null
+- enabled: true
+  name: apollographql-client-version
+  value: 4f7ebba946495b26b50617ed30457aaf55f0b09b
+  id: null
+- enabled: true
+  name: cache-control
+  value: no-cache
+  id: null
+- enabled: true
+  name: content-type
+  value: application/json
+  id: null
+- enabled: true
+  name: dnt
+  value: '1'
+  id: null
+- enabled: true
+  name: origin
+  value: https://www.heb.com
+  id: null
+- enabled: true
+  name: pragma
+  value: no-cache
+  id: null
+- enabled: true
+  name: priority
+  value: u=1, i
+  id: null
+- enabled: true
+  name: referer
+  value: https://www.heb.com/product-detail/h-e-b-premium-fresh-seedless-white-grapes/3835007
+  id: null
+- enabled: true
+  name: sec-ch-ua
+  value: '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"'
+  id: null
+- enabled: true
+  name: sec-ch-ua-mobile
+  value: ?0
+  id: null
+- enabled: true
+  name: sec-ch-ua-platform
+  value: '"macOS"'
+  id: null
+- enabled: true
+  name: sec-fetch-dest
+  value: empty
+  id: null
+- enabled: true
+  name: sec-fetch-mode
+  value: cors
+  id: null
+- enabled: true
+  name: sec-fetch-site
+  value: same-origin
+  id: null
+- enabled: true
+  name: user-agent
+  value: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36
+  id: null
+- enabled: true
+  name: Cookie
+  value: HEB_AMP_DEVICE_ID=h-176e3411-e8e2-4e1f-918e-aa76e93d0a19; sst=hs:sst:KCFsiH_16YTY-KRx7qK3b; sst.sig=Oyyew-rrRGuVji845d3OotYIQfxptPiFDl9U5SdAt2A; visid_incap_2302070=H+HnQ5obQXWdoDke7WgyUAIEZGkAAAAAQUIPAAAAAACNBW6ZxmL1EMAovfdAdTIG; incap_ses_204_2302070=bHvDTJf0dmCOmVg9W8HUAjgEZGkAAAAAzonsQS5okArEvkcxVAXzRA==; AMP_MKTG_760524e2ba=JTdCJTdE; _iidt=cpfuXXlvKOty3hlwN+FTNhbEvAJL7Lnqk//uM8GZSAo6RpK2FhIlSDTrBYULZETgBPW0dSEmoK7y2A==; DYN_USER_ID=73798317734962235614395042; DYN_USER_CONFIRM=918a62ab2d9434e5c5197e70ebfb0ca9; CURR_SESSION_STORE=790; USER_SELECT_STORE=true; JSESSIONID=l3YQfJbOqxhTnqsnxcYBHM8hpEtAatje35uGvoaQ; wa-pc=0; sat=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IlFibVJONmFaemZyazdtMnpodXl0ZThka3laM2VSQl9RdklMNWVHQVZiVHcifQ.eyJnaWd5YV91aWQiOiJkZWUyMDM2Yzc0ZWM0OTdlYmNhNTZjMDY5ZjM3MzczNCIsInVhaWQiOiJ1bmtub3duIiwianRpIjoiQWhLVWI2RXBQZXVXa05QQ05OOXQxIiwic3ViIjoiNzM3OTgzMTc3MzQ5NjIyMzU2MTQzOTUwNDIiLCJpYXQiOjE3NjgxNjI1NjksImV4cCI6MTc2ODE2NDM2OSwiY2xpZW50X2lkIjoid3d3LmhlYi5jb20iLCJpc3MiOiJwcmQtaGViLWF1dGguaGViLWVjb20taWRwLXByZC5hd3MuaGViLmludGVybmFsIiwiYXVkIjoid3d3LmhlYi5jb20iLCJiaWQiOiJZVWlhRks3M29NN1AxQVltZWlKRGxKVEpQUU1TQVlwbFN4V3ptVXlUazdWIiwiYWF0IjoxNzY4MTYyNTY4fQ.RP_Zk9Jxs_lxHtWZKq9lb-2ojmPo29W-1vrDUK76-7Ht2XC0kIRTiPIwgatLZRv7sBbljpo0GnvBvtTltM8z1YJyeNVk193wzR1fMwZz3id23VP6UkjBtOmOkjtMlOgshidbAf3bprPVZd-0P-q2gw3TYnDjNLPf_n18UCxrpYrra-f_JN9aMYbdWWq256nC8u5npfpr5mPp7wA4tMkfD_rzlpgnDYv8xJWpqKkDeWiI4ySzh0O5AroTQ4ubumpsyc_i8_QnuVQh1OcuAjSoB8yBotzFjpRxPahQSbeMPXDc0yDYDQ_L5tMcCDWBPLIPW0Bgg-c7gnDeee7hAaSpSzN-ivtmPfdmFDOaLqO-7fIn6sUI-Ffaz65r1PcH0e73AjApZrnsGb0mfLQG5-C8tl0ak0Y0Uc16XLvxxIuMZOqKKdpZZY7FgMOENjoZOtWEScl6mk0rV6c1O9YTQcrPzFFYQhjK16hFlrF_l1AF-D0xtK84cF4ezFQRnlOP9Vcf; reese84=3:k3/KsczohXUCn6bvU3TBDQ==:iueZ1ZAfHdb9qDPfNcIq3AxjLwGhdMl+e2ZQ8FMklx06gZG8Gb+hPD/HyX/WYrZOqd4n8oTkliegulW//5lBFS/IB/UgFZIQRoFFfR/s1DVmeyk+Ce4wrIocU26TprmWp6BiuzshPxtngaILjuGYaPCmjP7lZAdgw6qxOzcE+FOCJZCRaCmaRSvTj1hAHI/0e69Qk46/GsTxw4Tv7+A561McvCMnqNF6s91lgnUUOkAsKJgXxCOrPdvuc/L5R7eFurzqW0TxjhyTezTvJjC9/nFEqQ1IqAeSnnt349vhUt3oPB1A3zycGmSWSnC3Tgtq1CMkucStwiXTMNq7aaAusMVyeqLwZ5MuWBulIBTSWB0thDaysnleBfOg/e2Djz8eztWNHzxFA4Bh4vZhzaiCtAjPI06N/5t81ltbzgSlCjCf13c4jNiJm3WRGK3GLCTVCVXBnGwSZC+cEndWL7Byx9cxsNaKqezgUxGcYwnPVgu+zBTRLrixoZxKOq4Nuuol:WW7AqwWA1wamQwurpqJIE8F6nGrZTXVmcAMe7G7fMtg=; AWSALB=9Y5WjqgO6TS1nIQ2vgv1YMvcC94qSoRE/M+N4JrmU99kRJ3v80t4OjK/xTHLDdgVq41W02IFRWes0iWETBhzg+OIWCii7IaQ5JQCRgw+t5CeVfQcMgKW3sRvZ/3B; _dd_s=aid=1aaa6246-252a-4fd3-874c-072807a7c053&rum=0&expire=1768163527449; AMP_760524e2ba=JTdCJTIyZGV2aWNlSWQlMjIlM0ElMjJoLTE3NmUzNDExLWU4ZTItNGUxZi05MThlLWFhNzZlOTNkMGExOSUyMiUyQyUyMnVzZXJJZCUyMiUzQSUyMjczNzk4MzE3NzM0OTYyMjM1NjE0Mzk1MDQyJTIyJTJDJTIyc2Vzc2lvbklkJTIyJTNBMTc2ODE2MjM2MTEzMiUyQyUyMm9wdE91dCUyMiUzQWZhbHNlJTJDJTIybGFzdEV2ZW50VGltZSUyMiUzQTE3NjgxNjI2Mjc0OTAlMkMlMjJsYXN0RXZlbnRJZCUyMiUzQTUwJTJDJTIycGFnZUNvdW50ZXIlMjIlM0EwJTdE
+  id: null
+method: POST
+name: Add to cart
+sortPriority: -1768162784927.0
+url: https://www.heb.com/graphql
+urlParameters: []

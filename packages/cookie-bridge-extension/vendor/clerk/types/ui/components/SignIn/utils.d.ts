@@ -1,0 +1,10 @@
+import type { PhoneCodeChannel, PreferredSignInStrategy, SignInFactor, SignInResource, SignInStrategy } from '@clerk/shared/types';
+import type { FormControlState } from '@/ui/utils/useFormControl';
+export declare function determineStartingSignInFactor(firstFactors: SignInFactor[] | null, identifier: string | null, preferredSignInStrategy: PreferredSignInStrategy): SignInFactor | null | undefined;
+export declare function determineSalutation(signIn: Partial<SignInResource>): string;
+export declare function factorHasLocalStrategy(factor: SignInFactor | undefined | null): boolean;
+export declare function determineStartingSignInSecondFactor(secondFactors: SignInFactor[] | null): SignInFactor | null;
+export declare const isResetPasswordStrategy: (strategy: SignInStrategy | string | null | undefined) => boolean;
+export declare function getSignUpAttributeFromIdentifier(identifier: FormControlState<'identifier'>): "emailAddress" | "phoneNumber" | "username";
+export declare const getPreferredAlternativePhoneChannel: (fields: Array<FormControlState<string>>, preferredChannels: Record<string, PhoneCodeChannel> | null, phoneNumberFieldName: "identifier" | "phoneNumber") => PhoneCodeChannel | null;
+export declare const getPreferredAlternativePhoneChannelForCombinedFlow: (preferredChannels: Record<string, PhoneCodeChannel> | null, identifierAttribute: "phoneNumber" | "emailAddress" | "username", identifierValue: string) => PhoneCodeChannel | null;

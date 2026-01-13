@@ -1,0 +1,14 @@
+import React from 'react';
+import { Col, Heading, Link, Text } from '../customizables';
+import type { PropsOfComponent, ThemableCssProp } from '../styledSystem';
+export type HeaderProps = PropsOfComponent<typeof Col> & {
+    showLogo?: boolean;
+    showDivider?: boolean;
+    contentSx?: ThemableCssProp;
+};
+export declare const Header: {
+    Root: React.MemoExoticComponent<React.ForwardRefExoticComponent<Omit<HeaderProps, "ref"> & React.RefAttributes<HTMLDivElement>>>;
+    Title: React.MemoExoticComponent<(props: PropsOfComponent<typeof Heading>) => JSX.Element>;
+    Subtitle: React.MemoExoticComponent<(props: PropsOfComponent<typeof Text>) => JSX.Element>;
+    BackLink: React.MemoExoticComponent<(props: PropsOfComponent<typeof Link>) => JSX.Element>;
+};

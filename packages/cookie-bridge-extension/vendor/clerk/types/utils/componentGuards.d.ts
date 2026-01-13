@@ -1,0 +1,12 @@
+import type { Clerk, ClerkOptions, EnvironmentResource } from '@clerk/shared/types';
+export type ComponentGuard = (clerk: Clerk, environment?: EnvironmentResource | null, options?: ClerkOptions) => boolean;
+export declare const isSignedInAndSingleSessionModeEnabled: ComponentGuard;
+export declare const noUserExists: ComponentGuard;
+export declare const noOrganizationExists: ComponentGuard;
+export declare const disabledOrganizationsFeature: ComponentGuard;
+export declare const disabledUserBillingFeature: ComponentGuard;
+export declare const disabledOrganizationBillingFeature: ComponentGuard;
+export declare const disabledAllBillingFeatures: ComponentGuard;
+export declare const disabledUserAPIKeysFeature: ComponentGuard;
+export declare const disabledOrganizationAPIKeysFeature: ComponentGuard;
+export declare const disabledAllAPIKeysFeatures: ComponentGuard;

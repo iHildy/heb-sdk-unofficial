@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "HEB Cookie Bridge",
+  "version": "1.0",
+  "description": "Securely bridges your HEB session to your local MCP server.",
+  "permissions": [
+    "cookies",
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.heb.com/*",
+    "http://localhost:4321/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://* http://*; frame-src https://*.clerk.com https://*.clerk.services"
+  }
+}

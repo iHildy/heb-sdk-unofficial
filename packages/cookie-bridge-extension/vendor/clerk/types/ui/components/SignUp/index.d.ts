@@ -1,0 +1,10 @@
+import type { SignUpModalProps, SignUpProps } from '@clerk/shared/types';
+import React from 'react';
+import { SignUpContinue } from './SignUpContinue';
+import { SignUpSSOCallback } from './SignUpSSOCallback';
+import { SignUpStart } from './SignUpStart';
+import { SignUpVerifyEmail } from './SignUpVerifyEmail';
+import { SignUpVerifyPhone } from './SignUpVerifyPhone';
+export declare const SignUp: React.ComponentType<SignUpProps>;
+export declare const SignUpModal: (props: SignUpModalProps) => JSX.Element;
+export { SignUpContinue, SignUpSSOCallback, SignUpStart, SignUpVerifyEmail, SignUpVerifyPhone };

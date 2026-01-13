@@ -1,0 +1,28 @@
+import type { PropsWithChildren } from 'react';
+type ActionRootProps = PropsWithChildren<{
+    animate?: boolean;
+    value?: string | null;
+    onChange?: (value: string | null) => void;
+}>;
+type ActionOpen = (value: string) => void;
+export declare const ActionContext: import("react").Context<{
+    value: {
+        active: string | null;
+        open: ActionOpen;
+        close: () => void;
+    };
+} | undefined>, useActionContext: () => {
+    active: string | null;
+    open: ActionOpen;
+    close: () => void;
+}, _: () => {
+    active: string | null;
+    open: ActionOpen;
+    close: () => void;
+} | Partial<{
+    active: string | null;
+    open: ActionOpen;
+    close: () => void;
+}>;
+export declare const ActionRoot: (props: ActionRootProps) => import("@emotion/react/jsx-runtime").JSX.Element;
+export {};

@@ -1,0 +1,5 @@
+{
+  "serverUrl": "https://heb-mcp.hildy.io",
+  "clerkPublishableKey": "pk_test_YnVyc3RpbmctY2hvdy0xMC5jbGVyay5hY2NvdW50cy5kZXYk",
+  "jwtTemplate": "heb-mcp"
+}
