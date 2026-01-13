@@ -193,7 +193,7 @@ export async function upsertUser(options: {
     return { ok: false, errors: await response.text() };
   }
 
-  const json = await response.json();
+  const json = (await response.json()) as { errors?: Array<{ message: string }> };
   if (json?.errors) {
     return { ok: false, errors: json.errors };
   }
