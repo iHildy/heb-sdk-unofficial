@@ -1,8 +1,8 @@
 import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients.js';
 import {
-  InvalidGrantError,
-  InvalidTargetError,
-  InvalidTokenError,
+    InvalidGrantError,
+    InvalidTargetError,
+    InvalidTokenError,
 } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import type { AuthorizationParams, OAuthServerProvider } from '@modelcontextprotocol/sdk/server/auth/provider.js';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
@@ -327,11 +327,61 @@ export class ClerkOAuthProvider implements OAuthServerProvider {
     const auth = res.locals.clerkAuth as AuthContext | undefined;
     if (!auth) {
       const signInUrl = res.locals.clerkSignInUrl as string | undefined;
+      const publishableKey = process.env.CLERK_PUBLISHABLE_KEY;
+      const frontendApi = process.env.CLERK_FRONTEND_URL; // e.g. https://clerk.heb-mcp.hildy.io
+
+      if (signInUrl && publishableKey) {
+        // Serve an interstitial page to sync the session via Clerk JS
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Redirecting...</title>
+  <meta charset="utf-8">
+</head>
+<body>
+  <script
+    async
+    crossorigin="anonymous"
+    data-clerk-publishable-key="${publishableKey}"
+    data-clerk-frontend-api="${frontendApi || ''}" 
+    src="${frontendApi ? `${frontendApi}/npm/@clerk/clerk-js@5/dist/clerk.browser.js` : 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js'}"
+    onload="onClerkLoad()"
+  ></script>
+  <script>
+    async function onClerkLoad() {
+      try {
+        await Clerk.load();
+        if (Clerk.user) {
+          // User is signed in, cookie should now be synced. Reload to let backend see it.
+          // Append a timestamp to avoid cache
+          const url = new URL(window.location.href);
+          url.searchParams.set('_t', Date.now());
+          window.location.href = url.toString();
+        } else {
+          // Not signed in, redirect to sign in flow
+          window.location.href = "${signInUrl}";
+        }
+      } catch (err) {
+        console.error('Clerk load error', err);
+        // Fallback
+        window.location.href = "${signInUrl}";
+      }
+    }
+  </script>
+  <p>Redirecting to authentication...</p>
+</body>
+</html>`;
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+        return;
+      }
+
       if (signInUrl) {
         res.redirect(signInUrl);
         return;
       }
-      res.status(401).send('Authentication required. Configure CLERK_SIGN_IN_URL for OAuth logins.');
+      res.status(401).send('Authentication required. Configure CLERK_SIGN_IN_URL/CLERK_PUBLISHABLE_KEY for OAuth logins.');
       return;
     }
 
