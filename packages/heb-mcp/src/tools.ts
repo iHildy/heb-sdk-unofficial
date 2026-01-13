@@ -116,12 +116,19 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
-        const products = await client.searchSSR(query, limit ?? 10);
+        const requestedLimit = limit ?? 10;
+        const apiLimit = Math.max(requestedLimit, 10);
+        let products = await client.searchSSR(query, apiLimit);
 
         if (products.length === 0) {
           return {
             content: [{ type: 'text', text: `No products found for "${query}"` }],
           };
+        }
+
+        // Slice results back to requested limit if it was < 10
+        if (products.length > requestedLimit) {
+          products = products.slice(0, requestedLimit);
         }
 
         const results = products.map((p, i) => 
