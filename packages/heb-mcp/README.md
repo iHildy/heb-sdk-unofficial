@@ -15,9 +15,14 @@ Set the following on your server:
 
 - `MCP_MODE=remote` (optional; default)
 - `PORT=3000`
+- `MCP_SERVER_URL` (public base URL for OAuth + metadata, e.g. `https://mcp.example.com`)
+- `MCP_OAUTH_ISSUER_URL` (optional; defaults to `MCP_SERVER_URL`)
+- `MCP_OAUTH_SCOPES` (optional; default `mcp:tools`)
+- `MCP_OAUTH_CLIENTS_FILE` (optional; defaults to `./data/oauth/clients.json`)
 - `CLERK_JWKS_URL`
 - `CLERK_FRONTEND_URL` (required)
-- `CLERK_JWT_TEMPLATE_NAME` (required; should match the name of your Clerk JWT template)
+- `CLERK_JWT_TEMPLATE_NAME` (required; `aud` claim from Clerk JWT template)
+- `CLERK_SIGN_IN_URL` (required for OAuth logins; should redirect back to `/authorize`)
 - `HEB_SESSION_ENCRYPTION_KEY` (32‑byte base64 key)
 - `HEB_SESSION_STORE_DIR` (optional, default `./data/sessions`)
 
@@ -32,6 +37,8 @@ Generate a key with:
 openssl rand -base64 32
 ```
 
+`MCP_SERVER_URL` should be the externally reachable base URL (the same value you use in the extension).
+
 ### 2. Cookie Ingestion
 
 The extension sends cookies to:
@@ -43,14 +50,31 @@ Authorization: Bearer <clerk_session_token>
 
 Cookies are stored per Clerk user.
 
-### 3. SSE Endpoint
+### 3. OAuth Endpoints (ChatGPT)
+
+OAuth endpoints are exposed at:
+
+```
+/.well-known/oauth-authorization-server
+/.well-known/oauth-protected-resource
+/authorize
+/token
+/register
+```
+
+ChatGPT uses dynamic client registration and OAuth Authorization Code + PKCE.
+The `/sse` and `/messages` endpoints require OAuth bearer tokens with `mcp:tools` scope.
+For local HTTP testing, set `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL=1`.
+`CLERK_SIGN_IN_URL` may include a `{redirect}` or `{redirect_url}` placeholder, or it can accept a `redirect_url`/`after_sign_in_url` query param.
+
+### 4. SSE Endpoint
 
 ```
 GET /sse
 POST /messages?sessionId=...
 ```
 
-Pass the same Clerk session token as `Authorization: Bearer <token>` when connecting to both endpoints.
+Pass the OAuth access token as `Authorization: Bearer <token>` when connecting to both endpoints.
 
 ## Local Testing (Claude Desktop)
 

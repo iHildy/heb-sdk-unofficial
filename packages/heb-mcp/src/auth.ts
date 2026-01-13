@@ -41,7 +41,6 @@ export async function verifyClerkToken(token: string): Promise<AuthContext | nul
     if (!CLERK_JWT_TEMPLATE_NAME) {
       throw new Error('Missing CLERK_JWT_TEMPLATE_NAME for Clerk token verification.');
     }
-
     const key = await getVerificationKey();
     const { payload } = await jwtVerify(token, key, {
       issuer: CLERK_FRONTEND_URL || undefined,
