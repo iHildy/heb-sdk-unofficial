@@ -1,5 +1,6 @@
 import type { HEBSession } from './types.js';
-import { ENDPOINTS, GRAPHQL_HASHES } from './types.js';
+import { GRAPHQL_HASHES, MOBILE_GRAPHQL_HASHES } from './types.js';
+import { ensureFreshSession, normalizeHeaders, resolveEndpoint } from './session.js';
 
 /**
  * GraphQL request payload structure.
@@ -50,9 +51,11 @@ export async function graphqlRequest<T>(
   session: HEBSession,
   payload: GraphQLPayload
 ): Promise<GraphQLResponse<T>> {
-  const response = await fetch(ENDPOINTS.graphql, {
+  await ensureFreshSession(session);
+  const headers = normalizeHeaders(session.headers);
+  const response = await fetch(resolveEndpoint(session, 'graphql'), {
     method: 'POST',
-    headers: session.headers,
+    headers,
     body: JSON.stringify(payload),
   });
 
@@ -69,16 +72,13 @@ export async function graphqlRequest<T>(
  */
 export async function persistedQuery<T>(
   session: HEBSession,
-  operationName: keyof typeof GRAPHQL_HASHES,
+  operationName: string,
   variables: Record<string, unknown>
 ): Promise<GraphQLResponse<T>> {
-  const hash = GRAPHQL_HASHES[operationName];
-  if (!hash) {
-    throw new Error(`Unknown operation: ${operationName}. Available: ${Object.keys(GRAPHQL_HASHES).join(', ')}`);
-  }
+  const { hash, resolvedOperationName } = resolvePersistedQuery(session, operationName);
 
   return graphqlRequest<T>(session, {
-    operationName,
+    operationName: resolvedOperationName,
     variables,
     extensions: {
       persistedQuery: {
@@ -87,6 +87,36 @@ export async function persistedQuery<T>(
       },
     },
   });
+}
+
+const MOBILE_QUERY_MAP: Record<string, string> = {
+  cartItemV2: 'addItemToCartV2',
+  cartEstimated: 'cartV2',
+  typeaheadContent: 'TypeaheadContent',
+  ReserveTimeslot: 'reserveTimeslotV3',
+};
+
+function resolvePersistedQuery(
+  session: HEBSession,
+  operationName: string
+): { resolvedOperationName: string; hash: string } {
+  if (session.authMode === 'bearer') {
+    const mapped = MOBILE_QUERY_MAP[operationName] ?? operationName;
+    const mobileHash = (MOBILE_GRAPHQL_HASHES as Record<string, string>)[mapped];
+    if (mobileHash) {
+      return { resolvedOperationName: mapped, hash: mobileHash };
+    }
+  }
+
+  const webHash = (GRAPHQL_HASHES as Record<string, string>)[operationName];
+  if (webHash) {
+    return { resolvedOperationName: operationName, hash: webHash };
+  }
+
+  const available = session.authMode === 'bearer'
+    ? Array.from(new Set([...Object.keys(MOBILE_GRAPHQL_HASHES), ...Object.keys(GRAPHQL_HASHES)]))
+    : Object.keys(GRAPHQL_HASHES);
+  throw new Error(`Unknown operation: ${operationName}. Available: ${available.join(', ')}`);
 }
 
 /**
@@ -100,12 +130,17 @@ export async function nextDataRequest<T>(
     throw new Error('Session buildId required for Next.js data requests. Re-fetch session or provide buildId.');
   }
 
-  const url = `${ENDPOINTS.home}_next/data/${session.buildId}${path}`;
-  
-  const headers = {
-    ...session.headers,
+  await ensureFreshSession(session);
+  const url = `${resolveEndpoint(session, 'home')}_next/data/${session.buildId}${path}`;
+
+  const headers: Record<string, string> = {
+    ...normalizeHeaders(session.headers),
     'x-nextjs-data': '1',
   };
+
+  if ('authorization' in headers) {
+    delete headers.authorization;
+  }
 
   const response = await fetch(url, {
     method: 'GET',

@@ -6,7 +6,7 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { Cart, CartFee, CartItem, HEBClient, HEBCookies, PaymentGroup } from 'heb-client';
+import type { Cart, CartFee, CartItem, HEBClient, HEBCookies, HEBSession, PaymentGroup } from 'heb-client';
 import { isSessionValid } from 'heb-client';
 import { z } from 'zod';
 import { getSessionStatus, saveSessionToFile } from './session.js';
@@ -15,6 +15,7 @@ type ClientGetter = () => HEBClient | null;
 
 type ToolOptions = {
   saveCookies?: (cookies: HEBCookies) => Promise<void> | void;
+  saveSession?: (session: HEBSession) => Promise<void> | void;
   sessionStatusSource?: string;
 };
 
@@ -26,7 +27,7 @@ function requireClient(getClient: ClientGetter): { client: HEBClient } | { error
   if (!client) {
     return {
       error: {
-        content: [{ type: 'text', text: 'No valid HEB session. Please log in via the browser extension or set HEB_SAT/HEB_REESE84 env vars.' }],
+        content: [{ type: 'text', text: 'No valid HEB session. Link HEB OAuth or set HEB_SAT/HEB_REESE84 env vars.' }],
         isError: true,
       },
     };
@@ -82,7 +83,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       const session = client.session;
-      const storeId = session.cookies.CURR_SESSION_STORE;
+      const storeId = session.cookies?.CURR_SESSION_STORE;
       
       const status = [
         `**Session Status**`,
@@ -709,9 +710,11 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       try {
         await client.setStore(store_id);
         
-        if (options.saveCookies) {
+        if (options.saveSession) {
+          await options.saveSession(client.session);
+        } else if (options.saveCookies) {
           await options.saveCookies(client.session.cookies);
-        } else {
+        } else if (client.session.authMode !== 'bearer') {
           // Persist to file to trigger reload and save state
           saveSessionToFile(client.session.cookies);
         }

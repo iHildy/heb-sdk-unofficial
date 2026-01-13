@@ -94,13 +94,14 @@ export async function getCurbsideSlots(
     for (const group of slotsByGroup) {
       if (group.slots && Array.isArray(group.slots)) {
         for (const slot of group.slots) {
+          const isFull = typeof slot.isFull === 'boolean' ? slot.isFull : day.isFull;
           slots.push({
             slotId: slot.id,
             date: new Date(day.date),
             startTime: slot.start || '',
             endTime: slot.end || '',
             fee: slot.totalPrice?.amount || 0,
-            isAvailable: !slot.isFull,
+            isAvailable: isFull === undefined ? true : !isFull,
             raw: slot
           });
         }
@@ -140,7 +141,17 @@ export async function reserveCurbsideSlot(
   const response = await persistedQuery<{ reserveTimeslotV3: any }>(
     session,
     'ReserveTimeslot',
-    variables as any
+    session.authMode === 'bearer'
+      ? {
+          fulfillmentPickup: { pickupStoreId: String(storeId) },
+          fulfillmentType: 'PICKUP',
+          ignoreCartConflicts: false,
+          includeTax: false,
+          isAuthenticated: true,
+          storeId: parseInt(storeId, 10),
+          timeslot: { date, id: slotId },
+        }
+      : (variables as any)
   );
   
   if (response.errors) {

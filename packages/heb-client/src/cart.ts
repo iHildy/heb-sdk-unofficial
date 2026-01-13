@@ -1,5 +1,6 @@
 import { ERROR_CODES, hasErrorCode, persistedQuery, type GraphQLResponse } from './api.js';
 import type { HEBSession } from './types.js';
+import { isSessionAuthenticated } from './session.js';
 
 // ─────────────────────────────────────────────────────────────
 // Shared Types (used by both getCart and mutations)
@@ -169,6 +170,59 @@ interface RawCartEstimatedResponse {
   cartV2?: RawCartV2;
 }
 
+// Mobile cart response shapes (bearer sessions)
+interface MobileCartPrice {
+  amount?: number;
+  formattedAmount?: string;
+}
+
+interface MobileCartItem {
+  product?: {
+    id?: string;
+    productId?: string;
+    fullDisplayName?: string;
+    displayName?: string;
+    brand?: { name?: string };
+    isAvailableForCheckout?: boolean;
+    skus?: Array<{ id?: string; displayName?: string }>;
+  };
+  sku?: { id?: string; displayName?: string };
+  quantity?: number;
+  itemPrice?: {
+    listPrice?: MobileCartPrice;
+    salePrice?: MobileCartPrice;
+    adjustedTotal?: MobileCartPrice;
+    rawTotal?: MobileCartPrice;
+  };
+}
+
+interface MobileCart {
+  id?: string;
+  itemCount?: { total?: number };
+  items?: MobileCartItem[];
+  priceWithoutTax?: {
+    subtotal?: MobileCartPrice;
+    total?: MobileCartPrice;
+    totalDiscounts?: MobileCartPrice;
+    saleDiscountTotal?: MobileCartPrice;
+    retailDiscountTotal?: MobileCartPrice;
+    savings?: Array<{ totalSavings?: MobileCartPrice }>;
+  };
+  paymentGroups?: Array<{
+    paymentGroupId?: string;
+    paymentMethod?: string;
+    amount?: MobileCartPrice;
+    paymentAlias?: string;
+  }>;
+  fees?: Array<{
+    id?: string;
+    displayName?: string;
+    feeType?: string;
+    priceInfo?: { totalAmount?: MobileCartPrice };
+    feeDescription?: string | null;
+  }>;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Helper Functions
 // ─────────────────────────────────────────────────────────────
@@ -180,6 +234,80 @@ function parseDisplayPrice(raw?: RawDisplayPrice): DisplayPrice {
   return {
     amount: raw?.amount ?? 0,
     formatted: raw?.formattedAmount ?? '$0.00',
+  };
+}
+
+function parseMobileDisplayPrice(raw?: MobileCartPrice): DisplayPrice {
+  return {
+    amount: raw?.amount ?? 0,
+    formatted: raw?.formattedAmount ?? '$0.00',
+  };
+}
+
+function parseMobileCartItems(items?: MobileCartItem[]): CartItem[] {
+  if (!items?.length) return [];
+  return items.map(item => {
+    const product = item.product;
+    const sku = item.sku ?? product?.skus?.[0];
+    const priceSource = item.itemPrice?.salePrice
+      ?? item.itemPrice?.listPrice
+      ?? item.itemPrice?.adjustedTotal
+      ?? item.itemPrice?.rawTotal;
+
+    return {
+      productId: product?.id ?? product?.productId ?? '',
+      skuId: sku?.id ?? '',
+      name: product?.fullDisplayName ?? product?.displayName ?? sku?.displayName,
+      quantity: item.quantity ?? 0,
+      price: priceSource ? parseMobileDisplayPrice(priceSource) : undefined,
+      brand: product?.brand?.name,
+      inStock: product?.isAvailableForCheckout ?? undefined,
+    };
+  });
+}
+
+function parseMobileCart(cart: MobileCart): Cart {
+  const items = parseMobileCartItems(cart.items);
+
+  const paymentGroups: PaymentGroup[] = (cart.paymentGroups ?? []).map(pg => ({
+    paymentGroupId: pg.paymentGroupId ?? '',
+    paymentMethod: pg.paymentMethod ?? '',
+    amount: parseMobileDisplayPrice(pg.amount),
+    paymentAlias: pg.paymentAlias,
+  }));
+
+  const fees: CartFee[] = (cart.fees ?? []).map(fee => ({
+    id: fee.id ?? '',
+    displayName: fee.displayName ?? '',
+    feeType: fee.feeType ?? '',
+    amount: parseMobileDisplayPrice(fee.priceInfo?.totalAmount),
+    description: fee.feeDescription ?? undefined,
+  }));
+
+  let savingsAmount = 0;
+  if (cart.priceWithoutTax?.savings?.length) {
+    savingsAmount = cart.priceWithoutTax.savings.reduce(
+      (sum, s) => sum + (s.totalSavings?.amount ?? 0),
+      0
+    );
+  } else if (cart.priceWithoutTax?.totalDiscounts?.amount) {
+    savingsAmount = Math.abs(cart.priceWithoutTax.totalDiscounts.amount);
+  }
+
+  const savings: DisplayPrice | undefined = savingsAmount > 0 ? {
+    amount: savingsAmount,
+    formatted: `$${savingsAmount.toFixed(2)}`,
+  } : undefined;
+
+  return {
+    id: cart.id ?? '',
+    items,
+    itemCount: cart.itemCount?.total ?? items.reduce((sum, i) => sum + i.quantity, 0),
+    subtotal: parseMobileDisplayPrice(cart.priceWithoutTax?.subtotal),
+    total: parseMobileDisplayPrice(cart.priceWithoutTax?.total),
+    savings,
+    paymentGroups,
+    fees,
   };
 }
 
@@ -238,7 +366,20 @@ function parseCartResponse(response: GraphQLResponse<RawCartResponse>): CartResp
   }
 
   // Success response - parse cart data
-  const cart = data as RawCartSuccessResponse;
+  const cart = data as RawCartSuccessResponse & MobileCart;
+
+  if (Array.isArray(cart.items)) {
+    const items = parseMobileCartItems(cart.items);
+    return {
+      success: true,
+      cart: {
+        items,
+        itemCount: cart.itemCount?.total ?? items.reduce((sum, i) => sum + i.quantity, 0),
+        subtotal: cart.priceWithoutTax?.subtotal ? parseMobileDisplayPrice(cart.priceWithoutTax.subtotal) : undefined,
+      },
+    };
+  }
+
   const items: CartItem[] = (cart.commerceItems ?? []).map(item => ({
     productId: item.productId ?? '',
     skuId: item.skuId ?? '',
@@ -274,10 +415,14 @@ function parseGetCartResponse(response: GraphQLResponse<RawCartEstimatedResponse
     throw new Error(`Failed to get cart: ${errorMsg}`);
   }
 
-  const cartV2 = response.data?.cartV2;
-  
+  const cartV2 = response.data?.cartV2 as (RawCartV2 & MobileCart) | undefined;
+
   if (!cartV2) {
     throw new Error('No cart data returned');
+  }
+
+  if (Array.isArray(cartV2.items)) {
+    return parseMobileCart(cartV2);
   }
 
   // Parse commerce items
@@ -360,12 +505,14 @@ function parseGetCartResponse(response: GraphQLResponse<RawCartEstimatedResponse
  * });
  */
 export async function getCart(session: HEBSession): Promise<Cart> {
-  const isLoggedIn = Boolean(session.cookies.sat);
+  const isLoggedIn = isSessionAuthenticated(session);
 
   const response = await persistedQuery<RawCartEstimatedResponse>(
     session,
-    'cartEstimated',
-    { userIsLoggedIn: isLoggedIn }
+    session.authMode === 'bearer' ? 'cartV2' : 'cartEstimated',
+    session.authMode === 'bearer'
+      ? { includeTax: false, isAuthenticated: isLoggedIn }
+      : { userIsLoggedIn: isLoggedIn }
   );
 
   return parseGetCartResponse(response);
@@ -393,17 +540,26 @@ export async function addToCart(
   quantity: number
 ): Promise<CartResponse> {
   // Determine if user is logged in based on sat cookie
-  const isLoggedIn = Boolean(session.cookies.sat);
+  const isLoggedIn = isSessionAuthenticated(session);
 
   const response = await persistedQuery<RawCartResponse>(
     session,
     'cartItemV2',
-    {
-      userIsLoggedIn: isLoggedIn,
-      productId,
-      skuId,
-      quantity,
-    }
+    session.authMode === 'bearer'
+      ? {
+          includeTax: false,
+          isAuthenticated: isLoggedIn,
+          parentOrderId: null,
+          productId,
+          quantity,
+          skuId,
+        }
+      : {
+          userIsLoggedIn: isLoggedIn,
+          productId,
+          skuId,
+          quantity,
+        }
   );
 
   return parseCartResponse(response);

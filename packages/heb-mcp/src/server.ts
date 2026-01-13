@@ -22,11 +22,17 @@ import express from 'express';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-import type { HEBClient, HEBCookies } from 'heb-client';
+import type { HEBClient, HEBCookies, HEBSession } from 'heb-client';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 import { requireAuth } from './auth.js';
+import {
+  exchangeHebCode,
+  isUpsertEnabled,
+  maybeUpsertHebUser,
+  resolveHebOAuthConfig,
+} from './heb-oauth.js';
 import { createSessionStoreFromEnv, MultiTenantSessionManager } from './multi-tenant.js';
 import {
   ClerkOAuthProvider,
@@ -52,7 +58,7 @@ async function main(): Promise<void> {
     sessionManager.initialize();
     await startLocalCookieBridgeServer();
 
-    const server = createMcpServer(() => sessionManager.getClient(), saveSessionToFile, 'Local File');
+    const server = createMcpServer(() => sessionManager.getClient(), saveSessionToFile, undefined, 'Local File');
     await startSTDIOServer(server);
     return;
   }
@@ -66,6 +72,7 @@ async function main(): Promise<void> {
 function createMcpServer(
   getClient: () => HEBClient | null,
   saveCookies?: (cookies: HEBCookies) => Promise<void> | void,
+  saveSession?: (session: HEBSession) => Promise<void> | void,
   sessionStatusSource?: string
 ): McpServer {
   const server = new McpServer({
@@ -75,6 +82,7 @@ function createMcpServer(
 
   registerTools(server, getClient, {
     saveCookies,
+    saveSession,
     sessionStatusSource,
   });
 
@@ -284,6 +292,85 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     }
   });
 
+  app.post('/api/heb/oauth/exchange', async (req, res) => {
+    const auth = await requireAuth(req, res);
+    if (!auth) return;
+
+    const { code, code_verifier: codeVerifierRaw, codeVerifier: codeVerifierAlt } = req.body ?? {};
+    const codeVerifier = codeVerifierRaw ?? codeVerifierAlt;
+    if (!code || !codeVerifier) {
+      res.status(400).json({ error: 'Missing code or code_verifier' });
+      return;
+    }
+
+    try {
+      const config = resolveHebOAuthConfig();
+      const tokens = await exchangeHebCode({ code, codeVerifier, config });
+
+      const existing = sessionManagerRemote.getSession(auth.userId);
+      await sessionManagerRemote.saveTokens(auth.userId, tokens, existing?.cookies);
+
+      if (isUpsertEnabled()) {
+        const upsert = await maybeUpsertHebUser({
+          accessToken: tokens.accessToken,
+          idToken: tokens.idToken,
+          enabled: isUpsertEnabled(),
+          userAgent: config.userAgent,
+        });
+        if (upsert && !upsert.ok) {
+          console.warn('[heb-mcp] UpsertUserMutation failed:', upsert.errors);
+        }
+      }
+
+      res.json({
+        success: true,
+        expiresAt: tokens.expiresAt ? tokens.expiresAt.toISOString() : null,
+      });
+    } catch (error) {
+      console.error('[heb-mcp] Failed to exchange HEB OAuth code:', error);
+      res.status(500).json({ error: 'Failed to exchange HEB OAuth code' });
+    }
+  });
+
+  app.post('/api/heb/oauth/refresh', async (req, res) => {
+    const auth = await requireAuth(req, res);
+    if (!auth) return;
+
+    const session = sessionManagerRemote.getSession(auth.userId);
+    if (!session?.tokens?.refreshToken) {
+      res.status(400).json({ error: 'No refresh token found for user' });
+      return;
+    }
+
+    try {
+      await session.refresh?.();
+      res.json({
+        success: true,
+        expiresAt: session.expiresAt ? session.expiresAt.toISOString() : null,
+      });
+    } catch (error) {
+      console.error('[heb-mcp] Failed to refresh HEB OAuth tokens:', error);
+      res.status(500).json({ error: 'Failed to refresh tokens' });
+    }
+  });
+
+  app.get('/api/heb/oauth/status', async (req, res) => {
+    const auth = await requireAuth(req, res);
+    if (!auth) return;
+
+    const session = sessionManagerRemote.getSession(auth.userId);
+    if (!session || session.authMode !== 'bearer') {
+      res.json({ connected: false });
+      return;
+    }
+
+    res.json({
+      connected: true,
+      expiresAt: session.expiresAt ? session.expiresAt.toISOString() : null,
+      hasRefreshToken: Boolean(session.tokens?.refreshToken),
+    });
+  });
+
   const transports = new Map<string, { transport: InstanceType<typeof SSEServerTransport>; server: McpServer; userId: string }>();
 
   app.get('/sse', requireOAuth, async (req, res) => {
@@ -303,6 +390,12 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
       const server = createMcpServer(
         () => sessionManagerRemote.getClient(userId),
         (cookies) => sessionManagerRemote.saveCookies(userId, cookies),
+        (session) => {
+          if (session.authMode === 'bearer' && session.tokens) {
+            return sessionManagerRemote.saveTokens(userId, session.tokens, session.cookies);
+          }
+          return sessionManagerRemote.saveCookies(userId, session.cookies);
+        },
         'Remote Session Store'
       );
 

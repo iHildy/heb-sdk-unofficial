@@ -91,6 +91,7 @@ Main client class with all methods:
 |----------|-------------|
 | `createSession(cookies, buildId?)` | Create session from cookies |
 | `createSessionFromCookies(cookieStr, buildId?)` | Parse cookie string |
+| `createTokenSession(tokens)` | Create session from OAuth bearer tokens (mobile) |
 | `isSessionValid(session)` | Check if session expired |
 
 ## Error Handling
@@ -112,6 +113,7 @@ try {
 ## Notes
 
 - **Session expiry**: The `sat` token expires after ~24h. Re-extract cookies when you get auth errors.
+- **OAuth tokens (mobile)**: Access tokens expire in ~30 minutes. You must refresh using the `refresh_token`.
 - **Bot protection**: The `reese84` and `incap_ses` cookies can go stale. If requests fail with 403, refresh them.
 - **Store context**: Set `CURR_SESSION_STORE` to get accurate pricing and availability for your store.
 - **Search data**: Product search uses the Next.js data endpoint and requires a valid buildId.

@@ -25,6 +25,13 @@ Set the following on your server:
 - `CLERK_SIGN_IN_URL` (required for OAuth logins; should redirect back to `/authorize`)
 - `HEB_SESSION_ENCRYPTION_KEY` (32‑byte base64 key)
 - `HEB_SESSION_STORE_DIR` (optional, default `./data/sessions`)
+- `HEB_OAUTH_CLIENT_ID` (optional, default `myheb-ios-prd`)
+- `HEB_OAUTH_REDIRECT_URI` (optional, default `com.heb.myheb://oauth2redirect`)
+- `HEB_OAUTH_SCOPE` (optional, default `openid profile email`)
+- `HEB_OAUTH_AUTH_URL` (optional, default `https://accounts.heb.com/oidc/auth`)
+- `HEB_OAUTH_TOKEN_URL` (optional, default `https://accounts.heb.com/oidc/token`)
+- `HEB_OAUTH_USER_AGENT` (optional, default mobile UA)
+- `HEB_OAUTH_UPSERT_USER` (optional, default `true`)
 
 If you want the extension to auto-fill settings from `.env`, set:
 
@@ -50,7 +57,38 @@ Authorization: Bearer <clerk_session_token>
 
 Cookies are stored per Clerk user.
 
-### 3. OAuth Endpoints (ChatGPT)
+### 3. HEB OAuth (Mobile) Linking (Experimental)
+
+Since we are a third‑party, we impersonate the H‑E‑B mobile OAuth client. This uses Authorization Code + PKCE and returns Bearer tokens for the mobile GraphQL API.
+
+Flow outline:
+
+1. Generate PKCE (`code_verifier`, `code_challenge`) on the client.
+2. Open the HEB auth URL (mobile client) and complete login + OTP.
+3. Intercept the `com.heb.myheb://oauth2redirect?...` redirect to capture the `code`.
+4. Exchange the code with:
+
+```
+POST /api/heb/oauth/exchange
+Authorization: Bearer <clerk_session_token>
+Content-Type: application/json
+
+{
+  \"code\": \"...\",
+  \"code_verifier\": \"...\"
+}
+```
+
+Optional utilities:
+
+- `GET /api/heb/oauth/status` to check if tokens are stored.
+- `POST /api/heb/oauth/refresh` to force refresh.
+
+Tokens are encrypted and stored per user in the same file store as cookies (`HEB_SESSION_ENCRYPTION_KEY` required).
+
+Helper utilities for PKCE and auth URL generation live in the `heb-auth` package (see `packages/heb-auth`).
+
+### 4. OAuth Endpoints (ChatGPT)
 
 OAuth endpoints are exposed at:
 
@@ -67,7 +105,7 @@ The `/sse` and `/messages` endpoints require OAuth bearer tokens with `mcp:tools
 For local HTTP testing, set `MCP_DANGEROUSLY_ALLOW_INSECURE_ISSUER_URL=1`.
 `CLERK_SIGN_IN_URL` may include a `{redirect}` or `{redirect_url}` placeholder, or it can accept a `redirect_url`/`after_sign_in_url` query param.
 
-### 4. SSE Endpoint
+### 5. SSE Endpoint
 
 ```
 GET /sse

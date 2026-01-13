@@ -254,24 +254,27 @@ function formatRemainingTime(expiresAt: Date): string {
 export function getSessionStatus(session: HEBSession | null, options?: { source?: string }): string {
   if (!session) {
     const fallbackSource = options?.source ?? `Local File (${COOKIE_FILE})`;
-    return `No session loaded. Set HEB_SAT/HEB_REESE84 env vars or use Cookie Bridge extension (${fallbackSource}).`;
+    return `No session loaded. Link HEB OAuth or set HEB_SAT/HEB_REESE84 env vars (${fallbackSource}).`;
   }
 
   const source = options?.source ?? (process.env.HEB_SAT ? 'Environment Variables' : 'Local File');
   const expiresAt = session.expiresAt;
-  const storeId = session.cookies.CURR_SESSION_STORE ?? 'not set';
+  const storeId = session.cookies?.CURR_SESSION_STORE ?? 'not set';
 
   if (!validateSession(session)) {
     const expiresStr = expiresAt ? expiresAt.toLocaleString() : 'unknown';
-    return `[${source}] Session expired at ${expiresStr}. Re-authenticate to continue.`;
+    const modeLabel = session.authMode === 'bearer' ? 'OAuth' : 'Cookie';
+    return `[${source}] ${modeLabel} session expired at ${expiresStr}. Re-authenticate to continue.`;
   }
 
   const timeRemains = expiresAt ? ` (${formatRemainingTime(expiresAt)} remaining)` : '';
   const expiresStr = expiresAt ? expiresAt.toLocaleString() : 'unknown';
   
   if (!storeId || storeId === 'not set') {
-    return `[${source}] Session valid until ${expiresStr}${timeRemains}. WARNING: No Store Selected. Use search_stores and set_store tools.`;
+    const modeLabel = session.authMode === 'bearer' ? 'OAuth' : 'Cookie';
+    return `[${source}] ${modeLabel} session valid until ${expiresStr}${timeRemains}. WARNING: No Store Selected. Use search_stores and set_store tools.`;
   }
 
-  return `[${source}] Session valid until ${expiresStr}${timeRemains}. Store: ${storeId}`;
+  const modeLabel = session.authMode === 'bearer' ? 'OAuth' : 'Cookie';
+  return `[${source}] ${modeLabel} session valid until ${expiresStr}${timeRemains}. Store: ${storeId}`;
 }

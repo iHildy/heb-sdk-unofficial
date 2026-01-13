@@ -1,0 +1,40 @@
+{
+  "name": "heb-auth",
+  "version": "0.1.0",
+  "description": "HEB mobile OAuth helpers (PKCE + token exchange)",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "keywords": [
+    "heb",
+    "oauth",
+    "pkce",
+    "auth"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.6",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}
