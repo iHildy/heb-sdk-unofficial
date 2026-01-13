@@ -36,23 +36,11 @@ if (fs.existsSync(envPath)) {
   env = parseEnv(fs.readFileSync(envPath, 'utf8'));
 }
 
-const serverUrl =
-  env.MCP_SERVER_URL ||
-  env.HEB_MCP_SERVER_URL ||
-  env.HEB_MCP_URL ||
-  env.MCP_BASE_URL ||
-  '';
+const serverUrl = env.MCP_SERVER_URL || '';
 
-const clerkPublishableKey =
-  env.CLERK_PUBLISHABLE_KEY ||
-  env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
-  '';
+const clerkPublishableKey = env.CLERK_PUBLISHABLE_KEY || '';
 
-const jwtTemplate =
-  env.CLERK_JWT_TEMPLATE_NAME ||
-  env.CLERK_JWT_TEMPLATE ||
-  env.CLERK_JWT_TEMPLATE_ID ||
-  '';
+const jwtTemplate = env.CLERK_JWT_TEMPLATE_NAME || '';
 
 const config = {};
 if (serverUrl) config.serverUrl = serverUrl;

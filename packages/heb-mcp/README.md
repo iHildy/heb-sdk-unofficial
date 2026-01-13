@@ -16,8 +16,8 @@ Set the following on your server:
 - `MCP_MODE=remote` (optional; default)
 - `PORT=3000`
 - `CLERK_JWKS_URL` **or** `CLERK_JWT_PUBLIC_KEY` (PEM)
-- `CLERK_FRONTEND_URL` (recommended)
-- `CLERK_AUDIENCE` (recommended)
+- `CLERK_FRONTEND_URL` (required)
+- `CLERK_AUDIENCE` (required; should match the `aud` claim in your Clerk JWT template)
 - `HEB_SESSION_ENCRYPTION_KEY` (32‑byte base64 key)
 - `HEB_SESSION_STORE_DIR` (optional, default `./data/sessions`)
 

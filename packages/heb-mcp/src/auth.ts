@@ -48,6 +48,13 @@ export function extractBearerToken(req: Request): string | null {
 
 export async function verifyClerkToken(token: string): Promise<AuthContext | null> {
   try {
+    if (!CLERK_FRONTEND_URL) {
+      throw new Error('Missing CLERK_FRONTEND_URL for Clerk token verification.');
+    }
+    if (!CLERK_AUDIENCE) {
+      throw new Error('Missing CLERK_AUDIENCE for Clerk token verification.');
+    }
+
     const key = await getVerificationKey();
     const { payload } = key.kind === 'key'
       ? await jwtVerify(token, key.key, {
