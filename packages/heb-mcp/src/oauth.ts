@@ -1,17 +1,17 @@
-import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
-import type { Request, Response, NextFunction } from 'express';
 import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients.js';
-import type { OAuthClientInformationFull, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
-import type { AuthorizationParams, OAuthServerProvider } from '@modelcontextprotocol/sdk/server/auth/provider.js';
-import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import {
   InvalidGrantError,
   InvalidTargetError,
   InvalidTokenError,
 } from '@modelcontextprotocol/sdk/server/auth/errors.js';
+import type { AuthorizationParams, OAuthServerProvider } from '@modelcontextprotocol/sdk/server/auth/provider.js';
+import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { checkResourceAllowed, resourceUrlFromServerUrl } from '@modelcontextprotocol/sdk/shared/auth-utils.js';
+import type { OAuthClientInformationFull, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
+import crypto from 'crypto';
+import type { NextFunction, Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 
 import { extractBearerToken, verifyClerkToken, type AuthContext } from './auth.js';
 
@@ -131,7 +131,16 @@ function resolveClerkToken(req: Request): string | null {
   }
 
   const cookies = parseCookies(req.headers.cookie);
-  return cookies.__session || cookies.__clerk_session || null;
+  const token = cookies.__session || cookies.__clerk_session || null;
+
+  if (!token) {
+    console.log('[heb-mcp] No token found in cookies. Available cookies:', Object.keys(cookies));
+    if (req.query.clerk_token) {
+      console.log('[heb-mcp] Found clerk_token in query:', req.query.clerk_token);
+    }
+  }
+
+  return token;
 }
 
 export function resolvePublicUrl(port: number): URL {
