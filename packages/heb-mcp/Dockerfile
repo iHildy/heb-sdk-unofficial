@@ -37,18 +37,28 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-# Copy built artifacts
-COPY --from=builder /app/packages/heb-mcp/dist ./dist
-COPY --from=builder /app/packages/heb-mcp/package.json ./
-COPY --from=builder /app/packages/heb-client/dist ./node_modules/heb-client/dist
-COPY --from=builder /app/packages/heb-client/package.json ./node_modules/heb-client/
+# Copy workspace configuration and lockfile
+COPY --from=builder /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/package.json ./
 
-# Install production dependencies only
-RUN pnpm install --prod --ignore-scripts
+# Copy built package artifacts for heb-client
+COPY --from=builder /app/packages/heb-client/package.json ./packages/heb-client/
+COPY --from=builder /app/packages/heb-client/dist ./packages/heb-client/dist
+
+# Copy built package artifacts for heb-mcp
+COPY --from=builder /app/packages/heb-mcp/package.json ./packages/heb-mcp/
+COPY --from=builder /app/packages/heb-mcp/dist ./packages/heb-mcp/dist
+
+# Install production dependencies for the workspace, focused on heb-mcp
+# We use --prod to skip devDependencies and --ignore-scripts to avoid heavy post-installs
+RUN pnpm install --prod --frozen-lockfile --filter heb-mcp --ignore-scripts
 
 # Default to remote mode for container deployment
 ENV MCP_MODE=remote
 ENV PORT=3000
+ENV NODE_ENV=production
+
+# The working directory should be the package directory for running
+WORKDIR /app/packages/heb-mcp
 
 EXPOSE 3000
 
