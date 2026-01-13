@@ -5,8 +5,6 @@ services:
     build:
       context: ../..
       dockerfile: packages/heb-mcp/Dockerfile
-    ports:
-      - "3000:3000"
     environment:
       - MCP_MODE=remote
       - PORT=3000
