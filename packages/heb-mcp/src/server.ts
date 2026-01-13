@@ -13,11 +13,11 @@
  * - Local: POST http://localhost:4321/api/cookies
  */
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { getOAuthProtectedResourceMetadataUrl, mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import express from 'express';
 
 import type { HEBClient, HEBCookies } from 'heb-client';
@@ -141,6 +141,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
   const app = express();
 
   app.use(express.json({ limit: '250kb' }));
+  app.set('trust proxy', 1); 
 
   const oauthProvider = new ClerkOAuthProvider({ publicUrl, supportedScopes: oauthScopes });
   app.use('/authorize', createAuthorizeContextMiddleware({
