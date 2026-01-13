@@ -46,8 +46,8 @@ COPY --from=builder /app/packages/heb-client/package.json ./node_modules/heb-cli
 # Install production dependencies only
 RUN pnpm install --prod --ignore-scripts
 
-# Default to SSE for container deployment
-ENV MCP_TRANSPORT=sse
+# Default to remote mode for container deployment
+ENV MCP_MODE=remote
 ENV PORT=3000
 
 EXPOSE 3000
