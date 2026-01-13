@@ -135,8 +135,31 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
           }],
         };
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        // Detect rate limiting errors and provide helpful guidance
+        const isRateLimited = errorMessage.includes('rate limiting') || 
+                              errorMessage.includes('degraded results');
+        
+        if (isRateLimited) {
+          return {
+            content: [{ 
+              type: 'text', 
+              text: `⚠️ Search rate limit detected!\n\n` +
+                    `The H-E-B API is returning cached fallback data instead of actual search results. ` +
+                    `This typically happens after approximately 10-12 rapid searches.\n\n` +
+                    `**Suggestions:**\n` +
+                    `- Wait 2-3 minutes before making more search requests\n` +
+                    `- Try refreshing your session (re-authenticate)\n` +
+                    `- Use the get_order_history tool to reorder previously purchased items instead of searching\n\n` +
+                    `Original error: ${errorMessage}`
+            }],
+            isError: true,
+          };
+        }
+        
         return {
-          content: [{ type: 'text', text: `Search failed: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+          content: [{ type: 'text', text: `Search failed: ${errorMessage}` }],
           isError: true,
         };
       }
