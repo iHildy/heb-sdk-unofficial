@@ -19,12 +19,13 @@
 <body>
   <h3>HEB Bridge</h3>
   <div class="status" id="status">Ready</div>
+  <div class="status" id="debug" style="font-size:10px; color:#666; text-align:left;"></div>
 
   <label for="serverUrl">Server URL</label>
   <input id="serverUrl" placeholder="https://mcp.example.com" />
 
-  <label for="clerkKey">Clerk Publishable Key</label>
-  <input id="clerkKey" placeholder="pk_live_..." />
+  <label for="clerkSessionUrl">Clerk Sign-In URL</label>
+  <input id="clerkSessionUrl" placeholder="https://accounts.example.com/sign-in" />
 
   <label for="jwtTemplate">JWT Template Name (optional)</label>
   <input id="jwtTemplate" placeholder="heb-mcp" />
@@ -33,17 +34,18 @@
 
   <div class="divider"></div>
 
-  <div id="authSection">
-    <div id="authStatus" class="status">Not signed in</div>
-    <div id="clerk-signin"></div>
-    <button id="signOutBtn" class="secondary" style="display:none;">Sign Out</button>
-  </div>
+    <div id="authSection">
+      <div id="authStatus" class="status">Not signed in</div>
+      <div id="clerk-signin" class="status">Sign in happens in your browser.</div>
+      <button id="signInBtn" class="secondary">Open Sign-In Page</button>
+      <button id="signOutBtn" class="secondary" style="display:none;">Sign Out</button>
+    </div>
+
 
   <div class="divider"></div>
 
   <button id="syncBtn">Sync Cookies</button>
 
-  <script src="vendor/clerk/clerk.browser.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

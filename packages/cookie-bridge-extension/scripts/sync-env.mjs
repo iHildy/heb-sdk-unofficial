@@ -41,11 +41,13 @@ const serverUrl = env.MCP_SERVER_URL || '';
 const clerkPublishableKey = env.CLERK_PUBLISHABLE_KEY || '';
 
 const jwtTemplate = env.CLERK_JWT_TEMPLATE_NAME || '';
+const clerkSignInUrl = env.CLERK_SIGN_IN_URL || '';
 
 const config = {};
 if (serverUrl) config.serverUrl = serverUrl;
 if (clerkPublishableKey) config.clerkPublishableKey = clerkPublishableKey;
 if (jwtTemplate) config.jwtTemplate = jwtTemplate;
+if (clerkSignInUrl) config.clerkSignInUrl = clerkSignInUrl;
 
 fs.writeFileSync(outputPath, JSON.stringify(config, null, 2));
 console.log(`Wrote ${outputPath}`);

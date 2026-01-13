@@ -1,6 +1,7 @@
 const DEFAULT_SERVER_URL = 'http://localhost:4321';
 const COOKIE_ENDPOINT_PATH = '/api/cookies';
 let configCache = null;
+let lastBadgeText = '';
 
 async function loadConfig() {
   if (configCache) return configCache;
@@ -36,12 +37,30 @@ function permissionsContains(origins) {
   });
 }
 
+function normalizeSessionUrl(value, serverUrl) {
+  const trimmed = (value || '').trim();
+  if (trimmed) return trimmed;
+  try {
+    const host = new URL(serverUrl).host;
+    return `https://accounts.${host}`;
+  } catch {
+    return '';
+  }
+}
+
 async function getSettings() {
   const config = await loadConfig();
-  const { serverUrl, clerkToken } = await storageGet(['serverUrl', 'clerkToken']);
+  const { serverUrl, clerkToken, clerkSessionUrl } = await storageGet([
+    'serverUrl',
+    'clerkToken',
+    'clerkSessionUrl',
+  ]);
+  const resolvedServerUrl = serverUrl || config.serverUrl || DEFAULT_SERVER_URL;
+  const configSessionUrl = config.clerkSessionUrl || (typeof config.clerkPublishableKey === 'string' && config.clerkPublishableKey.startsWith('http') ? config.clerkPublishableKey : '');
   return {
-    serverUrl: serverUrl || config.serverUrl || DEFAULT_SERVER_URL,
+    serverUrl: resolvedServerUrl,
     clerkToken: clerkToken || null,
+    clerkSessionUrl: normalizeSessionUrl(clerkSessionUrl || configSessionUrl, resolvedServerUrl),
   };
 }
 
@@ -55,18 +74,61 @@ async function hasHostPermission(serverUrl) {
 }
 
 function setBadge(text, color) {
+  lastBadgeText = text;
   chrome.action.setBadgeText({ text });
   chrome.action.setBadgeBackgroundColor({ color });
 }
 
+async function getCookieValue(url, name) {
+  return new Promise((resolve) => {
+    chrome.cookies.get({ url, name }, (cookie) => resolve(cookie?.value || null));
+  });
+}
+
+async function resolveClerkTokenFromCookies(clerkSessionUrl) {
+  if (!clerkSessionUrl) return null;
+  try {
+    const origin = new URL(clerkSessionUrl).origin;
+    const names = ['__session', '__clerk_session'];
+    const origins = new Set([origin]);
+
+    if (origin.includes('://accounts.')) {
+      origins.add(origin.replace('://accounts.', '://'));
+      origins.add(origin.replace('://accounts.', '://clerk.'));
+    }
+
+    if (origin.includes('://clerk.')) {
+      origins.add(origin.replace('://clerk.', '://accounts.'));
+      origins.add(origin.replace('://clerk.', '://'));
+    }
+
+    if (!origin.includes('://accounts.') && !origin.includes('://clerk.')) {
+      const base = origin.replace('://', '://accounts.');
+      const clerk = origin.replace('://', '://clerk.');
+      origins.add(base);
+      origins.add(clerk);
+    }
+
+    for (const currentOrigin of origins) {
+      for (const name of names) {
+        const value = await getCookieValue(currentOrigin, name);
+        if (value) return value;
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 async function sendCookies(cause) {
   try {
-    const { serverUrl, clerkToken } = await getSettings();
+    const { serverUrl, clerkToken, clerkSessionUrl } = await getSettings();
 
     if (!(await hasHostPermission(serverUrl))) {
       console.warn('Missing host permissions for server URL. Open the popup to grant permissions.');
       setBadge('PERM', '#9E9E9E');
-      return;
+      return 'PERM';
     }
 
     const allCookies = await chrome.cookies.getAll({ domain: 'heb.com' });
@@ -78,13 +140,18 @@ async function sendCookies(cause) {
     if (!cookieMap.sat || !cookieMap.reese84) {
       console.log('Exiting sync: Missing key cookies (sat/reese84).');
       setBadge('WAIT', '#FFC107');
-      return;
+      return 'WAIT';
     }
 
-    if (!isLocalServer(serverUrl) && !clerkToken) {
-      console.warn('Missing Clerk token. Sign in via the extension popup.');
+    let resolvedToken = clerkToken;
+    if (!isLocalServer(serverUrl) && !resolvedToken) {
+      resolvedToken = await resolveClerkTokenFromCookies(clerkSessionUrl);
+    }
+
+    if (!isLocalServer(serverUrl) && !resolvedToken) {
+      console.warn('Missing Clerk session token. Sign in via the extension popup.');
       setBadge('AUTH', '#F44336');
-      return;
+      return 'AUTH';
     }
 
     const endpoint = new URL(COOKIE_ENDPOINT_PATH, serverUrl).toString();
@@ -93,7 +160,7 @@ async function sendCookies(cause) {
     };
 
     if (!isLocalServer(serverUrl)) {
-      headers.Authorization = `Bearer ${clerkToken}`;
+      headers.Authorization = `Bearer ${resolvedToken}`;
     }
 
     console.log(`Sending cookies to ${endpoint}...`);
@@ -106,20 +173,22 @@ async function sendCookies(cause) {
     if (response.ok) {
       console.log(`Cookies synced successfully (${cause})`);
       setBadge('ON', '#4CAF50');
-      return;
+      return 'ON';
     }
 
     if (response.status === 401) {
       console.error('Server rejected cookies: unauthorized');
       setBadge('AUTH', '#F44336');
-      return;
+      return 'AUTH';
     }
 
     console.error('Server rejected cookies:', response.status);
     setBadge('ERR', '#F44336');
+    return 'ERR';
   } catch (error) {
     console.error('Failed to sync cookies (Server likely down):', error);
     setBadge('OFF', '#9E9E9E');
+    return 'OFF';
   }
 }
 
@@ -145,8 +214,8 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'sync') {
     sendCookies('manual')
-      .then(() => sendResponse({ success: true }))
-      .catch(() => sendResponse({ success: false }));
+      .then((status) => sendResponse({ success: true, status: status || lastBadgeText }))
+      .catch(() => sendResponse({ success: false, status: lastBadgeText }));
     return true;
   }
 });

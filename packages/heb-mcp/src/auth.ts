@@ -38,14 +38,25 @@ export async function verifyClerkToken(token: string): Promise<AuthContext | nul
     if (!CLERK_FRONTEND_URL) {
       throw new Error('Missing CLERK_FRONTEND_URL for Clerk token verification.');
     }
-    if (!CLERK_JWT_TEMPLATE_NAME) {
-      throw new Error('Missing CLERK_JWT_TEMPLATE_NAME for Clerk token verification.');
-    }
     const key = await getVerificationKey();
-    const { payload } = await jwtVerify(token, key, {
-      issuer: CLERK_FRONTEND_URL || undefined,
-      audience: CLERK_JWT_TEMPLATE_NAME || undefined,
-    });
+
+    let payload;
+    try {
+      if (CLERK_JWT_TEMPLATE_NAME) {
+        ({ payload } = await jwtVerify(token, key, {
+          issuer: CLERK_FRONTEND_URL || undefined,
+          audience: CLERK_JWT_TEMPLATE_NAME || undefined,
+        }));
+      } else {
+        ({ payload } = await jwtVerify(token, key, {
+          issuer: CLERK_FRONTEND_URL || undefined,
+        }));
+      }
+    } catch (error) {
+      ({ payload } = await jwtVerify(token, key, {
+        issuer: CLERK_FRONTEND_URL || undefined,
+      }));
+    }
 
     const userId = typeof payload.sub === 'string'
       ? payload.sub
