@@ -182,14 +182,21 @@ export function createAuthorizeContextMiddleware(options: {
 function buildClerkSignInUrl(raw: string | undefined, returnTo: URL): string | null {
   if (!raw) return null;
 
-  if (raw.includes('{{redirect_url}}')) {
-    return raw.replace('{{redirect_url}}', encodeURIComponent(returnTo.toString()));
-  }
-  if (raw.includes('{redirect_url}')) {
-    return raw.replace('{redirect_url}', encodeURIComponent(returnTo.toString()));
-  }
-  if (raw.includes('{redirect}')) {
-    return raw.replace('{redirect}', encodeURIComponent(returnTo.toString()));
+  const encodedReturnTo = encodeURIComponent(returnTo.toString());
+  const placeholders: Record<string, string> = {
+    '{{redirect_url}}': encodedReturnTo,
+    '{redirect_url}': encodedReturnTo,
+    '{redirect}': encodedReturnTo,
+    '{after_sign_in_url}': encodedReturnTo,
+    '{after_sign_up_url}': encodedReturnTo,
+  };
+  const hasPlaceholder = Object.keys(placeholders).some((key) => raw.includes(key));
+  if (hasPlaceholder) {
+    let result = raw;
+    for (const [key, value] of Object.entries(placeholders)) {
+      result = result.replaceAll(key, value);
+    }
+    return result;
   }
 
   let url: URL;
@@ -199,13 +206,8 @@ function buildClerkSignInUrl(raw: string | undefined, returnTo: URL): string | n
     return null;
   }
 
-  if (url.searchParams.has('redirect_url')) {
-    url.searchParams.set('redirect_url', returnTo.toString());
-  } else if (url.searchParams.has('after_sign_in_url')) {
-    url.searchParams.set('after_sign_in_url', returnTo.toString());
-  } else {
-    url.searchParams.set('redirect_url', returnTo.toString());
-  }
+  url.searchParams.set('redirect_url', returnTo.toString());
+  url.searchParams.set('after_sign_in_url', returnTo.toString());
 
   return url.toString();
 }
