@@ -19,8 +19,13 @@ import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import express from 'express';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 import type { HEBClient, HEBCookies } from 'heb-client';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 import { requireAuth } from './auth.js';
 import { createSessionStoreFromEnv, MultiTenantSessionManager } from './multi-tenant.js';
 import {
@@ -81,6 +86,14 @@ async function startLocalCookieBridgeServer(): Promise<void> {
   const PORT = 4321;
 
   app.use(express.json({ limit: '250kb' }));
+
+  const iconPath = mode === 'local' 
+    ? join(__dirname, '..', 'icon16.png') // in src, icon is in ..
+    : join(__dirname, '..', 'icon16.png'); // in dist, icon is also in .. if copied correctly
+
+  app.get('/favicon.ico', (_req, res) => {
+    res.sendFile(iconPath);
+  });
 
   // CORS for the extension
   app.use((req, res, next) => {
@@ -143,6 +156,10 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
   app.use(express.json({ limit: '250kb' }));
   app.set('trust proxy', 1); 
 
+  app.get('/favicon.ico', (_req, res) => {
+    res.sendFile(join(__dirname, '..', 'icon16.png'));
+  });
+
   const oauthProvider = new ClerkOAuthProvider({ publicUrl, supportedScopes: oauthScopes });
   app.use('/authorize', createAuthorizeContextMiddleware({
     publicUrl,
@@ -174,6 +191,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HEB MCP - Signed In</title>
+  <link rel="icon" href="/favicon.ico" type="image/png">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {

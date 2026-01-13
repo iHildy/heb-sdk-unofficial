@@ -200,6 +200,42 @@ chrome.cookies.onChanged.addListener((changeInfo) => {
   }
 });
 
+// Monitor Clerk auth cookie changes to auto-sync after sign-in
+let authSyncDebounceTimer = null;
+chrome.cookies.onChanged.addListener(async (changeInfo) => {
+  const { cookie, removed } = changeInfo;
+  // Only care about session cookies being set (not removed)
+  if (removed) return;
+  if (cookie.name !== '__session' && cookie.name !== '__clerk_session') return;
+
+  // Check if this cookie domain matches our configured clerk session URL
+  const { clerkSessionUrl } = await getSettings();
+  if (!clerkSessionUrl) return;
+
+  try {
+    const sessionHost = new URL(clerkSessionUrl).hostname;
+    // Cookie domain may have leading dot, normalize for comparison
+    const cookieDomain = cookie.domain.startsWith('.') ? cookie.domain.slice(1) : cookie.domain;
+    
+    // Match if sessionHost ends with cookieDomain or vice versa (subdomain matching)
+    const matches = sessionHost === cookieDomain 
+      || sessionHost.endsWith('.' + cookieDomain) 
+      || cookieDomain.endsWith('.' + sessionHost);
+    
+    if (!matches) return;
+
+    // Debounce to avoid multiple syncs during sign-in flow
+    if (authSyncDebounceTimer) clearTimeout(authSyncDebounceTimer);
+    authSyncDebounceTimer = setTimeout(() => {
+      authSyncDebounceTimer = null;
+      console.log('Clerk auth cookie detected, triggering sync...');
+      sendCookies('auth');
+    }, 500);
+  } catch {
+    // Invalid URL, skip
+  }
+});
+
 // Sync on startup
 chrome.runtime.onStartup.addListener(() => {
   sendCookies('startup');

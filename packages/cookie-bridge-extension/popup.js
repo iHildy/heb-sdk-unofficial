@@ -1,4 +1,6 @@
 const statusEl = document.getElementById('statusMessage');
+const settingsMessageEl = document.getElementById('settingsMessage');
+const cookieStatusEl = document.getElementById('cookieStatus');
 const serverUrlEl = document.getElementById('serverUrl');
 const clerkSessionUrlEl = document.getElementById('clerkSessionUrl');
 const jwtTemplateEl = document.getElementById('jwtTemplate');
@@ -16,19 +18,82 @@ const signInBtn = document.getElementById('signInBtn');
 const signOutBtn = document.getElementById('signOutBtn');
 
 // Visuals
-const serverStatusIcon = document.getElementById('serverStatusIcon');
-const signInStatusIcon = document.getElementById('signInStatusIcon');
-
 const debugEl = document.getElementById('debug');
 const syncSection = document.getElementById('syncSection');
 
 const DEFAULT_SERVER_URL = 'http://localhost:4321';
+let cookieStatusTimer = null;
 
 // Helpers for Cookies
 function getCookieValue(url, name) {
   return new Promise((resolve) => {
     chrome.cookies.get({ url, name }, (cookie) => resolve(cookie?.value || null));
   });
+}
+
+function getCookiesForDomain(domain) {
+  return new Promise((resolve) => {
+    chrome.cookies.getAll({ domain }, resolve);
+  });
+}
+
+function formatDuration(ms) {
+  const totalMinutes = Math.floor(ms / 60000);
+  if (totalMinutes <= 0) return 'less than 1m';
+  const totalHours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (totalHours > 0) return `${totalHours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function formatExpiryTime(date) {
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function setCookieStatus(message) {
+  if (cookieStatusEl) cookieStatusEl.textContent = message;
+}
+
+async function updateCookieStatus() {
+  if (!cookieStatusEl) return;
+  try {
+    const cookies = await getCookiesForDomain('heb.com');
+    const requiredNames = ['sat', 'reese84'];
+    const matchedCookies = requiredNames.map((name) => cookies.find((cookie) => cookie.name === name));
+
+    if (matchedCookies.some((cookie) => !cookie)) {
+      setCookieStatus('Missing HEB cookies.');
+      return;
+    }
+
+    if (matchedCookies.some((cookie) => cookie.session || !cookie.expirationDate)) {
+      setCookieStatus('Session cookies (expire on browser close).');
+      return;
+    }
+
+    const earliestExpiration = Math.min(...matchedCookies.map((cookie) => cookie.expirationDate));
+    const expiresAt = new Date(earliestExpiration * 1000);
+    const timeLeftMs = earliestExpiration * 1000 - Date.now();
+
+    if (timeLeftMs <= 0) {
+      setCookieStatus('HEB cookies expired.');
+      return;
+    }
+
+    const timeLeft = formatDuration(timeLeftMs);
+    setCookieStatus(`${timeLeft} left, expires ${formatExpiryTime(expiresAt)}`);
+  } catch (error) {
+    console.error('Failed to read HEB cookie status:', error);
+    setCookieStatus('Unable to read cookie status.');
+  }
+}
+
+function startCookieStatusTimer() {
+  if (cookieStatusTimer) clearInterval(cookieStatusTimer);
+  cookieStatusTimer = setInterval(updateCookieStatus, 60000);
 }
 
 async function resolveClerkTokenFromCookies(clerkSessionUrl) {
@@ -84,6 +149,13 @@ function setStatus(message) {
   if (statusEl) statusEl.textContent = message;
 }
 
+function setSettingsStatus(message, isError = false) {
+  if (!settingsMessageEl) return;
+  settingsMessageEl.textContent = message;
+  settingsMessageEl.classList.remove('hidden', 'text-red-600', 'text-green-600', 'text-gray-600');
+  settingsMessageEl.classList.add(isError ? 'text-red-600' : 'text-green-600');
+}
+
 function setDebug(lines) {
   if (!debugEl) return;
   debugEl.innerHTML = Array.isArray(lines) ? lines.join('<br />') : String(lines || '');
@@ -97,22 +169,6 @@ function normalizeSignInUrl(value, serverUrl) {
     return `https://accounts.${host}/sign-in`;
   } catch {
     return '';
-  }
-}
-
-function updatePermissionVisuals(serverStatus, sessionStatus) {
-  // Server Status
-  if (serverStatus === 'granted') {
-    serverStatusIcon.className = 'w-2 h-2 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.4)]';
-  } else {
-    serverStatusIcon.className = 'w-2 h-2 rounded-full bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.4)]';
-  }
-
-  // Session Status
-  if (sessionStatus === 'granted') {
-    signInStatusIcon.className = 'w-2 h-2 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.4)]';
-  } else {
-    signInStatusIcon.className = 'w-2 h-2 rounded-full bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.4)]';
   }
 }
 
@@ -221,9 +277,9 @@ async function loadSettings() {
 }
 
 function updateUI(settings) {
-  const { permissionStatus, sessionPermissionStatus, isSignedIn } = settings;
+  const { isSignedIn } = settings;
   
-  updatePermissionVisuals(permissionStatus, sessionPermissionStatus);
+  updateCookieStatus();
 
   if (isSignedIn) {
     // Authenticated State
@@ -258,17 +314,26 @@ async function saveSettingsAction() {
   const clerkSessionUrl = normalizeSignInUrl(clerkSessionUrlEl.value, serverUrl);
   const jwtTemplate = jwtTemplateEl.value.trim();
 
-  // Try to request permissions
+  setSettingsStatus('Validating access...');
+
+  // 1. Validate Server Access (Host Permission)
   const serverGranted = await requestHostPermission(serverUrl);
   if (!serverGranted) {
-    setStatus('Permission denied (Server).');
+    setSettingsStatus('Server access permission denied.', true);
     return false;
   }
 
+  // 2. Validate Auth Access (Host Permission + Session)
   if (clerkSessionUrl) {
     const sessionGranted = await requestHostPermission(clerkSessionUrl);
     if (!sessionGranted) {
-      setStatus('Permission denied (Sign-in).');
+      setSettingsStatus('Auth access permission denied.', true);
+      return false;
+    }
+
+    const token = await resolveClerkTokenFromCookies(clerkSessionUrl);
+    if (!token) {
+      setSettingsStatus('Not signed in. Please sign in first.', true);
       return false;
     }
   }
@@ -279,6 +344,7 @@ async function saveSettingsAction() {
     jwtTemplate: jwtTemplate || null,
   });
 
+  setSettingsStatus('All systems green. Saving...');
   return true;
 }
 
@@ -315,12 +381,15 @@ function buildSignInUrl(raw, serverUrl) {
 saveBtn.addEventListener('click', async () => {
   const success = await saveSettingsAction();
   if (success) {
-    setStatus('Settings saved.');
-    // Go back to main view
-    viewSettings.classList.add('hidden');
-    viewMain.classList.remove('hidden');
-    const settings = await loadSettings();
-    updateUI(settings);
+    setTimeout(async () => {
+      setStatus('Settings saved.');
+      // Go back to main view
+      viewSettings.classList.add('hidden');
+      viewMain.classList.remove('hidden');
+      if (settingsMessageEl) settingsMessageEl.classList.add('hidden');
+      const settings = await loadSettings();
+      updateUI(settings);
+    }, 1000);
   }
 });
 
@@ -343,6 +412,7 @@ syncBtn.addEventListener('click', () => {
     }[status] || 'Sync triggered.';
     
     setStatus(message);
+    updateCookieStatus();
     
     // Auto-refresh UI state in case auth changed
     setTimeout(async () => {
@@ -402,4 +472,5 @@ signOutBtn.addEventListener('click', async () => {
 (async () => {
   const settings = await loadSettings();
   updateUI(settings);
+  startCookieStatusTimer();
 })();
