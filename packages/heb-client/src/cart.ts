@@ -1,6 +1,18 @@
 import { ERROR_CODES, hasErrorCode, persistedQuery, type GraphQLResponse } from './api.js';
 import type { HEBSession } from './types.js';
 
+// ─────────────────────────────────────────────────────────────
+// Shared Types (used by both getCart and mutations)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Price display structure.
+ */
+export interface DisplayPrice {
+  amount: number;
+  formatted: string;
+}
+
 /**
  * Cart item structure.
  */
@@ -9,30 +21,66 @@ export interface CartItem {
   skuId: string;
   name?: string;
   quantity: number;
-  price?: {
-    amount: number;
-    formatted: string;
-  };
+  price?: DisplayPrice;
   imageUrl?: string;
+  brand?: string;
+  inStock?: boolean;
 }
 
 /**
- * Cart response from mutation.
+ * Payment group in the cart.
+ */
+export interface PaymentGroup {
+  paymentGroupId: string;
+  paymentMethod: string;
+  amount: DisplayPrice;
+  paymentAlias?: string;
+}
+
+/**
+ * Fee applied to the cart (e.g., delivery, curbside).
+ */
+export interface CartFee {
+  id: string;
+  displayName: string;
+  feeType: string;
+  amount: DisplayPrice;
+  description?: string;
+}
+
+/**
+ * Full cart contents (from getCart query).
+ */
+export interface Cart {
+  id: string;
+  items: CartItem[];
+  itemCount: number;
+  subtotal: DisplayPrice;
+  total: DisplayPrice;
+  tax?: DisplayPrice;
+  savings?: DisplayPrice;
+  paymentGroups: PaymentGroup[];
+  fees: CartFee[];
+}
+
+/**
+ * Cart response from mutation (add/update/remove).
  */
 export interface CartResponse {
   success: boolean;
   cart?: {
     items: CartItem[];
     itemCount: number;
-    subtotal?: {
-      amount: number;
-      formatted: string;
-    };
+    subtotal?: DisplayPrice;
   };
   errors?: string[];
 }
 
-// Raw GraphQL response - actual structure from HEB API
+// ─────────────────────────────────────────────────────────────
+// Raw GraphQL Response Types (internal)
+// ─────────────────────────────────────────────────────────────
+
+// Raw mutation response structures
 interface RawCartErrorResponse {
   __typename: 'AddItemToCartV2Error';
   code: string;
@@ -41,7 +89,7 @@ interface RawCartErrorResponse {
 }
 
 interface RawCartSuccessResponse {
-  __typename?: string; // Not always 'Cart', could be missing
+  __typename?: string;
   id?: string;
   price?: {
     subtotal?: { amount?: number; formattedAmount?: string };
@@ -61,6 +109,80 @@ interface RawCartResponse {
   addItemToCartV2?: RawCartErrorResponse | RawCartSuccessResponse;
 }
 
+// Raw getCart (cartEstimated) response structures
+interface RawDisplayPrice {
+  amount?: number;
+  formattedAmount?: string;
+  displayName?: string | null;
+}
+
+interface RawCommerceItem {
+  productId?: string;
+  skuId?: string;
+  quantity?: number;
+  displayName?: string;
+  productImage?: { url?: string };
+  price?: RawDisplayPrice;
+  brand?: { name?: string };
+  inventory?: { inventoryState?: string };
+}
+
+interface RawPaymentGroup {
+  paymentGroupId?: string;
+  paymentMethod?: string;
+  amount?: RawDisplayPrice;
+  paymentAlias?: string;
+}
+
+interface RawFee {
+  id?: string;
+  displayName?: string;
+  feeType?: string;
+  priceInfo?: {
+    totalAmount?: RawDisplayPrice;
+    listPrice?: RawDisplayPrice;
+  };
+  feeDescription?: string | null;
+}
+
+interface RawCartV2 {
+  id?: string;
+  currentTime?: string;
+  commerceItems?: RawCommerceItem[];
+  price?: {
+    subtotal?: RawDisplayPrice;
+    total?: RawDisplayPrice;
+    tax?: RawDisplayPrice;
+    totalDiscounts?: RawDisplayPrice;
+    retailDiscountTotal?: RawDisplayPrice;
+    saleDiscountTotal?: RawDisplayPrice;
+    savings?: Array<{
+      savingType?: string;
+      totalSavings?: RawDisplayPrice;
+    }>;
+  };
+  paymentGroups?: RawPaymentGroup[];
+  fees?: RawFee[];
+}
+
+interface RawCartEstimatedResponse {
+  cartV2?: RawCartV2;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Helper Functions
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Parse raw display price to DisplayPrice.
+ */
+function parseDisplayPrice(raw?: RawDisplayPrice): DisplayPrice {
+  return {
+    amount: raw?.amount ?? 0,
+    formatted: raw?.formattedAmount ?? '$0.00',
+  };
+}
+
 /**
  * Type guard to check if response is an error.
  */
@@ -74,7 +196,7 @@ function isCartError(data: unknown): data is RawCartErrorResponse {
 }
 
 /**
- * Parse cart response from GraphQL.
+ * Parse cart response from mutation.
  */
 function parseCartResponse(response: GraphQLResponse<RawCartResponse>): CartResponse {
   // Check for top-level GraphQL errors
@@ -140,6 +262,113 @@ function parseCartResponse(response: GraphQLResponse<RawCartResponse>): CartResp
       } : undefined,
     },
   };
+}
+
+/**
+ * Parse cartEstimated response to Cart.
+ */
+function parseGetCartResponse(response: GraphQLResponse<RawCartEstimatedResponse>): Cart {
+  // Check for GraphQL errors
+  if (response.errors?.length) {
+    const errorMsg = response.errors.map(e => e.message).join(', ');
+    throw new Error(`Failed to get cart: ${errorMsg}`);
+  }
+
+  const cartV2 = response.data?.cartV2;
+  
+  if (!cartV2) {
+    throw new Error('No cart data returned');
+  }
+
+  // Parse commerce items
+  const items: CartItem[] = (cartV2.commerceItems ?? []).map(item => ({
+    productId: item.productId ?? '',
+    skuId: item.skuId ?? '',
+    name: item.displayName,
+    quantity: item.quantity ?? 0,
+    price: item.price ? parseDisplayPrice(item.price) : undefined,
+    imageUrl: item.productImage?.url,
+    brand: item.brand?.name,
+    inStock: item.inventory?.inventoryState === 'IN_STOCK',
+  }));
+
+  // Parse payment groups
+  const paymentGroups: PaymentGroup[] = (cartV2.paymentGroups ?? []).map(pg => ({
+    paymentGroupId: pg.paymentGroupId ?? '',
+    paymentMethod: pg.paymentMethod ?? '',
+    amount: parseDisplayPrice(pg.amount),
+    paymentAlias: pg.paymentAlias,
+  }));
+
+  // Parse fees
+  const fees: CartFee[] = (cartV2.fees ?? []).map(fee => ({
+    id: fee.id ?? '',
+    displayName: fee.displayName ?? '',
+    feeType: fee.feeType ?? '',
+    amount: parseDisplayPrice(fee.priceInfo?.totalAmount),
+    description: fee.feeDescription ?? undefined,
+  }));
+
+  // Calculate total savings from all saving types
+  let savingsAmount = 0;
+  if (cartV2.price?.savings?.length) {
+    savingsAmount = cartV2.price.savings.reduce(
+      (sum, s) => sum + (s.totalSavings?.amount ?? 0),
+      0
+    );
+  } else if (cartV2.price?.totalDiscounts?.amount) {
+    savingsAmount = Math.abs(cartV2.price.totalDiscounts.amount);
+  }
+
+  const savings: DisplayPrice | undefined = savingsAmount > 0 ? {
+    amount: savingsAmount,
+    formatted: `$${savingsAmount.toFixed(2)}`,
+  } : undefined;
+
+  return {
+    id: cartV2.id ?? '',
+    items,
+    itemCount: items.reduce((sum, i) => sum + i.quantity, 0),
+    subtotal: parseDisplayPrice(cartV2.price?.subtotal),
+    total: parseDisplayPrice(cartV2.price?.total),
+    tax: cartV2.price?.tax?.amount ? parseDisplayPrice(cartV2.price.tax) : undefined,
+    savings,
+    paymentGroups,
+    fees,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Public API Functions
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Get the current cart contents.
+ * 
+ * @param session - Active HEB session
+ * @returns Full cart with items, pricing, payment groups, and fees
+ * 
+ * @example
+ * const cart = await getCart(session);
+ * console.log(`Cart has ${cart.itemCount} items`);
+ * console.log(`Subtotal: ${cart.subtotal.formatted}`);
+ * console.log(`Total: ${cart.total.formatted}`);
+ * 
+ * // Check fees
+ * cart.fees.forEach(fee => {
+ *   console.log(`${fee.displayName}: ${fee.amount.formatted}`);
+ * });
+ */
+export async function getCart(session: HEBSession): Promise<Cart> {
+  const isLoggedIn = Boolean(session.cookies.sat);
+
+  const response = await persistedQuery<RawCartEstimatedResponse>(
+    session,
+    'cartEstimated',
+    { userIsLoggedIn: isLoggedIn }
+  );
+
+  return parseGetCartResponse(response);
 }
 
 /**

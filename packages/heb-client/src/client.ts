@@ -1,4 +1,4 @@
-import { addToCart, quickAdd, removeFromCart, updateCartItem, type CartResponse } from './cart.js';
+import { addToCart, getCart, quickAdd, removeFromCart, updateCartItem, type Cart, type CartResponse } from './cart.js';
 import { getCurbsideSlots, reserveCurbsideSlot, type CurbsideSlot, type GetCurbsideSlotsOptions, type ReserveCurbsideSlotResult } from './curbside.js';
 import { getDeliverySlots, reserveSlot, type DeliverySlot, type GetDeliverySlotsOptions, type ReserveSlotResult } from './delivery.js';
 import { getOrder, getOrders, type GetOrdersOptions, type Order } from './orders.js';
@@ -141,6 +141,21 @@ export class HEBClient {
   // ─────────────────────────────────────────────────────────────
   // Cart
   // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Get the current cart contents.
+   * 
+   * Returns full cart with items, pricing, payment groups, and fees.
+   * 
+   * @example
+   * const cart = await heb.getCart();
+   * console.log(`Cart has ${cart.itemCount} items`);
+   * console.log(`Subtotal: ${cart.subtotal.formatted}`);
+   * cart.items.forEach(item => console.log(`${item.name} x${item.quantity}`));
+   */
+  async getCart(): Promise<Cart> {
+    return getCart(this.session);
+  }
 
   /**
    * Add or update item in cart.

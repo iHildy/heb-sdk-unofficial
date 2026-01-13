@@ -94,6 +94,7 @@ export interface ReserveTimeslotVariables {
  */
 export const GRAPHQL_HASHES = {
   cartItemV2: 'ade8ec1365c185244d42f9cc4c13997fec4b633ac3c38ff39558df92b210c6d0',
+  cartEstimated: '7b033abaf2caa80bc49541e51d2b89e3cc6a316e37c4bd576d9b5c498a51e9c5',
   typeaheadContent: '1ed956c0f10efcfc375321f33c40964bc236fff1397a4e86b7b53cb3b18ad329',
   ModifiableOrderDetailsRequest: '24fe4f6d8f4d3ae8927af0a7d07b8c57abcb303cdd277cd9bb4e022ca1d33b8e',
   ReserveTimeslot: '8b4800e25b070c15448237c7138530f1e1b3655ad3745a814cd5226c144da524',

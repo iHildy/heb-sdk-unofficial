@@ -6,7 +6,7 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { HEBClient, HEBCookies } from 'heb-client';
+import type { Cart, CartFee, CartItem, HEBClient, HEBCookies, PaymentGroup } from 'heb-client';
 import { isSessionValid } from 'heb-client';
 import { z } from 'zod';
 import { getSessionStatus, saveSessionToFile } from './session.js';
@@ -308,6 +308,72 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       } catch (error) {
         return {
           content: [{ type: 'text', text: `Remove failed: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    'get_cart',
+    'Get the current cart contents with items, prices, and totals',
+    {},
+    async () => {
+      const result = requireClient(getClient);
+      if ('error' in result) return result.error;
+      const { client } = result;
+
+      try {
+        const cart = await client.getCart();
+
+        if (cart.items.length === 0) {
+          return {
+            content: [{ type: 'text', text: 'Your cart is empty.' }],
+          };
+        }
+
+        // Format cart items
+        const itemsList = cart.items.map((item, i) => {
+          const price = item.price?.formatted ?? 'N/A';
+          const brand = item.brand ? `(${item.brand})` : '';
+          return `${i + 1}. ${item.name ?? 'Unknown'} ${brand} x${item.quantity} - ${price}`;
+        }).join('\n');
+
+        // Format totals
+        const totals = [
+          `Subtotal: ${cart.subtotal.formatted}`,
+          cart.tax ? `Tax: ${cart.tax.formatted}` : null,
+          cart.savings ? `Savings: -${cart.savings.formatted}` : null,
+          `**Total: ${cart.total.formatted}**`,
+        ].filter(Boolean).join('\n');
+
+        // Format fees
+        let feesSection = '';
+        if (cart.fees.length > 0) {
+          const feesList = cart.fees.map(fee => 
+            `- ${fee.displayName}: ${fee.amount.formatted}`
+          ).join('\n');
+          feesSection = `\n\n**Fees:**\n${feesList}`;
+        }
+
+        // Format payment groups (if present)
+        let paymentSection = '';
+        if (cart.paymentGroups.length > 0) {
+          const payments = cart.paymentGroups.map(pg => 
+            `- ${pg.paymentMethod}${pg.paymentAlias ? ` (${pg.paymentAlias})` : ''}: ${pg.amount.formatted}`
+          ).join('\n');
+          paymentSection = `\n\n**Payment Methods:**\n${payments}`;
+        }
+
+        return {
+          content: [{ 
+            type: 'text', 
+            text: `**Cart (${cart.itemCount} items)**\n\n${itemsList}\n\n${totals}${feesSection}${paymentSection}` 
+          }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Failed to get cart: ${error instanceof Error ? error.message : 'Unknown error'}` }],
           isError: true,
         };
       }

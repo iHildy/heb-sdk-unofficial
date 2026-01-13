@@ -50,11 +50,16 @@ export {
 // ─────────────────────────────────────────────────────────────
 export {
     addToCart,
+    getCart,
     quickAdd,
     removeFromCart,
     updateCartItem,
+    type Cart,
+    type CartFee,
     type CartItem,
-    type CartResponse
+    type CartResponse,
+    type DisplayPrice,
+    type PaymentGroup
 } from './cart.js';
 
 // ─────────────────────────────────────────────────────────────
