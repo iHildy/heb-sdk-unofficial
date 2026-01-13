@@ -51,12 +51,19 @@ type RefreshTokenRecord = {
   expiresAt: number;
 };
 
+type TokenStorePayload = {
+  v: 1;
+  accessTokens: Record<string, AccessTokenRecord>;
+  refreshTokens: Record<string, RefreshTokenRecord>;
+};
+
 const DEFAULT_TOKEN_TTL_SECONDS = 60 * 60; // 1 hour
 const DEFAULT_REFRESH_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
 const DEFAULT_CODE_TTL_SECONDS = 10 * 60; // 10 minutes
 
 const DEFAULT_CLIENT_STORE_DIR = path.join(process.cwd(), 'data', 'oauth');
 const DEFAULT_CLIENT_STORE_FILE = path.join(DEFAULT_CLIENT_STORE_DIR, 'clients.json');
+const DEFAULT_TOKEN_STORE_FILE = path.join(DEFAULT_CLIENT_STORE_DIR, 'tokens.json');
 
 function parseIntEnv(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
@@ -108,6 +115,27 @@ function isEncryptedPayload(payload: unknown): payload is EncryptedPayload {
       && (payload as EncryptedPayload).alg === 'aes-256-gcm'
       && (payload as EncryptedPayload).v === 1
   );
+}
+
+function normalizeTokenStorePayload(data: unknown): TokenStorePayload {
+  const empty: TokenStorePayload = { v: 1, accessTokens: {}, refreshTokens: {} };
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return empty;
+  }
+
+  const payload = data as Partial<TokenStorePayload>;
+  const accessTokens = payload.accessTokens && typeof payload.accessTokens === 'object' && !Array.isArray(payload.accessTokens)
+    ? payload.accessTokens as Record<string, AccessTokenRecord>
+    : {};
+  const refreshTokens = payload.refreshTokens && typeof payload.refreshTokens === 'object' && !Array.isArray(payload.refreshTokens)
+    ? payload.refreshTokens as Record<string, RefreshTokenRecord>
+    : {};
+
+  return {
+    v: 1,
+    accessTokens,
+    refreshTokens,
+  };
 }
 
 function parseCookies(header?: string): Record<string, string> {
@@ -288,10 +316,53 @@ class FileOAuthClientsStore implements OAuthRegisteredClientsStore {
   }
 }
 
+class FileOAuthTokensStore {
+  private readonly filePath: string;
+  private readonly encryptionKey: Buffer | null;
+  private cache: TokenStorePayload | null = null;
+
+  constructor(options?: { filePath?: string }) {
+    this.filePath = options?.filePath ?? DEFAULT_TOKEN_STORE_FILE;
+    this.encryptionKey = loadEncryptionKey();
+  }
+
+  async load(): Promise<TokenStorePayload> {
+    if (this.cache) return this.cache;
+
+    this.cache = { v: 1, accessTokens: {}, refreshTokens: {} };
+    if (!fs.existsSync(this.filePath)) {
+      return this.cache;
+    }
+
+    const raw = await fs.promises.readFile(this.filePath, 'utf8');
+    const parsed = JSON.parse(raw) as TokenStorePayload | EncryptedPayload;
+    if (isEncryptedPayload(parsed) && !this.encryptionKey) {
+      throw new Error('Encrypted OAuth token store found but HEB_SESSION_ENCRYPTION_KEY is not set.');
+    }
+    const data = isEncryptedPayload(parsed)
+      ? decryptPayload(parsed, this.encryptionKey as Buffer)
+      : parsed;
+
+    this.cache = normalizeTokenStorePayload(data);
+    return this.cache;
+  }
+
+  async persist(payload: TokenStorePayload): Promise<void> {
+    this.cache = payload;
+    const dir = path.dirname(this.filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    const data = this.encryptionKey ? encryptPayload(payload, this.encryptionKey) : payload;
+    await fs.promises.writeFile(this.filePath, JSON.stringify(data, null, 2), 'utf8');
+  }
+}
+
 export class ClerkOAuthProvider implements OAuthServerProvider {
   private readonly codes = new Map<string, AuthorizationCodeRecord>();
-  private readonly accessTokens = new Map<string, AccessTokenRecord>();
-  private readonly refreshTokens = new Map<string, RefreshTokenRecord>();
+  private accessTokens = new Map<string, AccessTokenRecord>();
+  private refreshTokens = new Map<string, RefreshTokenRecord>();
 
   private readonly accessTokenTtlMs: number;
   private readonly refreshTokenTtlMs: number;
@@ -301,6 +372,8 @@ export class ClerkOAuthProvider implements OAuthServerProvider {
   private readonly supportedScopes: string[];
 
   readonly clientsStore: OAuthRegisteredClientsStore;
+  private readonly tokensStore: FileOAuthTokensStore;
+  private tokensLoaded = false;
 
   constructor(options: {
     publicUrl: URL;
@@ -315,12 +388,58 @@ export class ClerkOAuthProvider implements OAuthServerProvider {
       filePath: process.env.MCP_OAUTH_CLIENTS_FILE,
     });
 
+    this.tokensStore = new FileOAuthTokensStore({
+      filePath: process.env.MCP_OAUTH_TOKENS_FILE,
+    });
+
     this.accessTokenTtlMs = (options.tokenTtlSeconds ?? parseIntEnv(process.env.MCP_OAUTH_TOKEN_TTL_SECONDS, DEFAULT_TOKEN_TTL_SECONDS)) * 1000;
     this.refreshTokenTtlMs = (options.refreshTtlSeconds ?? parseIntEnv(process.env.MCP_OAUTH_REFRESH_TTL_SECONDS, DEFAULT_REFRESH_TTL_SECONDS)) * 1000;
     this.codeTtlMs = (options.codeTtlSeconds ?? parseIntEnv(process.env.MCP_OAUTH_CODE_TTL_SECONDS, DEFAULT_CODE_TTL_SECONDS)) * 1000;
     this.resourceUrl = resourceUrlFromServerUrl(options.publicUrl);
     this.requireResource = options.requireResource ?? true;
     this.supportedScopes = options.supportedScopes ?? resolveOAuthScopes();
+  }
+
+  private async ensureTokensLoaded(): Promise<void> {
+    if (this.tokensLoaded) return;
+
+    const payload = await this.tokensStore.load();
+    this.accessTokens = new Map(Object.entries(payload.accessTokens ?? {}));
+    this.refreshTokens = new Map(Object.entries(payload.refreshTokens ?? {}));
+    this.tokensLoaded = true;
+
+    if (this.pruneExpiredTokens()) {
+      await this.persistTokens();
+    }
+  }
+
+  private pruneExpiredTokens(now = Date.now()): boolean {
+    let changed = false;
+    for (const [token, record] of this.accessTokens.entries()) {
+      if (record.expiresAt < now) {
+        this.accessTokens.delete(token);
+        changed = true;
+      }
+    }
+    for (const [token, record] of this.refreshTokens.entries()) {
+      if (record.expiresAt < now) {
+        this.refreshTokens.delete(token);
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  private buildTokenPayload(): TokenStorePayload {
+    return {
+      v: 1,
+      accessTokens: Object.fromEntries(this.accessTokens.entries()),
+      refreshTokens: Object.fromEntries(this.refreshTokens.entries()),
+    };
+  }
+
+  private async persistTokens(): Promise<void> {
+    await this.tokensStore.persist(this.buildTokenPayload());
   }
 
   async authorize(client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
@@ -426,6 +545,7 @@ export class ClerkOAuthProvider implements OAuthServerProvider {
     redirectUri?: string,
     resource?: URL
   ): Promise<OAuthTokens> {
+    await this.ensureTokensLoaded();
     const record = this.codes.get(authorizationCode);
     if (!record) {
       throw new InvalidGrantError('Invalid authorization code');
@@ -472,6 +592,8 @@ export class ClerkOAuthProvider implements OAuthServerProvider {
       expiresAt: refreshExpiresAt,
     });
 
+    await this.persistTokens();
+
     return {
       access_token: accessToken,
       token_type: 'bearer',
@@ -487,6 +609,7 @@ export class ClerkOAuthProvider implements OAuthServerProvider {
     scopes?: string[],
     resource?: URL
   ): Promise<OAuthTokens> {
+    await this.ensureTokensLoaded();
     const record = this.refreshTokens.get(refreshToken);
     if (!record) {
       throw new InvalidGrantError('Invalid refresh token');
@@ -496,6 +619,7 @@ export class ClerkOAuthProvider implements OAuthServerProvider {
     }
     if (record.expiresAt < Date.now()) {
       this.refreshTokens.delete(refreshToken);
+      await this.persistTokens();
       throw new InvalidGrantError('Refresh token expired');
     }
 
@@ -536,6 +660,8 @@ export class ClerkOAuthProvider implements OAuthServerProvider {
       expiresAt: refreshExpiresAt,
     });
 
+    await this.persistTokens();
+
     return {
       access_token: newAccessToken,
       token_type: 'bearer',
@@ -546,12 +672,14 @@ export class ClerkOAuthProvider implements OAuthServerProvider {
   }
 
   async verifyAccessToken(token: string): Promise<AuthInfo> {
+    await this.ensureTokensLoaded();
     const record = this.accessTokens.get(token);
     if (!record) {
       throw new InvalidTokenError('Invalid access token');
     }
     if (record.expiresAt < Date.now()) {
       this.accessTokens.delete(token);
+      await this.persistTokens();
       throw new InvalidTokenError('Access token expired');
     }
     if (this.requireResource) {
@@ -583,14 +711,22 @@ export class ClerkOAuthProvider implements OAuthServerProvider {
     client: OAuthClientInformationFull,
     request: { token: string }
   ): Promise<void> {
+    await this.ensureTokensLoaded();
+
+    let changed = false;
     const access = this.accessTokens.get(request.token);
     if (access && access.clientId === client.client_id) {
       this.accessTokens.delete(request.token);
-      return;
+      changed = true;
     }
     const refresh = this.refreshTokens.get(request.token);
     if (refresh && refresh.clientId === client.client_id) {
       this.refreshTokens.delete(request.token);
+      changed = true;
+    }
+
+    if (changed) {
+      await this.persistTokens();
     }
   }
 
