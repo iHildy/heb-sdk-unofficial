@@ -166,6 +166,87 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     res.json({ status: 'ok', server: SERVER_NAME, version: SERVER_VERSION });
   });
 
+  // Landing page for post-sign-in redirect from browser extension
+  app.get('/extension-auth-success', (_req, res) => {
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HEB MCP - Signed In</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      max-width: 480px;
+    }
+    .icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #00c853 0%, #69f0ae 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem;
+      box-shadow: 0 4px 20px rgba(0, 200, 83, 0.3);
+    }
+    .icon svg {
+      width: 40px;
+      height: 40px;
+      stroke: #fff;
+      stroke-width: 3;
+      fill: none;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+    p {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+    .hint {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .hint p {
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg viewBox="0 0 24 24">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    </div>
+    <h1>Successfully Signed In</h1>
+    <p>You're now authenticated with the HEB MCP server.</p>
+    <div class="hint">
+      <p>You can close this tab and return to the extension to sync your cookies.</p>
+    </div>
+  </div>
+</body>
+</html>`);
+  });
+
   app.post('/api/cookies', async (req, res) => {
     const auth = await requireAuth(req, res);
     if (!auth) return;

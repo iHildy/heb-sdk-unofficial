@@ -1,5 +1,6 @@
 {
   "serverUrl": "https://heb-mcp.hildy.io",
   "clerkPublishableKey": "pk_live_Y2xlcmsuaGViLW1jcC5oaWxkeS5pbyQ",
-  "jwtTemplate": "heb-mcp"
+  "jwtTemplate": "heb-mcp",
+  "clerkSignInUrl": "https://accounts.heb-mcp.hildy.io/sign-in"
 }
