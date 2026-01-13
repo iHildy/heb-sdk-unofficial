@@ -9,7 +9,6 @@ export { HEBClient } from './client.js';
 // ─────────────────────────────────────────────────────────────
 // Authentication
 // ─────────────────────────────────────────────────────────────
-export { extractSession, getCredentialsFromEnv, login } from './auth.js';
 export { createSessionFromCookies, parseCookies } from './cookies.js';
 export {
     buildHeaders,
