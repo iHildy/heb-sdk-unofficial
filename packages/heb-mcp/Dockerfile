@@ -55,6 +55,7 @@ COPY --from=builder /app/packages/heb-client/dist ./packages/heb-client/dist
 # Copy built package artifacts for heb-mcp
 COPY --from=builder /app/packages/heb-mcp/package.json ./packages/heb-mcp/
 COPY --from=builder /app/packages/heb-mcp/dist ./packages/heb-mcp/dist
+COPY --from=builder /app/packages/heb-mcp/public ./packages/heb-mcp/public
 COPY --from=builder /app/packages/heb-mcp/icon16.png ./packages/heb-mcp/icon16.png
 
 # Install production dependencies for the workspace, focused on heb-mcp
