@@ -11,6 +11,7 @@ export interface SearchOptions {
   limit?: number;
   storeId?: string | number;
   shoppingContext?: string;
+  searchMode?: 'MAIN_SEARCH' | 'BIA_SEARCH';
 }
 
 /**
@@ -231,7 +232,7 @@ async function searchProductsMobile(
         shoppingContext,
         storeId,
       },
-      searchMode: 'MAIN_SEARCH',
+      searchMode: options.searchMode ?? 'MAIN_SEARCH',
       searchPageLayout: 'MOBILE_SEARCH_PAGE_LAYOUT',
       shoppingContext,
       storeId,
@@ -314,6 +315,25 @@ export async function searchProducts(
   }
 
   return searchProductsMobile(session, query, options);
+}
+
+/**
+ * Get "Buy It Again" products (previously purchased items).
+ * Requires a bearer session.
+ *
+ * @example
+ * const results = await getBuyItAgain(session, { limit: 20 });
+ * console.log(results.products);
+ */
+export async function getBuyItAgain(
+  session: HEBSession,
+  options: SearchOptions = {}
+): Promise<SearchResult> {
+  if (session.authMode !== 'bearer') {
+    throw new Error('Buy It Again requires a bearer session (mobile GraphQL).');
+  }
+
+  return searchProductsMobile(session, '', { ...options, searchMode: 'BIA_SEARCH' });
 }
 
 /**

@@ -184,6 +184,47 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
     }
   );
 
+  server.tool(
+    'get_buy_it_again',
+    'Get previously purchased products ("Buy It Again").',
+    {
+      limit: z.number().min(1).max(20).optional().describe('Max results to return (default: 20)'),
+    },
+    async ({ limit }) => {
+      const result = requireClient(getClient);
+      if ('error' in result) return result.error;
+      const { client } = result;
+
+      try {
+        const results = await client.getBuyItAgain({ limit });
+        const requestedLimit = limit ?? 20;
+        const products = results.products.slice(0, requestedLimit);
+
+        if (products.length === 0) {
+          return {
+            content: [{ type: 'text', text: `No "Buy It Again" products found.` }],
+          };
+        }
+
+        const formatted = products.map((p, i) => 
+          `${i + 1}. ${p.name} (ID: ${p.productId})`
+        ).join('\n');
+
+        return {
+          content: [{ 
+            type: 'text', 
+            text: `Found ${products.length} "Buy It Again" products:\n\n${formatted}` 
+          }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Failed to get "Buy It Again" products: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
   // ─────────────────────────────────────────────────────────────
   // Product Details
   // ─────────────────────────────────────────────────────────────

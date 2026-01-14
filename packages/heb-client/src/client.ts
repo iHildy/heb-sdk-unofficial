@@ -5,7 +5,7 @@ import { getDeliverySlots, reserveSlot, type DeliverySlot, type GetDeliverySlots
 import { getHomepage, type HomepageData } from './homepage.js';
 import { getOrder, getOrders, type GetOrdersOptions, type OrderDetailsResponse, type OrderHistoryResponse } from './orders.js';
 import { getProductDetails, getProductImageUrl, getProductSkuId, type Product } from './product.js';
-import { searchProducts, typeahead, typeaheadTerms, type SearchOptions, type SearchResult, type TypeaheadResult } from './search.js';
+import { searchProducts, getBuyItAgain, typeahead, typeaheadTerms, type SearchOptions, type SearchResult, type TypeaheadResult } from './search.js';
 import { isSessionValid } from './session.js';
 import { getShoppingList, getShoppingLists, type GetShoppingListOptions, type ShoppingList, type ShoppingListDetails } from './shopping-list.js';
 import { searchStores, setStore, type Store } from './stores.js';
@@ -63,6 +63,18 @@ export class HEBClient {
    */
   async search(query: string, options?: SearchOptions): Promise<SearchResult> {
     return searchProducts(this.session, query, options);
+  }
+
+  /**
+   * Get "Buy It Again" products (previously purchased items).
+   * Requires a bearer session.
+   *
+   * @example
+   * const results = await heb.getBuyItAgain({ limit: 20 });
+   * console.log(`Found ${results.products.length} buy it again items`);
+   */
+  async getBuyItAgain(options?: SearchOptions): Promise<SearchResult> {
+    return getBuyItAgain(this.session, options);
   }
 
   /**

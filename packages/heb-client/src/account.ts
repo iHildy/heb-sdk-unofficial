@@ -15,7 +15,11 @@ import type { HEBSession } from './types.js';
  */
 interface RawProfile {
   firstName?: string;
+  givenName?: string;
+  given_name?: string;
   lastName?: string;
+  familyName?: string;
+  family_name?: string;
   email?: string;
   phone?: string;
   dateOfBirth?: string;
@@ -194,8 +198,8 @@ export async function getAccountDetails(
   const rawAddresses = extractAddresses(addressesResponse.data);
 
   return {
-    firstName: profile.firstName ?? '',
-    lastName: profile.lastName ?? '',
+    firstName: profile.firstName ?? profile.givenName ?? profile.given_name ?? '',
+    lastName: profile.lastName ?? profile.familyName ?? profile.family_name ?? '',
     email: profile.email ?? '',
     phone: profile.phone,
     dateOfBirth: profile.dateOfBirth,
