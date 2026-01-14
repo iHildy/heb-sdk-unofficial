@@ -8,6 +8,7 @@ Unofficial TypeScript SDK for H-E-B grocery API — search, product details, and
 - ✅ **Product Details** - Full product info including nutrition, pricing, inventory
 - ✅ **Cart Management** - Add, update, remove items
 - ✅ **Typeahead** - Search suggestions with recent/trending terms
+- ✅ **Weekly Ad** - Weekly ad flyer products via Flipp
 - ✅ **Session Management** - Cookie-based authentication + experimental mobile OAuth tokens
 
 ## Install
@@ -98,6 +99,9 @@ const heb = new HEBClient(session);
 await heb.search(query, { limit? })          // Product search (requires buildId)
 await heb.typeahead(query)                   // Get search suggestions
 
+// Weekly Ad
+await heb.getWeeklyAdProducts({ limit? })    // Weekly ad products
+
 // Products
 await heb.getProduct(productId)             // Full product details
 await heb.getSkuId(productId)               // Just the SKU ID
@@ -121,6 +125,17 @@ interface SearchResult {
   products: SearchProduct[];
   totalCount: number;
 }
+```
+
+### Weekly Ad
+
+```typescript
+const weeklyAd = await heb.getWeeklyAdProducts({
+  displayType: 'all',
+  categoryFilter: 'Fruit',
+  department: 'Seafood',
+  limit: 20,
+});
 ```
 
 ### Product Details
@@ -223,6 +238,9 @@ import type {
   SearchProduct,
   CartResponse,
   TypeaheadResult,
+  WeeklyAdProduct,
+  WeeklyAdResult,
+  WeeklyAdOptions,
 } from 'heb-sdk-unofficial';
 ```
 
@@ -232,6 +250,7 @@ import type {
 - **Store Context**: `CURR_SESSION_STORE` affects product availability and pricing.
 - **Session Expiry**: The `sat` JWT expires. Monitor for 401 errors.
 - **Search Data**: Product search uses the Next.js data endpoint and requires a valid buildId.
+- **Weekly Ad**: Weekly ad products come from Flipp endpoints and require a store ID (postal code is derived).
 
 ## License
 

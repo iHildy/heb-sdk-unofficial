@@ -466,6 +466,54 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
   );
 
   // ─────────────────────────────────────────────────────────────
+  // Account
+  // ─────────────────────────────────────────────────────────────
+
+  server.tool(
+    'get_account_details',
+    'Get the current user\'s account profile details including name, email, phone, and saved addresses.',
+    {},
+    async () => {
+      const result = requireClient(getClient);
+      if ('error' in result) return result.error;
+      const { client } = result;
+
+      try {
+        await client.ensureBuildId();
+        const account = await client.getAccountDetails();
+
+        const addressList = account.addresses.length > 0
+          ? account.addresses.map((a: { isDefault?: boolean; nickname?: string; address1: string; address2?: string; city: string; state: string; postalCode: string }, i: number) => {
+              const defaultTag = a.isDefault ? ' (Default)' : '';
+              const nickname = a.nickname ? ` "${a.nickname}"` : '';
+              return `${i + 1}.${nickname}${defaultTag} ${a.address1}${a.address2 ? `, ${a.address2}` : ''}, ${a.city}, ${a.state} ${a.postalCode}`;
+            }).join('\n')
+          : 'No saved addresses';
+
+        const details = [
+          `**Account Profile**`,
+          `Name: ${account.firstName} ${account.lastName}`,
+          `Email: ${account.email}`,
+          account.phone ? `Phone: ${account.phone}` : null,
+          account.dateOfBirth ? `Date of Birth: ${account.dateOfBirth}` : null,
+          account.memberSince ? `Member Since: ${account.memberSince}` : null,
+          account.loyaltyNumber ? `Loyalty #: ${account.loyaltyNumber}` : null,
+          `\n**Saved Addresses:**\n${addressList}`,
+        ].filter(Boolean).join('\n');
+
+        return {
+          content: [{ type: 'text', text: details }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Failed to get account details: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ─────────────────────────────────────────────────────────────
   // Delivery Slots
   // ─────────────────────────────────────────────────────────────
 
@@ -649,6 +697,90 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       } catch (error) {
         return {
           content: [{ type: 'text', text: `Curbside reservation failed: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ─────────────────────────────────────────────────────────────
+  // Shopping Lists
+  // ─────────────────────────────────────────────────────────────
+
+  server.tool(
+    'get_shopping_lists',
+    'Get all shopping lists for the current user',
+    {},
+    async () => {
+      const result = requireClient(getClient);
+      if ('error' in result) return result.error;
+      const { client } = result;
+
+      try {
+        const lists = await client.getShoppingLists();
+
+        if (lists.length === 0) {
+          return {
+            content: [{ type: 'text', text: 'No shopping lists found.' }],
+          };
+        }
+
+        const formatted = lists.map((list: { id: string; name: string; itemCount: number; updatedAt?: Date }, i: number) => {
+          const itemCount = list.itemCount ?? 0;
+          const updated = list.updatedAt ? ` (updated ${list.updatedAt.toLocaleDateString()})` : '';
+          return `${i + 1}. ${list.name} - ${itemCount} items${updated} (ID: ${list.id})`;
+        }).join('\n');
+
+        return {
+          content: [{ 
+            type: 'text', 
+            text: `Found ${lists.length} shopping lists:\n\n${formatted}\n\nUse get_shopping_list(list_id) to see items.` 
+          }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Failed to get shopping lists: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    'get_shopping_list',
+    'Get items in a specific shopping list',
+    {
+      list_id: z.string().describe('Shopping list ID from get_shopping_lists'),
+    },
+    async ({ list_id }) => {
+      const result = requireClient(getClient);
+      if ('error' in result) return result.error;
+      const { client } = result;
+
+      try {
+        const list = await client.getShoppingList(list_id);
+
+        if (list.items.length === 0) {
+          return {
+            content: [{ type: 'text', text: `Shopping list "${list.name}" is empty.` }],
+          };
+        }
+
+        const itemsList = list.items.map((item: { productId: string; name: string; checked: boolean; price: { total: number } }, i: number) => {
+          const priceStr = item.price?.total ? ` - $${item.price.total.toFixed(2)}` : '';
+          const checked = item.checked ? ' [x]' : ' [ ]';
+          return `${i + 1}.${checked} ${item.name}${priceStr} (ID: ${item.productId})`;
+        }).join('\n');
+
+        return {
+          content: [{ 
+            type: 'text', 
+            text: `**${list.name}** (${list.items.length} items)\n\n${itemsList}` 
+          }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Failed to get shopping list: ${error instanceof Error ? error.message : 'Unknown error'}` }],
           isError: true,
         };
       }

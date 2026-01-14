@@ -128,6 +128,8 @@ export const GRAPHQL_HASHES = {
   listPickupTimeslotsV2: '7f9e10c23b1415ebf350493414b2e55e18c81c63f0571cf35f8dd155c9f3a9a0',
   StoreSearch: 'e01fa39e66c3a2c7881322bc48af6a5af97d49b1442d433f2d09d273de2db4b6',
   SelectPickupFulfillment: '8fa3c683ee37ad1bab9ce22b99bd34315b2a89cfc56208d63ba9efc0c49a6323',
+  getShoppingListsV2: '954a24fe9f3cf6f904fdb602b412e355271dbc8b919303ae84c8328e555e99fa',
+  getShoppingListV2: '085fcaef4f2f05ee16ea44c1489801e7ae7e7a95311cbf6d7a3f09135f0ea557',
 } as const;
 
 /**

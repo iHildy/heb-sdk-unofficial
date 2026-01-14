@@ -1,3 +1,4 @@
+import { getAccountDetails, type AccountDetails } from './account.js';
 import { addToCart, getCart, quickAdd, removeFromCart, updateCartItem, type Cart, type CartResponse } from './cart.js';
 import { getCurbsideSlots, reserveCurbsideSlot, type CurbsideSlot, type GetCurbsideSlotsOptions, type ReserveCurbsideSlotResult } from './curbside.js';
 import { getDeliverySlots, reserveSlot, type DeliverySlot, type GetDeliverySlotsOptions, type ReserveSlotResult } from './delivery.js';
@@ -5,7 +6,9 @@ import { getOrder, getOrders, type GetOrdersOptions, type Order } from './orders
 import { getProductDetails, getProductImageUrl, getProductSkuId, type Product } from './product.js';
 import { searchProducts, typeahead, typeaheadTerms, type SearchOptions, type SearchResult, type TypeaheadResult } from './search.js';
 import { buildHeaders, fetchBuildId, isSessionValid } from './session.js';
+import { getShoppingList, getShoppingLists, type GetShoppingListOptions, type ShoppingList, type ShoppingListDetails } from './shopping-list.js';
 import { searchStores, setStore, type Store } from './stores.js';
+import { getWeeklyAdProducts, type WeeklyAdOptions, type WeeklyAdResult } from './weekly-ad.js';
 import type { Address, HEBSession } from './types.js';
 
 /**
@@ -106,6 +109,17 @@ export class HEBClient {
    */
   async typeaheadTerms(query: string): Promise<string[]> {
     return typeaheadTerms(this.session, query);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Weekly Ad
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Fetch weekly ad products for the current store.
+   */
+  async getWeeklyAdProducts(options?: WeeklyAdOptions): Promise<WeeklyAdResult> {
+    return getWeeklyAdProducts(this.session, options);
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -233,7 +247,43 @@ export class HEBClient {
     return getOrder(this.session, orderId);
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // Account
+  // ─────────────────────────────────────────────────────────────
 
+  /**
+   * Get account profile details.
+   * 
+   * Returns the user's profile information including name, email,
+   * phone, and saved addresses.
+   * 
+   * @example
+   * await heb.ensureBuildId();
+   * const account = await heb.getAccountDetails();
+   * console.log(`Welcome, ${account.firstName}!`);
+   * console.log(`Email: ${account.email}`);
+   */
+  async getAccountDetails(): Promise<AccountDetails> {
+    return getAccountDetails(this.session);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Shopping Lists
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Get all shopping lists for the current user.
+   */
+  async getShoppingLists(): Promise<ShoppingList[]> {
+    return getShoppingLists(this.session);
+  }
+
+  /**
+   * Get a specific shopping list with its items.
+   */
+  async getShoppingList(listId: string, options?: GetShoppingListOptions): Promise<ShoppingListDetails> {
+    return getShoppingList(this.session, listId, options);
+  }
 
   // ─────────────────────────────────────────────────────────────
   // Delivery

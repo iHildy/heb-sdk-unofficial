@@ -52,6 +52,16 @@ export {
 } from './search.js';
 
 // ─────────────────────────────────────────────────────────────
+// Weekly Ad
+// ─────────────────────────────────────────────────────────────
+export {
+    getWeeklyAdProducts,
+    type WeeklyAdOptions,
+    type WeeklyAdProduct,
+    type WeeklyAdResult
+} from './weekly-ad.js';
+
+// ─────────────────────────────────────────────────────────────
 // Cart
 // ─────────────────────────────────────────────────────────────
 export {
@@ -78,6 +88,27 @@ export {
     type Order,
     type OrderItem
 } from './orders.js';
+
+// ─────────────────────────────────────────────────────────────
+// Shopping Lists
+// ─────────────────────────────────────────────────────────────
+export {
+    getShoppingList,
+    getShoppingLists,
+    type GetShoppingListOptions,
+    type ShoppingList,
+    type ShoppingListDetails,
+    type ShoppingListItem
+} from './shopping-list.js';
+
+// ─────────────────────────────────────────────────────────────
+// Account
+// ─────────────────────────────────────────────────────────────
+export {
+    getAccountDetails,
+    type AccountAddress,
+    type AccountDetails
+} from './account.js';
 
 // ─────────────────────────────────────────────────────────────
 // Delivery

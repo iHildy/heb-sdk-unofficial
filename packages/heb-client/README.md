@@ -77,6 +77,7 @@ Main client class with all methods:
 | Method | Description |
 |--------|-------------|
 | `search(query, { limit? })` | Search products (Next.js data) |
+| `getWeeklyAdProducts({ limit? })` | Weekly ad products |
 | `getProduct(productId)` | Get full product details |
 | `getSkuId(productId)` | Get just the SKU ID |
 | `addToCart(productId, skuId, qty)` | Add/update cart item |
@@ -84,6 +85,17 @@ Main client class with all methods:
 | `addToCartById(productId, qty)` | Add to cart (auto-fetches SKU) |
 
 | `typeahead(query)` | Get search suggestions |
+
+### Weekly Ad
+
+```typescript
+const weeklyAd = await heb.getWeeklyAdProducts({
+  displayType: 'all',
+  categoryFilter: 'Fruit',
+  department: 'Seafood',
+  limit: 20,
+});
+```
 
 ### Session Management
 
@@ -118,6 +130,7 @@ try {
 - **Store context**: Set `CURR_SESSION_STORE` to get accurate pricing and availability for your store.
 - **Search data**: Product search uses the Next.js data endpoint and requires a valid buildId.
 - **Bearer sessions**: Mobile OAuth sessions use mobile GraphQL persisted queries and require a store ID (set `CURR_SESSION_STORE` or pass `storeId` in search options).
+- **Weekly ad**: Weekly ad products come from Flipp endpoints and require a store ID (postal code is derived).
 
 ## License
 
