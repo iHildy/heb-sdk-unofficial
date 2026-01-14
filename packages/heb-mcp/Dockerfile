@@ -66,6 +66,14 @@ RUN pnpm install --prod --frozen-lockfile --filter heb-mcp --ignore-scripts
 ENV MCP_MODE=remote
 ENV PORT=3000
 ENV NODE_ENV=production
+ENV MCP_OAUTH_CLIENTS_FILE=/data/oauth/clients.json
+ENV MCP_OAUTH_TOKENS_FILE=/data/oauth/tokens.json
+ENV HEB_SESSION_STORE_DIR=/data/sessions
+
+# Ensure persistent storage path exists in the image
+RUN mkdir -p /data/oauth /data/sessions
+
+VOLUME ["/data"]
 
 # The working directory should be the package directory for running
 WORKDIR /app/packages/heb-mcp

@@ -34,3 +34,4 @@ services:
 
 volumes:
   heb-mcp-data:
+    name: heb-mcp-data
