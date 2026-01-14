@@ -276,7 +276,11 @@ function extractComponents(payload?: MobileLayoutResponse): RawComponent[] {
 }
 
 function extractComponentItems(component: RawComponent): RawComponent[] {
-  const keys = ['items', 'cards', 'tiles', 'banners', 'promotions', 'products', 'productList', 'entries', 'components'];
+  const keys = [
+    'items', 'cards', 'tiles', 'banners', 'promotions', 'products', 'productList', 'entries', 'components',
+    'textLinks', 'carouselItems', 'mobileAndNativeLayoutOrder', 'moduleCards',
+    'sectionOne', 'sectionTwo', 'sectionThree', 'shortcutsSet'
+  ];
   const results: RawComponent[] = [];
   
   let foundItems = false;
@@ -285,9 +289,20 @@ function extractComponentItems(component: RawComponent): RawComponent[] {
     if (Array.isArray(value)) {
       results.push(...value);
       if (value.length > 0) foundItems = true;
-    } else if (value && typeof value === 'object' && Array.isArray((value as any).items)) {
-      results.push(...((value as any).items as RawComponent[]));
-      if (((value as any).items as RawComponent[]).length > 0) foundItems = true;
+    } else if (value && typeof value === 'object') {
+      // Check for nested lists in objects
+      const nestedCandidates = [
+        (value as any).items,
+        (value as any).carouselItems,
+        (value as any).shortcutsSet
+      ];
+      
+      for (const candidate of nestedCandidates) {
+        if (Array.isArray(candidate)) {
+          results.push(...candidate);
+          if (candidate.length > 0) foundItems = true;
+        }
+      }
     }
   }
 
