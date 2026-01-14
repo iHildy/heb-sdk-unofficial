@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Redirecting...</title>
+  <meta charset="utf-8">
+</head>
+<body>
+  <script>
+    async function onClerkLoad() {
+      try {
+        await Clerk.load();
+        if (Clerk.user) {
+          // User is signed in, cookie should now be synced. Reload to let backend see it.
+          // Append a timestamp to avoid cache
+          const url = new URL(window.location.href);
+          url.searchParams.set('_t', Date.now());
+          window.location.href = url.toString();
+        } else {
+          // Not signed in, redirect to sign in flow
+          window.location.href = "{{SIGN_IN_URL}}";
+        }
+      } catch (err) {
+        console.error('Clerk load error', err);
+        // Fallback
+        window.location.href = "{{SIGN_IN_URL}}";
+      }
+    }
+
+    // Fallback if onload doesn't trigger for some reason
+    window.addEventListener('load', () => {
+      if (window.Clerk && !window.Clerk.isReady && typeof onClerkLoad === 'function') {
+        // Clerk script is there but maybe didn't call onClerkLoad
+      }
+    });
+  </script>
+  {{CLERK_SCRIPT}}
+
+  <p>Redirecting to authentication...</p>
+</body>
+</html>

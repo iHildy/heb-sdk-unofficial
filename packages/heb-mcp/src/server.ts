@@ -19,7 +19,6 @@ import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import express from 'express';
-import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -41,18 +40,14 @@ import {
 } from './oauth.js';
 import { LOCAL_COOKIE_FILE, saveSessionToFile, sessionManager } from './session.js';
 import { registerTools } from './tools.js';
+import { renderPage } from './utils.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PUBLIC_DIR = join(__dirname, '..', 'public');
 
-function renderPage(filePath: string, replacements: Record<string, string> = {}): string {
-  let content = readFileSync(filePath, 'utf8');
-  for (const [key, value] of Object.entries(replacements)) {
-    content = content.replace(new RegExp(`{{${key}}}`, 'g'), value);
-  }
-  return content;
-}
+
 
 const SERVER_NAME = 'heb';
 const SERVER_VERSION = '0.1.0';
