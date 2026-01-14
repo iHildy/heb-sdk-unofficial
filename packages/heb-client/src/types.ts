@@ -171,6 +171,8 @@ export const MOBILE_GRAPHQL_HASHES = {
   searchCouponsV2: '9167a6a0455d21aa581bd0d46326d797d3f65b2262569c1641a4db57943e87c4',
   sortOrderDimensions: '1345024de7e1af61e9b55d35c746fb6b42082cf1e0ce33df742c6da12d5d07e7',
   WhatsNew: 'cdd192bb9b472537384cca9d7de863a638311f6d06f010010b12827c8d85c5b8',
+  weeklyAdProductCategoryPage: '1f827f085cdd170d56e510cf0dce475a82957b5c038efaf80534c1b65c6b2aee',
+  weeklyAdLandingPageInfo: 'f4dc8f7f319415b33a16d00e9c8b1c3b3eb84d19c6ad48be96b29311e1a30ff2',
 } as const;
 
 /**
