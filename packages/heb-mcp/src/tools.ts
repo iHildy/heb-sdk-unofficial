@@ -969,12 +969,12 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
     'get_weekly_ad',
     'Get products from the current store\'s weekly ad flyer.',
     {
-      limit: z.number().min(1).max(50).optional().describe('Max results to return (default: 20)'),
-      category: z.string().optional().describe('Filter by category name'),
-      department: z.string().optional().describe('Filter by department name'),
+      limit: z.number().min(1).max(100).optional().describe('Max results to return (default: 20)'),
+      category_id: z.string().optional().describe('Filter by category ID (e.g. "490020"). Use get_weekly_ad_categories to find IDs.'),
       store_id: z.string().optional().describe('Override the current store ID (e.g. "796")'),
+      page_cursor: z.string().optional().describe('Cursor for pagination'),
     },
-    async ({ limit, category, department, store_id }) => {
+    async ({ limit, category_id, store_id, page_cursor }) => {
       const result = requireClient(getClient);
       if ('error' in result) return result.error;
       const { client } = result;
@@ -982,9 +982,9 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       try {
         const adResults = await client.getWeeklyAdProducts({
           limit: limit ?? 20,
-          categoryFilter: category,
-          department,
+          category: category_id,
           storeCode: store_id,
+          cursor: page_cursor,
         });
 
         if (adResults.products.length === 0) {
@@ -996,13 +996,14 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
         const productsList = adResults.products.map((p, i) => {
           const price = p.priceText ? ` - ${p.priceText}` : '';
           const savings = p.saleStory ? ` (${p.saleStory})` : '';
-          return `${i + 1}. ${p.name}${price}${savings} (ID: ${p.id})`;
+          return `${i + 1}. ${p.name}${price}${savings} (ID: ${p.id}, UPC: ${p.upc ?? 'N/A'})`;
         }).join('\n');
 
         const summary = [
           `**Weekly Ad (${adResults.storeCode})**`,
           adResults.validFrom && adResults.validTo ? `Valid: ${adResults.validFrom} to ${adResults.validTo}` : null,
           `Showing ${adResults.products.length} of ${adResults.totalCount} products.`,
+          adResults.cursor ? `Next Cursor: ${adResults.cursor}` : null,
           `\n${productsList}`,
         ].filter(Boolean).join('\n');
 
@@ -1019,8 +1020,8 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
   );
 
   server.tool(
-    'get_weekly_ad_info',
-    'Get metadata about the current weekly ad, including available categories and departments for filtering.',
+    'get_weekly_ad_categories',
+    'Get available categories for the weekly ad to use as filters.',
     {
       store_id: z.string().optional().describe('Override the current store ID (e.g. "796")'),
     },
@@ -1032,26 +1033,18 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       try {
         const adResults = await client.getWeeklyAdProducts({
           storeCode: store_id,
+          limit: 0, // Just fetch metadata
         });
 
-        const categories = new Set<string>();
-        const departments = new Set<string>();
-
-        adResults.products.forEach(p => {
-          p.categories?.forEach(c => categories.add(c));
-          p.departments?.forEach(d => departments.add(d));
-        });
-
-        const sortedCategories = Array.from(categories).sort();
-        const sortedDepartments = Array.from(departments).sort();
+        const categoriesList = adResults.categories.map(c => 
+          `- ${c.name} (ID: ${c.id}) - ${c.count} items`
+        ).join('\n');
 
         const info = [
-          `**Weekly Ad Info (${adResults.storeCode})**`,
-          `Flyer ID: ${adResults.flyerId}`,
+          `**Weekly Ad Categories (${adResults.storeCode})**`,
           adResults.validFrom && adResults.validTo ? `Valid: ${adResults.validFrom} to ${adResults.validTo}` : null,
           `Total Products: ${adResults.totalCount}`,
-          `\n**Available Departments:**\n${sortedDepartments.join(', ') || 'None'}`,
-          `\n**Available Categories:**\n${sortedCategories.join(', ') || 'None'}`,
+          `\n**Available Categories:**\n${categoriesList || 'None'}`,
         ].filter(Boolean).join('\n');
 
         return {
@@ -1059,7 +1052,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
         };
       } catch (error) {
         return {
-          content: [{ type: 'text', text: `Failed to fetch weekly ad info: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+          content: [{ type: 'text', text: `Failed to fetch weekly ad categories: ${error instanceof Error ? error.message : 'Unknown error'}` }],
           isError: true,
         };
       }
