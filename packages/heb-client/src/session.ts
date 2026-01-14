@@ -230,3 +230,19 @@ export async function fetchBuildId(cookies: HEBCookies): Promise<string> {
     throw new Error(`Failed to parse __NEXT_DATA__ JSON: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
+
+/**
+ * Ensure the session has a valid buildId.
+ */
+export async function ensureBuildId(session: HEBSession): Promise<void> {
+  if (session.buildId) {
+    return;
+  }
+
+  const buildId = await fetchBuildId(session.cookies);
+  session.buildId = buildId;
+
+  if (session.authMode !== 'bearer') {
+    session.headers = buildHeaders(session.cookies, buildId);
+  }
+}

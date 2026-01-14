@@ -1,6 +1,6 @@
 import type { HEBSession } from './types.js';
 import { GRAPHQL_HASHES, MOBILE_GRAPHQL_HASHES } from './types.js';
-import { ensureFreshSession, normalizeHeaders, resolveEndpoint } from './session.js';
+import { ensureBuildId, ensureFreshSession, normalizeHeaders, resolveEndpoint } from './session.js';
 
 /**
  * GraphQL request payload structure.
@@ -126,6 +126,10 @@ export async function nextDataRequest<T>(
   session: HEBSession,
   path: string
 ): Promise<T> {
+  if (!session.buildId) {
+    await ensureBuildId(session);
+  }
+
   if (!session.buildId) {
     throw new Error('Session buildId required for Next.js data requests. Re-fetch session or provide buildId.');
   }

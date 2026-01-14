@@ -5,12 +5,13 @@
  */
 
 import { nextDataRequest, persistedQuery } from './api.js';
+import type { GraphQLResponse } from './api.js';
 import type { HEBSession } from './types.js';
 
 /**
  * Raw order object from order history list.
  */
-interface RawHistoryOrder {
+export interface RawHistoryOrder {
   orderId: string;
   orderStatusMessageShort: string;
   orderChangesOverview: {
@@ -39,19 +40,58 @@ interface RawHistoryOrder {
 }
 
 /**
- * Raw order details response.
+ * Raw order history page response from Next.js data endpoint.
  */
-interface OrderDetailsResponse {
-  orderDetailsRequest: {
-    order: {
-      orderId: string;
-      status: string;
-      priceDetails: {
-        subtotal: { formattedAmount: string };
-        total: { formattedAmount: string };
-        tax: { formattedAmount: string };
+export interface OrderHistoryResponse {
+  pageProps: {
+    orders?: RawHistoryOrder[];
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+/**
+ * Raw order details page payload from Next.js data endpoint.
+ */
+export interface OrderDetailsPageOrder {
+  orderId: string;
+  status: string;
+  priceDetails?: {
+    subtotal?: { formattedAmount?: string };
+    total?: { formattedAmount?: string };
+    tax?: { formattedAmount?: string };
+  };
+  fulfillmentType?: string;
+  orderPlacedOnDateTime?: string;
+  orderTimeslot?: {
+    startDateTime?: string;
+    endDateTime?: string;
+  };
+  [key: string]: unknown;
+}
+
+export interface OrderDetailsPageResponse {
+  pageProps?: {
+    order?: OrderDetailsPageOrder;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+/**
+ * Raw order details response (GraphQL persisted query).
+ */
+export interface OrderDetailsGraphqlResponse {
+  orderDetailsRequest?: {
+    order?: {
+      orderId?: string;
+      status?: string;
+      priceDetails?: {
+        subtotal?: { formattedAmount?: string };
+        total?: { formattedAmount?: string };
+        tax?: { formattedAmount?: string };
       };
-      orderItems: Array<{
+      orderItems?: Array<{
         quantity: number;
         product: {
           id: string;
@@ -59,36 +99,18 @@ interface OrderDetailsResponse {
           thumbnailImageUrls: Array<{ size: string; url: string }>;
           SKUs: Array<{ id: string }>;
         };
-        totalUnitPrice: { amount: number };
+        totalUnitPrice?: { amount?: number };
       }>;
     };
   };
 }
 
 /**
- * Order item from order history.
+ * Raw order details response (Next.js + GraphQL).
  */
-export interface OrderItem {
-  productId: string;
-  skuId: string;
-  name: string;
-  quantity: number;
-  price: number;
-  imageUrl?: string;
-}
-
-/**
- * Order from order history.
- */
-export interface Order {
-  orderId: string;
-  orderDate: Date;
-  status: string;
-  items: OrderItem[];
-  subtotal: number;
-  total: number;
-  storeName?: string;
-  fulfillmentType?: string;
+export interface OrderDetailsResponse {
+  page: OrderDetailsPageResponse;
+  graphql: GraphQLResponse<OrderDetailsGraphqlResponse>;
 }
 
 /**
@@ -99,75 +121,44 @@ export interface GetOrdersOptions {
 }
 
 /**
- * Get order history.
+ * Get order history (raw Next.js payload).
  * 
  * @param session - Active HEB session
  * @param options - Pagination options
- * @returns List of orders
+ * @returns Raw order history response
  */
 export async function getOrders(
   session: HEBSession,
   options: GetOrdersOptions = {}
-): Promise<Order[]> {
-  const page = options.page || 1;
+): Promise<OrderHistoryResponse> {
+  const page = options.page ?? 1;
   const path = `/en/my-account/your-orders.json?page=${page}`;
-  
-  const data = await nextDataRequest<{
-    pageProps: {
-      orders: RawHistoryOrder[];
-    };
-  }>(session, path);
 
-  const rawOrders = data.pageProps.orders;
-
-  return rawOrders.map(o => ({
-    orderId: o.orderId,
-    orderDate: new Date(o.orderTimeslot.startTime),
-    status: o.orderStatusMessageShort,
-    items: [], // Details not available in list view
-    subtotal: 0, // Not available in list view
-    total: parseFloat(o.totalPrice.formattedAmount.replace('$', '')),
-    storeName: o.store.name,
-    fulfillmentType: o.fulfillmentType,
-  }));
+  return nextDataRequest<OrderHistoryResponse>(session, path);
 }
 
 /**
- * Get a single order by ID.
+ * Get a single order by ID (raw Next.js + GraphQL payloads).
  * 
  * @param session - Active HEB session
  * @param orderId - Order ID
- * @returns Order details
+ * @returns Raw order details response
  */
 export async function getOrder(
   session: HEBSession,
   orderId: string
-): Promise<Order> {
-  const response = await persistedQuery<OrderDetailsResponse>(
-    session,
-    'ModifiableOrderDetailsRequest',
-    { orderId }
-  );
+): Promise<OrderDetailsResponse> {
+  const safeOrderId = encodeURIComponent(orderId);
+  const path = `/en/my-account/order-history/${safeOrderId}.json?orderId=${safeOrderId}`;
 
-  const orderData = response.data?.orderDetailsRequest?.order;
+  const [page, graphql] = await Promise.all([
+    nextDataRequest<OrderDetailsPageResponse>(session, path),
+    persistedQuery<OrderDetailsGraphqlResponse>(
+      session,
+      'ModifiableOrderDetailsRequest',
+      { orderId }
+    ),
+  ]);
 
-  if (!orderData) {
-    throw new Error(`Order ${orderId} not found`);
-  }
-
-  return {
-    orderId: orderData.orderId,
-    orderDate: new Date(), // Date not readily available in this query, would need to fetch from list or other field
-    status: orderData.status,
-    subtotal: parseFloat(orderData.priceDetails.subtotal.formattedAmount.replace('$', '')),
-    total: parseFloat(orderData.priceDetails.total.formattedAmount.replace('$', '')),
-    items: orderData.orderItems.map(item => ({
-      productId: item.product.id,
-      skuId: item.product.SKUs[0]?.id || '',
-      name: item.product.fullDisplayName,
-      quantity: item.quantity,
-      price: item.totalUnitPrice.amount,
-      imageUrl: item.product.thumbnailImageUrls.find(img => img.size === 'SMALL')?.url,
-    })),
-  };
+  return { page, graphql };
 }

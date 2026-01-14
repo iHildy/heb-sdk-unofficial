@@ -2,10 +2,11 @@ import { getAccountDetails, type AccountDetails } from './account.js';
 import { addToCart, getCart, quickAdd, removeFromCart, updateCartItem, type Cart, type CartResponse } from './cart.js';
 import { getCurbsideSlots, reserveCurbsideSlot, type CurbsideSlot, type GetCurbsideSlotsOptions, type ReserveCurbsideSlotResult } from './curbside.js';
 import { getDeliverySlots, reserveSlot, type DeliverySlot, type GetDeliverySlotsOptions, type ReserveSlotResult } from './delivery.js';
-import { getOrder, getOrders, type GetOrdersOptions, type Order } from './orders.js';
+import { getHomepage, type HomepageData } from './homepage.js';
+import { getOrder, getOrders, type GetOrdersOptions, type OrderDetailsResponse, type OrderHistoryResponse } from './orders.js';
 import { getProductDetails, getProductImageUrl, getProductSkuId, type Product } from './product.js';
 import { searchProducts, typeahead, typeaheadTerms, type SearchOptions, type SearchResult, type TypeaheadResult } from './search.js';
-import { buildHeaders, fetchBuildId, isSessionValid } from './session.js';
+import { ensureBuildId, isSessionValid } from './session.js';
 import { getShoppingList, getShoppingLists, type GetShoppingListOptions, type ShoppingList, type ShoppingListDetails } from './shopping-list.js';
 import { searchStores, setStore, type Store } from './stores.js';
 import { getWeeklyAdProducts, type WeeklyAdOptions, type WeeklyAdResult } from './weekly-ad.js';
@@ -55,13 +56,7 @@ export class HEBClient {
     }
 
     try {
-      const buildId = await fetchBuildId(this.session.cookies);
-      if (buildId) {
-        this.session.buildId = buildId;
-        if (this.session.authMode !== 'bearer') {
-          this.session.headers = buildHeaders(this.session.cookies, buildId);
-        }
-      }
+      await ensureBuildId(this.session);
     } catch (error) {
       console.warn('Failed to fetch buildId, continuing with unknown version:', error);
     }
@@ -227,23 +222,24 @@ export class HEBClient {
   // ─────────────────────────────────────────────────────────────
 
   /**
-   * Get order history.
+   * Get order history (raw Next.js payload).
    * 
    * @example
-   * const orders = await heb.getOrders({ page: 1 });
+   * const history = await heb.getOrders({ page: 1 });
+   * const orders = history.pageProps?.orders ?? [];
    * console.log(`Found ${orders.length} orders`);
    */
-  async getOrders(options: GetOrdersOptions = {}): Promise<Order[]> {
+  async getOrders(options: GetOrdersOptions = {}): Promise<OrderHistoryResponse> {
     return getOrders(this.session, options);
   }
 
   /**
-   * Get filtered order history.
+   * Get order details.
    * 
    * @param orderId - Order ID
-   * @returns Order details
+   * @returns Raw order details payloads
    */
-  async getOrder(orderId: string): Promise<Order> {
+  async getOrder(orderId: string): Promise<OrderDetailsResponse> {
     return getOrder(this.session, orderId);
   }
 
@@ -265,6 +261,22 @@ export class HEBClient {
    */
   async getAccountDetails(): Promise<AccountDetails> {
     return getAccountDetails(this.session);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Homepage
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Get the homepage content including banners, promotions, and featured products.
+   * 
+   * @example
+   * await heb.ensureBuildId();
+   * const homepage = await heb.getHomepage();
+   * console.log(`Found ${homepage.banners.length} banners`);
+   */
+  async getHomepage(): Promise<HomepageData> {
+    return getHomepage(this.session);
   }
 
   // ─────────────────────────────────────────────────────────────

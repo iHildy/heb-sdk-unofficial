@@ -6,7 +6,7 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { Cart, CartFee, CartItem, HEBClient, HEBCookies, HEBSession, PaymentGroup } from 'heb-client';
+import type { HEBClient, HEBCookies, HEBSession } from 'heb-client';
 import { isSessionValid } from 'heb-client';
 import { z } from 'zod';
 import { getSessionStatus, saveSessionToFile } from './session.js';
@@ -17,6 +17,45 @@ type ToolOptions = {
   saveCookies?: (cookies: HEBCookies) => Promise<void> | void;
   saveSession?: (session: HEBSession) => Promise<void> | void;
   sessionStatusSource?: string;
+};
+
+type OrderHistoryResponse = {
+  pageProps?: {
+    orders?: Array<{
+      orderId: string;
+      orderStatusMessageShort?: string;
+      orderTimeslot?: { startTime?: string };
+      totalPrice?: { formattedAmount?: string };
+    }>;
+  };
+};
+
+type OrderDetailsResponse = {
+  page?: {
+    pageProps?: {
+      order?: {
+        orderId?: string;
+        status?: string;
+        priceDetails?: { total?: { formattedAmount?: string } };
+      };
+    };
+  };
+  graphql?: {
+    data?: {
+      orderDetailsRequest?: {
+        order?: {
+          orderId?: string;
+          status?: string;
+          priceDetails?: { total?: { formattedAmount?: string } };
+          orderItems?: Array<{
+            quantity: number;
+            product: { id: string; fullDisplayName: string };
+            totalUnitPrice?: { amount?: number };
+          }>;
+        };
+      };
+    };
+  };
 };
 
 /**
@@ -384,7 +423,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
 
 
   // ─────────────────────────────────────────────────────────────
-  // Orders (Stub)
+  // Orders
   // ─────────────────────────────────────────────────────────────
 
   server.tool(
@@ -401,7 +440,8 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       try {
         // Ensure buildId is available for order history fetch
         await client.ensureBuildId();
-        const orders = await client.getOrders({ page });
+        const history = await client.getOrders({ page }) as OrderHistoryResponse;
+        const orders = history.pageProps?.orders ?? [];
 
         if (orders.length === 0) {
           return {
@@ -409,9 +449,13 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
           };
         }
 
-        const formatted = orders.map(o => 
-          `* Order ID: ${o.orderId} - Date: ${o.orderDate.toLocaleDateString()} - Total: $${o.total.toFixed(2)} (${o.status})`
-        ).join('\n');
+        const formatted = orders.map(order => {
+          const orderDate = order.orderTimeslot?.startTime;
+          const dateText = orderDate ? new Date(orderDate).toLocaleDateString() : 'Unknown date';
+          const totalText = order.totalPrice?.formattedAmount ?? 'Unknown total';
+          const statusText = order.orderStatusMessageShort ?? 'Unknown status';
+          return `* Order ID: ${order.orderId} - Date: ${dateText} - Total: ${totalText} (${statusText})`;
+        }).join('\n');
 
         return {
           content: [{ 
@@ -440,17 +484,29 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
-        const order = await client.getOrder(order_id);
+        await client.ensureBuildId();
+        const order = await client.getOrder(order_id) as OrderDetailsResponse;
+        const pageOrder = order.page?.pageProps?.order;
+        const graphOrder = order.graphql?.data?.orderDetailsRequest?.order;
 
-        const items = order.items.map(item => 
-          `- ${item.name} (Qty: ${item.quantity}, Price: $${(item.price / 100).toFixed(2)}) (ID: ${item.productId})`
-        ).join('\n');
+        const items = (graphOrder?.orderItems ?? []).map(item => {
+          const price = typeof item.totalUnitPrice?.amount === 'number'
+            ? `$${(item.totalUnitPrice.amount / 100).toFixed(2)}`
+            : 'Unknown price';
+          return `- ${item.product.fullDisplayName} (Qty: ${item.quantity}, Price: ${price}) (ID: ${item.product.id})`;
+        }).join('\n');
+
+        const orderIdText = pageOrder?.orderId ?? graphOrder?.orderId ?? order_id;
+        const statusText = pageOrder?.status ?? graphOrder?.status ?? 'Unknown status';
+        const totalText = pageOrder?.priceDetails?.total?.formattedAmount
+          ?? graphOrder?.priceDetails?.total?.formattedAmount
+          ?? 'Unknown total';
 
         const details = [
-          `**Order ${order.orderId}**`,
-          `Status: ${order.status}`,
-          `Total: $${order.total.toFixed(2)}`,
-          `Items:\n${items}`
+          `**Order ${orderIdText}**`,
+          `Status: ${statusText}`,
+          `Total: ${totalText}`,
+          items ? `Items:\n${items}` : 'Items: No items found.'
         ].join('\n');
 
         return {
@@ -507,6 +563,83 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       } catch (error) {
         return {
           content: [{ type: 'text', text: `Failed to get account details: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ─────────────────────────────────────────────────────────────
+  // Homepage
+  // ─────────────────────────────────────────────────────────────
+
+  server.tool(
+    'get_homepage',
+    'Get the H-E-B homepage content including banners, promotions, deals, and featured products',
+    {},
+    async () => {
+      const result = requireClient(getClient);
+      if ('error' in result) return result.error;
+      const { client } = result;
+
+      try {
+        await client.ensureBuildId();
+        const homepage = await client.getHomepage();
+
+        const parts: string[] = ['**H-E-B Homepage**'];
+
+        // Banners
+        if (homepage.banners.length > 0) {
+          parts.push(`\n**Banners (${homepage.banners.length}):**`);
+          homepage.banners.slice(0, 5).forEach((b, i) => {
+            parts.push(`${i + 1}. ${b.title ?? 'Untitled'}${b.linkUrl ? ` - ${b.linkUrl}` : ''}`);
+          });
+          if (homepage.banners.length > 5) {
+            parts.push(`... and ${homepage.banners.length - 5} more`);
+          }
+        }
+
+        // Promotions
+        if (homepage.promotions.length > 0) {
+          parts.push(`\n**Promotions (${homepage.promotions.length}):**`);
+          homepage.promotions.slice(0, 5).forEach((p, i) => {
+            parts.push(`${i + 1}. ${p.title}${p.description ? ` - ${p.description}` : ''}`);
+          });
+          if (homepage.promotions.length > 5) {
+            parts.push(`... and ${homepage.promotions.length - 5} more`);
+          }
+        }
+
+        // Featured Products
+        if (homepage.featuredProducts.length > 0) {
+          parts.push(`\n**Featured Products (${homepage.featuredProducts.length}):**`);
+          homepage.featuredProducts.slice(0, 5).forEach((p, i) => {
+            const price = p.priceFormatted ?? '';
+            parts.push(`${i + 1}. ${p.name}${p.brand ? ` (${p.brand})` : ''} ${price} (ID: ${p.productId})`);
+          });
+          if (homepage.featuredProducts.length > 5) {
+            parts.push(`... and ${homepage.featuredProducts.length - 5} more`);
+          }
+        }
+
+        // Sections summary
+        if (homepage.sections.length > 0) {
+          parts.push(`\n**Content Sections (${homepage.sections.length}):**`);
+          homepage.sections.forEach((s, i) => {
+            parts.push(`${i + 1}. ${s.title ?? s.type} (${s.itemCount} items)`);
+          });
+        }
+
+        if (parts.length === 1) {
+          parts.push('\nNo homepage content found.');
+        }
+
+        return {
+          content: [{ type: 'text', text: parts.join('\n') }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Failed to get homepage: ${error instanceof Error ? error.message : 'Unknown error'}` }],
           isError: true,
         };
       }
@@ -822,6 +955,111 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       } catch (error) {
         return {
           content: [{ type: 'text', text: `Store search failed: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ─────────────────────────────────────────────────────────────
+  // Weekly Ad
+  // ─────────────────────────────────────────────────────────────
+
+  server.tool(
+    'get_weekly_ad',
+    'Get products from the current store\'s weekly ad flyer.',
+    {
+      limit: z.number().min(1).max(50).optional().describe('Max results to return (default: 20)'),
+      category: z.string().optional().describe('Filter by category name'),
+      department: z.string().optional().describe('Filter by department name'),
+      store_id: z.string().optional().describe('Override the current store ID (e.g. "796")'),
+    },
+    async ({ limit, category, department, store_id }) => {
+      const result = requireClient(getClient);
+      if ('error' in result) return result.error;
+      const { client } = result;
+
+      try {
+        const adResults = await client.getWeeklyAdProducts({
+          limit: limit ?? 20,
+          categoryFilter: category,
+          department,
+          storeCode: store_id,
+        });
+
+        if (adResults.products.length === 0) {
+          return {
+            content: [{ type: 'text', text: 'No products found in the weekly ad matching your filters.' }],
+          };
+        }
+
+        const productsList = adResults.products.map((p, i) => {
+          const price = p.priceText ? ` - ${p.priceText}` : '';
+          const savings = p.saleStory ? ` (${p.saleStory})` : '';
+          return `${i + 1}. ${p.name}${price}${savings} (ID: ${p.id})`;
+        }).join('\n');
+
+        const summary = [
+          `**Weekly Ad (${adResults.storeCode})**`,
+          adResults.validFrom && adResults.validTo ? `Valid: ${adResults.validFrom} to ${adResults.validTo}` : null,
+          `Showing ${adResults.products.length} of ${adResults.totalCount} products.`,
+          `\n${productsList}`,
+        ].filter(Boolean).join('\n');
+
+        return {
+          content: [{ type: 'text', text: summary }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Failed to fetch weekly ad: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    'get_weekly_ad_info',
+    'Get metadata about the current weekly ad, including available categories and departments for filtering.',
+    {
+      store_id: z.string().optional().describe('Override the current store ID (e.g. "796")'),
+    },
+    async ({ store_id }) => {
+      const result = requireClient(getClient);
+      if ('error' in result) return result.error;
+      const { client } = result;
+
+      try {
+        const adResults = await client.getWeeklyAdProducts({
+          storeCode: store_id,
+        });
+
+        const categories = new Set<string>();
+        const departments = new Set<string>();
+
+        adResults.products.forEach(p => {
+          p.categories?.forEach(c => categories.add(c));
+          p.departments?.forEach(d => departments.add(d));
+        });
+
+        const sortedCategories = Array.from(categories).sort();
+        const sortedDepartments = Array.from(departments).sort();
+
+        const info = [
+          `**Weekly Ad Info (${adResults.storeCode})**`,
+          `Flyer ID: ${adResults.flyerId}`,
+          adResults.validFrom && adResults.validTo ? `Valid: ${adResults.validFrom} to ${adResults.validTo}` : null,
+          `Total Products: ${adResults.totalCount}`,
+          `\n**Available Departments:**\n${sortedDepartments.join(', ') || 'None'}`,
+          `\n**Available Categories:**\n${sortedCategories.join(', ') || 'None'}`,
+        ].filter(Boolean).join('\n');
+
+        return {
+          content: [{ type: 'text', text: info }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Failed to fetch weekly ad info: ${error instanceof Error ? error.message : 'Unknown error'}` }],
           isError: true,
         };
       }

@@ -16,6 +16,7 @@ export {
     createSession,
     createTokenSession,
     formatCookieHeader,
+    ensureBuildId,
     ensureFreshSession,
     isSessionAuthenticated,
     isSessionValid,
@@ -79,14 +80,18 @@ export {
 } from './cart.js';
 
 // ─────────────────────────────────────────────────────────────
-// Orders (stub)
+// Orders
 // ─────────────────────────────────────────────────────────────
 export {
     getOrder,
     getOrders,
     type GetOrdersOptions,
-    type Order,
-    type OrderItem
+    type OrderDetailsGraphqlResponse,
+    type OrderDetailsPageOrder,
+    type OrderDetailsPageResponse,
+    type OrderDetailsResponse,
+    type OrderHistoryResponse,
+    type RawHistoryOrder
 } from './orders.js';
 
 // ─────────────────────────────────────────────────────────────
@@ -109,6 +114,18 @@ export {
     type AccountAddress,
     type AccountDetails
 } from './account.js';
+
+// ─────────────────────────────────────────────────────────────
+// Homepage
+// ─────────────────────────────────────────────────────────────
+export {
+    getHomepage,
+    type HomepageBanner,
+    type HomepageData,
+    type HomepageFeaturedProduct,
+    type HomepagePromotion,
+    type HomepageSection
+} from './homepage.js';
 
 // ─────────────────────────────────────────────────────────────
 // Delivery

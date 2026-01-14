@@ -28,6 +28,7 @@ export interface WeeklyAdProduct {
   validFrom?: string;
   validTo?: string;
   categories?: string[];
+  departments?: string[];
   page?: number;
   itemType?: number;
 }
@@ -192,6 +193,10 @@ function mapProduct(product: FlippProduct): WeeklyAdProduct {
     validFrom: product.valid_from ?? undefined,
     validTo: product.valid_to ?? undefined,
     categories: product.categories ?? undefined,
+    departments: [
+      product.item_categories?.l2?.category_name,
+      product.item_categories?.l3?.category_name,
+    ].filter(Boolean) as string[],
     page: product.page ?? undefined,
     itemType: product.item_type ?? undefined,
   };
