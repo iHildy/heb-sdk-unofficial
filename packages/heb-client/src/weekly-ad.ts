@@ -49,14 +49,21 @@ export interface WeeklyAdResult {
 // ─────────────────────────────────────────────────────────────
 
 interface WeeklyAdPageResponse {
-  weeklyAdProductCategoryPage?: {
+  weeklyAdProductCategoryPage?: { // For products
     total?: number;
     nextCursor?: string;
     validFrom?: string;
-    validTo?: string; // These might be at a different level actually, but let's assume they might be here or we might not get them.
+    validTo?: string;
     layout?: {
       visualComponents?: WeeklyAdComponent[];
     };
+    categoryFilters?: Array<{
+      id?: string;
+      label?: string;
+      productCount?: number;
+    }>;
+  };
+  weeklyAdLandingPageInfo?: { // For initial categories
     categoryFilters?: Array<{
       id?: string;
       label?: string;
@@ -149,23 +156,51 @@ export async function getWeeklyAdProducts(
   // Build variables
   const categoryFilter = options.category ? [String(options.category)] : null;
   
+
+  // If no specific category is requested, we might want to hit weeklyAdLandingPageInfo first to get categories
+  // But weeklyAdProductCategoryPage also handles top level. 
+  // Let's try to fetch both if we can, or prefer weeklyAdProductCategoryPage if we have a category.
+  
+  // Actually, checking the HAR:
+  // - Landing page calls `weeklyAdLandingPageInfo` (vars: filters={}, storeId)
+  // - Then `weeklyAdProductCategoryPage` (vars: filters={categories:null}, limit=50)
+
+  // We'll use weeklyAdProductCategoryPage as primary, but if we need categories specifically and don't get them, we might fallback.
+  // Wait, let's just use `weeklyAdProductCategoryPage` for products.
+  
   const response = await persistedQuery<WeeklyAdPageResponse>(
       session,
       'weeklyAdProductCategoryPage',
       {
         filters: {
-          categories: categoryFilter,
-          // personalized: false, // Defaulting to generic view unless requested
+          categories: categoryFilter, // null for all/landing
         },
         isAuthenticated: true,
-        limit: Math.max(1, limit), // API might reject 0, so we ask for 1 if we just want metadata but limit is 0?
-                                   // Logic: if limit is 0, we still need to make the call. 
-                                   // Let's pass 1 if limit is 0, then discard products.
-        cursor: options.cursor,
+        limit: Math.max(1, limit),
         shoppingContext,
         storeId,
       }
   );
+
+  // If we wanted categories explicitly (limit=0 often implies metadata fetch),
+  // and we didn't get them from the product page (sometimes empty on search results?),
+  // let's fetch landing page info.
+  let landingPageData = response.data?.weeklyAdLandingPageInfo; // Won't exist on this query
+  
+  if (limit === 0 || !categoryFilter) {
+     const landingResponse = await persistedQuery<WeeklyAdPageResponse>(
+        session, 
+        'weeklyAdLandingPageInfo',
+        {
+            filters: {},
+            isAuthenticated: true,
+            storeId
+        }
+     );
+     if (landingResponse.data?.weeklyAdLandingPageInfo) {
+         landingPageData = landingResponse.data.weeklyAdLandingPageInfo;
+     }
+  }
 
   if (response.errors?.length) {
     throw new Error(`Weekly ad fetch failed: ${response.errors.map(e => e.message).join(', ')}`);
@@ -198,7 +233,9 @@ export async function getWeeklyAdProducts(
   // The summary showed "categories" in filters. 
   // We hope the response includes available categories for the view.
   // If not in categoryFilters, maybe we can infer from facets if they exist.
-  const categories: WeeklyAdCategory[] = (data?.categoryFilters ?? []).map(c => ({
+
+  const categorySource = landingPageData?.categoryFilters ?? data?.categoryFilters ?? [];
+  const categories: WeeklyAdCategory[] = categorySource.map(c => ({
     id: c.id ?? '',
     name: c.label ?? 'Unknown',
     count: c.productCount ?? 0,

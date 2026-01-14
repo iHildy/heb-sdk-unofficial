@@ -131,7 +131,8 @@ export async function getHomepage(session: HEBSession): Promise<HomepageData> {
   const device = MOBILE_DEVICE;
   const version = MOBILE_APP_VERSION;
 
-  const [entryPointRes, layoutRes, detailRes, categoriesRes] = await Promise.all([
+
+  const [entryPointRes, savingsRes, categoriesRes] = await Promise.all([
     persistedQuery<MobileLayoutResponse>(session, 'entryPoint', {
       device,
       id: 'home-page',
@@ -142,21 +143,14 @@ export async function getHomepage(session: HEBSession): Promise<HomepageData> {
       storeIdString: String(storeId),
       version,
     }),
-    persistedQuery<MobileLayoutResponse>(session, 'DiscoverLayout', {
+    persistedQuery<MobileLayoutResponse>(session, 'entryPoint', {
       device,
-      externalId: 'browse-shop',
+      id: 'featured-savings',
       isAuthenticated: true,
       shoppingContext,
       storeId,
       storeIdID: String(storeId),
       storeIdString: String(storeId),
-      version,
-    }),
-    persistedQuery<MobileLayoutResponse>(session, 'DiscoverDetail', {
-      device,
-      externalId: 'browse-shop',
-      shoppingContext,
-      storeId,
       version,
     }),
     persistedQuery<Record<string, unknown>>(session, 'Categories', {
@@ -165,20 +159,20 @@ export async function getHomepage(session: HEBSession): Promise<HomepageData> {
     }),
   ]);
 
+
   const errors = [
     ...(entryPointRes.errors ?? []),
-    ...(layoutRes.errors ?? []),
-    ...(detailRes.errors ?? []),
+    ...(savingsRes.errors ?? []),
     ...(categoriesRes.errors ?? []),
   ];
   if (errors.length) {
     throw new Error(`Homepage fetch failed: ${errors.map(e => e.message).join(', ')}`);
   }
 
+
   const components = [
     ...extractComponents(entryPointRes.data),
-    ...extractComponents(layoutRes.data),
-    ...extractComponents(detailRes.data),
+    ...extractComponents(savingsRes.data),
   ];
 
   const sections: HomepageSection[] = [];
@@ -278,14 +272,29 @@ function extractComponents(payload?: MobileLayoutResponse): RawComponent[] {
 function extractComponentItems(component: RawComponent): RawComponent[] {
   const keys = ['items', 'cards', 'tiles', 'banners', 'promotions', 'products', 'productList', 'entries', 'components'];
   const results: RawComponent[] = [];
+  
+  let foundItems = false;
   for (const key of keys) {
     const value = component?.[key] as unknown;
     if (Array.isArray(value)) {
       results.push(...value);
+      if (value.length > 0) foundItems = true;
     } else if (value && typeof value === 'object' && Array.isArray((value as any).items)) {
       results.push(...((value as any).items as RawComponent[]));
+      if (((value as any).items as RawComponent[]).length > 0) foundItems = true;
     }
   }
+
+  // If NO explicit items list was found, but the component itself looks like a Banner or Promo,
+  // treat the component ITSELF as the item.
+  if (!foundItems && results.length === 0) {
+    // Check if it has banner-like properties
+    if (component.imageUrl || (component.image as any)?.url || component.title || component.headline) {
+         // It's a single item component
+         results.push(component);
+    }
+  }
+  
   return results;
 }
 
