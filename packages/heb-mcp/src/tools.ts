@@ -7,7 +7,6 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { HEBClient, HEBCookies, HEBSession } from 'heb-client';
-import { isSessionValid } from 'heb-client';
 import { z } from 'zod';
 import { getSessionStatus, saveSessionToFile } from './session.js';
 
@@ -121,14 +120,14 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       if ('error' in result) return result.error;
       const { client } = result;
 
-      const session = client.session;
-      const storeId = session.cookies?.CURR_SESSION_STORE;
+      const info = client.getSessionInfo();
       
       const status = [
         `**Session Status**`,
-        `Store ID: ${storeId ?? 'Not Set'}`,
-        `Session Valid: ${isSessionValid(session) ? 'Yes' : 'No'}`,
-        session.expiresAt ? `Expires At: ${session.expiresAt.toLocaleString()}` : null,
+        `Store ID: ${info.storeId}`,
+        `Shopping Context: ${info.shoppingContext}`,
+        `Session Valid: ${info.isValid ? 'Yes' : 'No'}`,
+        info.expiresAt ? `Expires At: ${info.expiresAt.toLocaleString()}` : null,
       ].filter(Boolean).join('\n');
 
       return {

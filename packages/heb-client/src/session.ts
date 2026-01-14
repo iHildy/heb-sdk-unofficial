@@ -200,3 +200,20 @@ export function resolveShoppingContext(session: HEBSession): string {
 export function getShoppingMode(context: string): 'CURBSIDE' | 'ONLINE' {
   return context.includes('CURBSIDE') ? 'CURBSIDE' : 'ONLINE';
 }
+
+/**
+ * Get information about the current session.
+ */
+export function getSessionInfo(session: HEBSession): {
+  storeId: string;
+  isValid: boolean;
+  expiresAt: Date | undefined;
+  shoppingContext: string;
+} {
+  return {
+    storeId: session.cookies?.CURR_SESSION_STORE ?? 'not set',
+    isValid: isSessionValid(session),
+    expiresAt: session.expiresAt,
+    shoppingContext: resolveShoppingContext(session),
+  };
+}

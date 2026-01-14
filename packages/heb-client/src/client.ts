@@ -5,8 +5,8 @@ import { getDeliverySlots, reserveSlot, type DeliverySlot, type GetDeliverySlots
 import { getHomepage, type HomepageData } from './homepage.js';
 import { getOrder, getOrders, type GetOrdersOptions, type OrderDetailsResponse, type OrderHistoryResponse } from './orders.js';
 import { getProductDetails, getProductImageUrl, getProductSkuId, type Product } from './product.js';
-import { searchProducts, getBuyItAgain, typeahead, typeaheadTerms, type SearchOptions, type SearchResult, type TypeaheadResult } from './search.js';
-import { isSessionValid } from './session.js';
+import { getBuyItAgain, searchProducts, typeahead, typeaheadTerms, type SearchOptions, type SearchResult, type TypeaheadResult } from './search.js';
+import { getSessionInfo, isSessionValid } from './session.js';
 import { getShoppingList, getShoppingLists, type GetShoppingListOptions, type ShoppingList, type ShoppingListDetails } from './shopping-list.js';
 import { searchStores, setStore, type Store } from './stores.js';
 import type { Address, HEBSession } from './types.js';
@@ -44,6 +44,13 @@ export class HEBClient {
    */
   isValid(): boolean {
     return isSessionValid(this.session);
+  }
+
+  /**
+   * Get information about the current session.
+   */
+  getSessionInfo() {
+    return getSessionInfo(this.session);
   }
 
   // ─────────────────────────────────────────────────────────────

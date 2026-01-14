@@ -11,12 +11,8 @@ export { HEBClient } from './client.js';
 // ─────────────────────────────────────────────────────────────
 export { createSessionFromCookies, parseCookies } from './cookies.js';
 export {
-    buildHeaders,
-    buildBearerHeaders,
-    createSession,
-    createTokenSession,
-    formatCookieHeader,
-    ensureFreshSession,
+    buildBearerHeaders, buildHeaders, createSession,
+    createTokenSession, ensureFreshSession, formatCookieHeader, getSessionInfo,
     isSessionAuthenticated,
     isSessionValid,
     parseJwtExpiry,
@@ -176,11 +172,8 @@ export {
 // ─────────────────────────────────────────────────────────────
 export type {
     HEBAuthMode,
-    HEBAuthTokens,
-    HEBEndpoints,
-    HEBCookies,
-    HEBCredentials,
-    HEBHeaders,
+    HEBAuthTokens, HEBCookies,
+    HEBCredentials, HEBEndpoints, HEBHeaders,
     HEBSession,
     LoginOptions
 } from './types.js';
