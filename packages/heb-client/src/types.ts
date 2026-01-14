@@ -10,6 +10,8 @@ export interface HEBCookies {
   incap_ses: string;
   /** Selected store ID for fulfillment context */
   CURR_SESSION_STORE?: string;
+  /** Shopping context (e.g., CURBSIDE_PICKUP, DELIVERY) */
+  shoppingContext?: string;
   /** Any additional cookies captured during auth */
   [key: string]: string | undefined;
 }
@@ -51,14 +53,14 @@ export interface HEBSession {
   headers: HEBHeaders;
   /** JWT expiration timestamp */
   expiresAt?: Date;
-  /** Build ID extracted from site (for x-nextjs-data requests) */
-  buildId?: string;
   /** Auth mode for this session */
   authMode?: HEBAuthMode;
   /** OAuth tokens (bearer sessions only) */
   tokens?: HEBAuthTokens;
   /** Override endpoints (e.g., mobile GraphQL host) */
   endpoints?: Partial<HEBEndpoints>;
+  /** Active shopping context (defaults to CURBSIDE_PICKUP if unset) */
+  shoppingContext?: string;
   /** Optional refresh hook for bearer sessions */
   refresh?: () => Promise<void>;
 }
@@ -138,23 +140,37 @@ export const GRAPHQL_HASHES = {
  */
 export const MOBILE_GRAPHQL_HASHES = {
   AddShoppingListItemsV2: '9a765bfdf1b8d86a47203db1dc30283b49a122ae44a60856962e915a68dd58d1',
+  Categories: 'bb5e592b7ec6fffc7d1119e161e372b2bc3f734451c67cd31681e1f3c2150b15',
   CreateShoppingListV2: 'c9a2ad895fe213436c488a485e302f09885aeffde0874ea875b65dfdad364fc2',
+  DiscoverDetail: '5d6b1718d1a46004bbeba75eefbe47ab7fbcff457cb05f9833bce13ef030af53',
+  DiscoverLayout: '0a7739f1eb9948cc2441655debe193ea82518e9f2f58116349061494f2a450a5',
+  GeneralAlerts: '5c00d628856fbf19957e95353e487532f9e9ad39cc2f3916ceb978b2288ee996',
   GetCommunicationPreferences: '93dbb05d7170de1aedef60c13d92e77a39d85528558f1347207f89d0abbebe09',
   GetShoppingListsV2: 'ef8f8b5e95ae7cffe88061a05ed04af72955fafd03cf62fc2561ed16469bb586',
   HistoricCashbackEstimate: 'e7946966558ba21fd4adf773bc798c98d79eb22870f03060ad93c20bc6f9e937',
+  Me: '0bba145a4d719b3fdf7802a3a5486123de626508e1206cdd2edf8a1f23b9dd43',
+  MyAddresses: '5bc59d0d204ff3275a5070ddf882e561b25c7fb6e0f2a68171b16c573b49e4b8',
   ProductDetailsPage: '33606eddd452a659bdca241515df51d516ac5ec2d3904a147701f804b3e39bc3',
   ProductSearchPageV2: 'a723225732e31edad1e7ab28f26177b57e7257c7f457b714d77951f56c85e63e',
   TypeaheadContent: '1023d49aab70d3b12c0fc578a61dccd8509f2936601f98f71afd4935bf73ea78',
   activeOrderCards: 'a19327298d78c7aae47ecef59778bd167b2938e7779851f532d132f7175e2a27',
+  activeStatusCards: 'cc547e0525844273db36778f100966315b70aa51b0f0ea482b064d686143e383',
   addItemToCartV2: 'ba00328429c15935088d93be84cc41b4f0032c388e8ccd11cd3ee5b8e7d77e41',
   cartV2: 'd57a76ebe19efdb3a06323afa65eb176a1c92e478ab9916742fba3cb2cc9f075',
+  couponSummary: 'd947c24ff085a4ef457b39baf8cba1d11d1b4ce920de89da00e1913bf7eecd83',
   defaultFulfillment: '0f3524c3b63fee83ae98dcd276b3c2eb6cfacaed93ff244cbb8aea64c75e2d3d',
   entryPoint: 'ae99ee7a646405d3037928df0d80179230901d28bc01dfd17b580c168b952980',
   getFrequentlyPurchasedProducts: '644fb3c508b4c5687aac2c63aa1a0fa14c7860a99de61187735c65f1a44ba460',
   getPaymentCards: '6aa8dc2ef29f185645ac72ee52d599333cf7f810e837a33552d29ade4a7cf786',
   listPickupTimeslotsV2: 'ad0fc3510d927e690693b64db501769e3fac7a572f34251d56f4f301f72f6b92',
   nextAvailableTimeslot: 'bb8426c74e096ed99da046bc79fb3df1b2d98d97455c2fe90bcfa1e1396e5e22',
+  orderDetails: 'bd1ba9beb2e4af8a4099965d1b4ce455d28532e8b727d490f3a7df6486d5508f',
+  orderHistory: '24c9d9f68669313a33d559f8a1c86360125af36533d28725b2e7c955ab5b5619',
+  readyOrders: '34309a819913e2d4ef854adcce0b7056b0ed3c67770c9995b8a1772e09dda9cd',
   reserveTimeslotV3: '97163d9114d723db8dce5ea76d5bf297955de3b0cb46baef426428f10917d2a6',
+  searchCouponsV2: '9167a6a0455d21aa581bd0d46326d797d3f65b2262569c1641a4db57943e87c4',
+  sortOrderDimensions: '1345024de7e1af61e9b55d35c746fb6b42082cf1e0ce33df742c6da12d5d07e7',
+  WhatsNew: 'cdd192bb9b472537384cca9d7de863a638311f6d06f010010b12827c8d85c5b8',
 } as const;
 
 /**

@@ -4,8 +4,9 @@
  * @module orders
  */
 
-import { nextDataRequest, persistedQuery } from './api.js';
 import type { GraphQLResponse } from './api.js';
+import { persistedQuery } from './api.js';
+import { getShoppingMode, resolveShoppingContext } from './session.js';
 import type { HEBSession } from './types.js';
 
 /**
@@ -13,34 +14,36 @@ import type { HEBSession } from './types.js';
  */
 export interface RawHistoryOrder {
   orderId: string;
-  orderStatusMessageShort: string;
-  orderChangesOverview: {
-    reviewChangesEligible: boolean;
-    unfulfilledCount: number;
-    __typename: string;
+  orderStatusMessageShort?: string;
+  orderChangesOverview?: {
+    reviewChangesEligible?: boolean;
+    unfulfilledCount?: number;
+    __typename?: string;
   };
-  fulfillmentType: string;
-  store: {
-    name: string;
-    latitude: number;
-    longitude: number;
-    __typename: string;
+  fulfillmentType?: string;
+  store?: {
+    name?: string;
+    latitude?: number;
+    longitude?: number;
+    __typename?: string;
   };
-  orderTimeslot: {
-    startTime: string;
-    endTime: string;
-    __typename: string;
+  orderTimeslot?: {
+    startTime?: string;
+    endTime?: string;
+    startDateTime?: string;
+    endDateTime?: string;
+    __typename?: string;
   };
-  totalPrice: {
-    formattedAmount: string;
-    __typename: string;
+  totalPrice?: {
+    formattedAmount?: string;
+    __typename?: string;
   };
-  productCount: number;
-  __typename: string;
+  productCount?: number;
+  __typename?: string;
 }
 
 /**
- * Raw order history page response from Next.js data endpoint.
+ * Raw order history response (mobile GraphQL).
  */
 export interface OrderHistoryResponse {
   pageProps: {
@@ -51,7 +54,7 @@ export interface OrderHistoryResponse {
 }
 
 /**
- * Raw order details page payload from Next.js data endpoint.
+ * Raw order details payload (normalized from mobile GraphQL).
  */
 export interface OrderDetailsPageOrder {
   orderId: string;
@@ -82,31 +85,56 @@ export interface OrderDetailsPageResponse {
  * Raw order details response (GraphQL persisted query).
  */
 export interface OrderDetailsGraphqlResponse {
+  orderDetails?: OrderDetailsOrder;
   orderDetailsRequest?: {
-    order?: {
-      orderId?: string;
-      status?: string;
-      priceDetails?: {
-        subtotal?: { formattedAmount?: string };
-        total?: { formattedAmount?: string };
-        tax?: { formattedAmount?: string };
-      };
-      orderItems?: Array<{
-        quantity: number;
-        product: {
-          id: string;
-          fullDisplayName: string;
-          thumbnailImageUrls: Array<{ size: string; url: string }>;
-          SKUs: Array<{ id: string }>;
-        };
-        totalUnitPrice?: { amount?: number };
-      }>;
-    };
+    order?: OrderDetailsOrder;
   };
 }
 
 /**
- * Raw order details response (Next.js + GraphQL).
+ * Order details order structure from orderDetails query.
+ */
+export interface OrderDetailsOrder {
+  orderId?: string;
+  status?: string;
+  orderStatusMessageShort?: string;
+  fulfillmentType?: string;
+  orderPlacedOnDateTime?: string;
+  priceDetails?: {
+    subtotal?: { formattedAmount?: string };
+    total?: { formattedAmount?: string };
+    tax?: { formattedAmount?: string };
+  };
+  orderTimeslot?: {
+    startTime?: string;
+    endTime?: string;
+    startDateTime?: string;
+    endDateTime?: string;
+  };
+  store?: {
+    id?: string;
+    name?: string;
+    address?: string;
+  };
+  orderItems?: Array<{
+    quantity: number;
+    product: {
+      id: string;
+      fullDisplayName: string;
+      thumbnailImageUrls?: Array<{ size: string; url: string }>;
+      SKUs?: Array<{ id: string }>;
+    };
+    totalUnitPrice?: { amount?: number; formattedAmount?: string };
+    unitPrice?: { amount?: number; formattedAmount?: string };
+  }>;
+  readyOrder?: {
+    orderId?: string;
+    status?: string;
+  };
+}
+
+/**
+ * Raw order details response (mobile GraphQL).
  */
 export interface OrderDetailsResponse {
   page: OrderDetailsPageResponse;
@@ -120,10 +148,62 @@ export interface GetOrdersOptions {
   page?: number;
 }
 
+interface OrderHistoryGraphqlResponse {
+  orderHistoryRequest?: {
+    orderHistory?: {
+      orders?: RawHistoryOrder[];
+    };
+    orders?: RawHistoryOrder[];
+  };
+  orderHistory?: {
+    orders?: RawHistoryOrder[];
+  };
+}
+
+const DEFAULT_ORDER_PAGE_SIZE = 10;
+
+function assertBearer(session: HEBSession): void {
+  if (session.authMode !== 'bearer') {
+    throw new Error('Orders require a bearer session (mobile GraphQL).');
+  }
+}
+
+function extractOrders(payload?: OrderHistoryGraphqlResponse): RawHistoryOrder[] {
+  if (!payload) return [];
+  const root: any = payload as any;
+  const orderHistoryRequest = root.orderHistoryRequest ?? root.orderHistory;
+  const orderHistory = orderHistoryRequest?.orderHistory ?? orderHistoryRequest;
+  const orders = orderHistory?.orders ?? orderHistoryRequest?.orders ?? root.orders;
+  return Array.isArray(orders) ? (orders as RawHistoryOrder[]) : [];
+}
+
+function normalizeOrderDetails(order: any): OrderDetailsPageOrder {
+  const orderTimeslot = order?.orderTimeslot ?? order?.timeslot ?? order?.orderTimeSlot ?? {};
+  const priceDetails = order?.priceDetails ?? order?.priceSummary ?? {};
+  const totalPrice = order?.totalPrice ?? order?.total ?? {};
+  const formattedTotal = priceDetails?.total?.formattedAmount ?? totalPrice?.formattedAmount;
+
+  return {
+    orderId: order?.orderId ?? '',
+    status: order?.status ?? order?.orderStatusMessageShort ?? '',
+    fulfillmentType: order?.fulfillmentType,
+    orderPlacedOnDateTime: order?.orderPlacedOnDateTime ?? order?.orderPlacedOn,
+    orderTimeslot: {
+      startDateTime: orderTimeslot?.startDateTime ?? orderTimeslot?.startTime,
+      endDateTime: orderTimeslot?.endDateTime ?? orderTimeslot?.endTime,
+    },
+    priceDetails: {
+      subtotal: priceDetails?.subtotal ?? totalPrice?.subtotal,
+      total: formattedTotal ? { formattedAmount: formattedTotal } : priceDetails?.total,
+      tax: priceDetails?.tax,
+    },
+  };
+}
+
 /**
- * Get order history (raw Next.js payload).
+ * Get order history (mobile GraphQL).
  * 
- * @param session - Active HEB session
+ * @param session - Active HEB bearer session
  * @param options - Pagination options
  * @returns Raw order history response
  */
@@ -131,34 +211,88 @@ export async function getOrders(
   session: HEBSession,
   options: GetOrdersOptions = {}
 ): Promise<OrderHistoryResponse> {
-  const page = options.page ?? 1;
-  const path = `/en/my-account/your-orders.json?page=${page}`;
+  assertBearer(session);
 
-  return nextDataRequest<OrderHistoryResponse>(session, path);
+  const page = options.page ?? 1;
+  const size = DEFAULT_ORDER_PAGE_SIZE;
+  const offset = Math.max(0, (page - 1) * size);
+
+  const context = resolveShoppingContext(session);
+  const mode = getShoppingMode(context); // Approximation, refine if DELIVERY mode exists for orders
+
+  const [active, completed] = await Promise.all([
+    persistedQuery<OrderHistoryGraphqlResponse>(session, 'orderHistory', {
+      mode,
+      offset,
+      omitOrderItems: false,
+      size,
+      status: 'ACTIVE',
+    }),
+    persistedQuery<OrderHistoryGraphqlResponse>(session, 'orderHistory', {
+      mode,
+      offset,
+      omitOrderItems: false,
+      size,
+      status: 'COMPLETED',
+    }),
+  ]);
+
+  const errors = [...(active.errors ?? []), ...(completed.errors ?? [])];
+  if (errors.length) {
+    throw new Error(`Order history fetch failed: ${errors.map(e => e.message).join(', ')}`);
+  }
+
+  const combined = [...extractOrders(active.data), ...extractOrders(completed.data)];
+  const uniqueOrders = new Map<string, RawHistoryOrder>();
+  for (const order of combined) {
+    if (order?.orderId && !uniqueOrders.has(order.orderId)) {
+      uniqueOrders.set(order.orderId, order);
+    }
+  }
+
+  return {
+    pageProps: {
+      orders: Array.from(uniqueOrders.values()),
+    },
+  };
 }
 
 /**
- * Get a single order by ID (raw Next.js + GraphQL payloads).
+ * Get a single order by ID (mobile GraphQL).
  * 
- * @param session - Active HEB session
- * @param orderId - Order ID
+ * Uses the dedicated orderDetails operation for efficient single-order fetching.
+ * 
+ * @param session - Active HEB bearer session
+ * @param orderId - Order ID (e.g., "HEB24702750622")
+ * @param includeReadyOrder - Include ready order status info (default: true)
  * @returns Raw order details response
  */
 export async function getOrder(
   session: HEBSession,
-  orderId: string
+  orderId: string,
+  includeReadyOrder = true
 ): Promise<OrderDetailsResponse> {
-  const safeOrderId = encodeURIComponent(orderId);
-  const path = `/en/my-account/order-history/${safeOrderId}.json?orderId=${safeOrderId}`;
+  assertBearer(session);
 
-  const [page, graphql] = await Promise.all([
-    nextDataRequest<OrderDetailsPageResponse>(session, path),
-    persistedQuery<OrderDetailsGraphqlResponse>(
-      session,
-      'ModifiableOrderDetailsRequest',
-      { orderId }
-    ),
-  ]);
+  const result = await persistedQuery<OrderDetailsGraphqlResponse>(session, 'orderDetails', {
+    orderId,
+    includeReadyOrder,
+  });
 
-  return { page, graphql };
+  if (result.errors?.length) {
+    throw new Error(`Order details fetch failed: ${result.errors.map(e => e.message).join(', ')}`);
+  }
+
+  // Handle both response shapes: orderDetails or orderDetailsRequest.order
+  const order = result.data?.orderDetails ?? result.data?.orderDetailsRequest?.order;
+  if (!order) {
+    throw new Error(`Order ${orderId} not found.`);
+  }
+
+  const pageOrder = normalizeOrderDetails(order);
+
+  return {
+    page: { pageProps: { order: pageOrder } },
+    graphql: result,
+  };
 }

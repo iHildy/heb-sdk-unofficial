@@ -75,8 +75,7 @@ function assignCookie(cookies: HEBCookies, name: string, value: string): void {
  * fetch('https://www.heb.com/graphql', { headers: session.headers, ... });
  */
 export function createSessionFromCookies(
-  cookieInput: string,
-  buildId?: string
+  cookieInput: string
 ): HEBSession {
   const cookies = parseCookies(cookieInput);
   
@@ -84,5 +83,5 @@ export function createSessionFromCookies(
     throw new Error('No sat cookie found in input. Make sure you are logged in.');
   }
   
-  return createSession(cookies, buildId);
+  return createSession(cookies);
 }

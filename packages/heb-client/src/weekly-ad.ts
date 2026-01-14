@@ -1,4 +1,3 @@
-import { nextDataRequest } from './api.js';
 import type { HEBSession } from './types.js';
 
 export interface WeeklyAdOptions {
@@ -64,94 +63,13 @@ function normalizeLimit(limit?: number): number | undefined {
   return Math.floor(limit);
 }
 
-// Incomplete type definition for the Next.js page props
-interface NextWeeklyAdResponse {
-  pageProps: {
-    initialState: {
-      weeklyAd: {
-        deals: {
-          ids: string[];
-          entities: Record<string, any>;
-          total: number;
-          facets: {
-            categories: {
-              id: string;
-              label: string;
-              count: number;
-            }[];
-          };
-          meta: {
-            startDate: string;
-            endDate: string;
-            nextCursor?: string;
-          };
-        };
-      };
-    };
-  };
-}
-
-function mapNextProduct(raw: any): WeeklyAdProduct {
-  return {
-    id: raw.productId || raw.code || '',
-    name: raw.name || '',
-    brand: raw.brand || undefined,
-    description: raw.description || undefined,
-    imageUrl: raw.image?.url || raw.images?.[0]?.url || undefined,
-    priceText: raw.price?.priceString || undefined,
-    saleStory: raw.price?.saleStory || undefined,
-    disclaimerText: raw.price?.disclaimer || undefined,
-    // validFrom/validTo usually come from the meta, but could be on product
-    upc: raw.upc || undefined,
-    skuId: raw.sku || undefined,
-    storeLocation: raw.storeLocation || undefined,
-    categories: raw.categories?.map((c: any) => c.name || c.label) || [],
-  };
-}
-
 export async function getWeeklyAdProducts(
   session: HEBSession,
   options: WeeklyAdOptions = {}
 ): Promise<WeeklyAdResult> {
-  const storeCode = resolveStoreCode(session, options);
-  const limit = normalizeLimit(options.limit);
-  
-  // Construct the path with query parameters
-  const query = new URLSearchParams();
-  query.set('storeId', storeCode);
-  if (options.category) {
-    query.set('categoryId', String(options.category));
-  }
-  if (options.cursor) {
-    query.set('cursor', options.cursor);
-  }
-  // The interactive weekly ad page seems to be /weekly-ad/deals
-  const path = `/weekly-ad/deals?${query.toString()}`;
+  resolveStoreCode(session, options);
+  normalizeLimit(options.limit);
+  void options;
 
-  const data = await nextDataRequest<NextWeeklyAdResponse>(session, path);
-  
-  const dealsState = data.pageProps?.initialState?.weeklyAd?.deals;
-  
-  if (!dealsState) {
-    // It's possible the structure is different or we got a different page type (e.g. error or redirect)
-    throw new Error('Failed to retrieve weekly ad deals from Next.js data.');
-  }
-  
-  const products = dealsState.ids.map(id => mapNextProduct(dealsState.entities[id]));
-  const totalCount = dealsState.total;
-  const categories = dealsState.facets?.categories?.map(c => ({
-    id: c.id,
-    name: c.label,
-    count: c.count
-  })) || [];
-  
-  return {
-    products: limit ? products.slice(0, limit) : products,
-    totalCount,
-    validFrom: dealsState.meta?.startDate,
-    validTo: dealsState.meta?.endDate,
-    storeCode,
-    categories,
-    cursor: dealsState.meta?.nextCursor,
-  };
+  throw new Error('Weekly ad data is not available without Next.js endpoints. Mobile GraphQL support has not been captured yet.');
 }

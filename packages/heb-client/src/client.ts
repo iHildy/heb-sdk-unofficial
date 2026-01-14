@@ -6,7 +6,7 @@ import { getHomepage, type HomepageData } from './homepage.js';
 import { getOrder, getOrders, type GetOrdersOptions, type OrderDetailsResponse, type OrderHistoryResponse } from './orders.js';
 import { getProductDetails, getProductImageUrl, getProductSkuId, type Product } from './product.js';
 import { searchProducts, typeahead, typeaheadTerms, type SearchOptions, type SearchResult, type TypeaheadResult } from './search.js';
-import { ensureBuildId, isSessionValid } from './session.js';
+import { isSessionValid } from './session.js';
 import { getShoppingList, getShoppingLists, type GetShoppingListOptions, type ShoppingList, type ShoppingListDetails } from './shopping-list.js';
 import { searchStores, setStore, type Store } from './stores.js';
 import type { Address, HEBSession } from './types.js';
@@ -18,16 +18,16 @@ import { getWeeklyAdProducts, type WeeklyAdOptions, type WeeklyAdResult } from '
  * Wraps all API functions with a single session for convenient usage.
  * 
  * @example
- * import { createSessionFromCookies, HEBClient } from 'heb-sdk-unofficial';
+ * import { createTokenSession, HEBClient } from 'heb-sdk-unofficial';
  * 
- * // Create session from browser cookies
- * const session = createSessionFromCookies('sat=xxx; reese84=yyy; ...', 'buildId123');
+ * // Create session from OAuth tokens
+ * const session = createTokenSession({ accessToken: '...', refreshToken: '...' });
  * 
  * // Create client
  * const heb = new HEBClient(session);
+ * await heb.setStore('790');
  * 
  * // Search for products
- * await heb.ensureBuildId();
  * const results = await heb.search('cinnamon rolls', { limit: 20 });
  * 
  * // Get product details
@@ -46,30 +46,13 @@ export class HEBClient {
     return isSessionValid(this.session);
   }
 
-  /**
-   * Ensure the session has a valid buildId.
-   * Fetches it if missing.
-   */
-  async ensureBuildId(): Promise<void> {
-    if (this.session.buildId) {
-      return;
-    }
-
-    try {
-      await ensureBuildId(this.session);
-    } catch (error) {
-      console.warn('Failed to fetch buildId, continuing with unknown version:', error);
-    }
-  }
-
   // ─────────────────────────────────────────────────────────────
   // Search
   // ─────────────────────────────────────────────────────────────
 
   /**
-   * Search for products using the Next.js data endpoint.
-   *
-   * Requires a valid buildId on the session (call ensureBuildId first if needed).
+   * Search for products using the mobile GraphQL API.
+   * Requires a bearer session.
    *
    * @param query - Search query
    * @param options - Search options
@@ -123,6 +106,7 @@ export class HEBClient {
 
   /**
    * Get full product details.
+   * Requires a bearer session.
    * 
    * @example
    * const product = await heb.getProduct('1875945');
@@ -224,7 +208,8 @@ export class HEBClient {
   // ─────────────────────────────────────────────────────────────
 
   /**
-   * Get order history (raw Next.js payload).
+   * Get order history (mobile GraphQL payload).
+   * Requires a bearer session.
    * 
    * @example
    * const history = await heb.getOrders({ page: 1 });
@@ -237,6 +222,7 @@ export class HEBClient {
 
   /**
    * Get order details.
+   * Requires a bearer session.
    * 
    * @param orderId - Order ID
    * @returns Raw order details payloads
@@ -251,12 +237,12 @@ export class HEBClient {
 
   /**
    * Get account profile details.
+   * Requires a bearer session.
    * 
    * Returns the user's profile information including name, email,
    * phone, and saved addresses.
    * 
    * @example
-   * await heb.ensureBuildId();
    * const account = await heb.getAccountDetails();
    * console.log(`Welcome, ${account.firstName}!`);
    * console.log(`Email: ${account.email}`);
@@ -271,9 +257,9 @@ export class HEBClient {
 
   /**
    * Get the homepage content including banners, promotions, and featured products.
+   * Requires a bearer session.
    * 
    * @example
-   * await heb.ensureBuildId();
    * const homepage = await heb.getHomepage();
    * console.log(`Found ${homepage.banners.length} banners`);
    */
@@ -379,5 +365,17 @@ export class HEBClient {
    */
   async setStore(storeId: string): Promise<void> {
     return setStore(this.session, storeId);
+  }
+
+  /**
+   * Set the shopping context for the session.
+   * 
+   * @param context - Context string (e.g. 'CURBSIDE_PICKUP', 'DELIVERY', 'IN_STORE')
+   */
+  setShoppingContext(context: string): void {
+    this.session.shoppingContext = context;
+    if (this.session.cookies) {
+      this.session.cookies.shoppingContext = context;
+    }
   }
 }

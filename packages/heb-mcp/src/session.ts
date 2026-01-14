@@ -53,11 +53,6 @@ export class SessionManager extends EventEmitter {
       
       console.error(`[heb-mcp] Session reloaded: ${getSessionStatus(this.session)}`);
 
-      // Attempt to fetch buildId if missing (async, let it run in background)
-      this.client.ensureBuildId().catch(err => {
-        console.error('[heb-mcp] Failed to ensure buildId:', err);
-      });
-      
       // Emit event for tools that need to know
       this.emit('session-changed', { session: this.session, wasValid: oldValid, isValid: newValid });
     } else {
@@ -173,9 +168,7 @@ export function loadSessionFromEnv(): HEBSession | null {
     CURR_SESSION_STORE: process.env.HEB_STORE_ID,
   };
 
-  const buildId = process.env.HEB_BUILD_ID;
-  
-  return createSession(cookies, buildId);
+  return createSession(cookies);
 }
 
 /**

@@ -24,7 +24,7 @@ type OrderHistoryResponse = {
     orders?: Array<{
       orderId: string;
       orderStatusMessageShort?: string;
-      orderTimeslot?: { startTime?: string };
+      orderTimeslot?: { startTime?: string; startDateTime?: string };
       totalPrice?: { formattedAmount?: string };
     }>;
   };
@@ -129,7 +129,6 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
         `Store ID: ${storeId ?? 'Not Set'}`,
         `Session Valid: ${isSessionValid(session) ? 'Yes' : 'No'}`,
         session.expiresAt ? `Expires At: ${session.expiresAt.toLocaleString()}` : null,
-        session.buildId ? `Build ID: ${session.buildId}` : null,
       ].filter(Boolean).join('\n');
 
       return {
@@ -156,7 +155,6 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
-        await client.ensureBuildId();
         const results = await client.search(query);
         const requestedLimit = limit ?? 20;
         const products = results.products.slice(0, requestedLimit);
@@ -202,8 +200,6 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
-        // Ensure buildId is available for product details fetch
-        await client.ensureBuildId();
         const product = await client.getProduct(product_id);
 
         const details = [
@@ -429,8 +425,6 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
-        // Ensure buildId is available for order history fetch
-        await client.ensureBuildId();
         const history = await client.getOrders({ page }) as OrderHistoryResponse;
         const orders = history.pageProps?.orders ?? [];
 
@@ -441,10 +435,10 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
         }
 
         const formatted = orders.map(order => {
-          const orderDate = order.orderTimeslot?.startTime;
+          const orderDate = order.orderTimeslot?.startTime ?? order.orderTimeslot?.startDateTime;
           const dateText = orderDate ? new Date(orderDate).toLocaleDateString() : 'Unknown date';
-          const totalText = order.totalPrice?.formattedAmount ?? 'Unknown total';
-          const statusText = order.orderStatusMessageShort ?? 'Unknown status';
+          const totalText = order.totalPrice?.formattedAmount ?? (order as any)?.priceDetails?.total?.formattedAmount ?? 'Unknown total';
+          const statusText = order.orderStatusMessageShort ?? (order as any)?.status ?? 'Unknown status';
           return `* Order ID: ${order.orderId} - Date: ${dateText} - Total: ${totalText} (${statusText})`;
         }).join('\n');
 
@@ -475,7 +469,6 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
-        await client.ensureBuildId();
         const order = await client.getOrder(order_id) as OrderDetailsResponse;
         const pageOrder = order.page?.pageProps?.order;
         const graphOrder = order.graphql?.data?.orderDetailsRequest?.order;
@@ -484,11 +477,12 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
           const price = typeof item.totalUnitPrice?.amount === 'number'
             ? `$${(item.totalUnitPrice.amount / 100).toFixed(2)}`
             : 'Unknown price';
-          return `- ${item.product.fullDisplayName} (Qty: ${item.quantity}, Price: ${price}) (ID: ${item.product.id})`;
+          const name = item.product.fullDisplayName ?? (item.product as any).displayName ?? (item.product as any).name ?? 'Unknown item';
+          return `- ${name} (Qty: ${item.quantity}, Price: ${price}) (ID: ${item.product.id})`;
         }).join('\n');
 
         const orderIdText = pageOrder?.orderId ?? graphOrder?.orderId ?? order_id;
-        const statusText = pageOrder?.status ?? graphOrder?.status ?? 'Unknown status';
+        const statusText = pageOrder?.status ?? graphOrder?.status ?? (graphOrder as any)?.orderStatusMessageShort ?? 'Unknown status';
         const totalText = pageOrder?.priceDetails?.total?.formattedAmount
           ?? graphOrder?.priceDetails?.total?.formattedAmount
           ?? 'Unknown total';
@@ -526,7 +520,6 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
-        await client.ensureBuildId();
         const account = await client.getAccountDetails();
 
         const addressList = account.addresses.length > 0
@@ -574,7 +567,6 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
-        await client.ensureBuildId();
         const homepage = await client.getHomepage();
 
         const parts: string[] = ['**H-E-B Homepage**'];
@@ -1079,6 +1071,40 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       } catch (error) {
         return {
           content: [{ type: 'text', text: `Failed to set store: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    'set_shopping_context',
+    'Set the active shopping context for the session (e.g. Curbside, Delivery, In-Store)',
+    {
+      context: z.enum(['CURBSIDE_PICKUP', 'DELIVERY', 'IN_STORE']).describe('Shopping context to set'),
+    },
+    async ({ context }) => {
+      const result = requireClient(getClient);
+      if ('error' in result) return result.error;
+      const { client } = result;
+
+      try {
+        client.setShoppingContext(context);
+        
+        if (options.saveSession) {
+          await options.saveSession(client.session);
+        } else if (options.saveCookies) {
+          await options.saveCookies(client.session.cookies);
+        } else if (client.session.authMode !== 'bearer') {
+          saveSessionToFile(client.session.cookies);
+        }
+
+        return {
+          content: [{ type: 'text', text: `Shopping context set to ${context}.` }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Failed to set shopping context: ${error instanceof Error ? error.message : 'Unknown error'}` }],
           isError: true,
         };
       }

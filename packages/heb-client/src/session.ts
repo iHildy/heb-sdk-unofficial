@@ -1,13 +1,8 @@
-import fs from 'fs';
-import path from 'path';
 import type { HEBAuthTokens, HEBCookies, HEBEndpoints, HEBHeaders, HEBSession } from './types.js';
 import { ENDPOINTS } from './types.js';
 
 const CLIENT_NAME = 'WebPlatform-Solar (Production)';
 const MOBILE_USER_AGENT = 'MyHEB/5.9.0.60733 (iOS 18.7.2; iPhone16,2) CFNetwork/1.0 Darwin/24.6.0';
-const WEB_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36';
-const DEFAULT_ACCEPT_LANGUAGE = 'en-US,en;q=0.9';
-const DEFAULT_SEC_CH_UA = '"Not;A=Brand";v="24", "Chromium";v="143", "Google Chrome";v="143"';
 
 /**
  * Format cookies object into a Cookie header string.
@@ -22,10 +17,10 @@ export function formatCookieHeader(cookies: HEBCookies): string {
 /**
  * Build required headers for HEB GraphQL API requests.
  */
-export function buildHeaders(cookies: HEBCookies, buildId?: string): HEBHeaders {
+export function buildHeaders(cookies: HEBCookies): HEBHeaders {
   const headers: HEBHeaders = {
     'apollographql-client-name': CLIENT_NAME,
-    'apollographql-client-version': buildId ?? 'unknown',
+    'apollographql-client-version': 'unknown',
     'content-type': 'application/json',
   };
   const cookieHeader = formatCookieHeader(cookies);
@@ -63,38 +58,6 @@ export function normalizeHeaders(headers: HEBHeaders): Record<string, string> {
     }
   }
   return normalized;
-}
-
-export function buildBrowserHeaders(base: Record<string, string> = {}): Record<string, string> {
-  return {
-    'user-agent': WEB_USER_AGENT,
-    'accept-language': DEFAULT_ACCEPT_LANGUAGE,
-    'sec-ch-ua': DEFAULT_SEC_CH_UA,
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"macOS"',
-    ...base,
-  };
-}
-
-export function buildBrowserNavigationHeaders(base: Record<string, string> = {}): Record<string, string> {
-  return buildBrowserHeaders({
-    'cache-control': 'max-age=0',
-    'upgrade-insecure-requests': '1',
-    'sec-fetch-dest': 'document',
-    'sec-fetch-mode': 'navigate',
-    'sec-fetch-site': 'none',
-    'sec-fetch-user': '?1',
-    ...base,
-  });
-}
-
-export function buildBrowserDataHeaders(base: Record<string, string> = {}): Record<string, string> {
-  return buildBrowserHeaders({
-    'sec-fetch-dest': 'empty',
-    'sec-fetch-mode': 'cors',
-    'sec-fetch-site': 'same-origin',
-    ...base,
-  });
 }
 
 /**
@@ -155,14 +118,12 @@ export function isSessionAuthenticated(session: HEBSession): boolean {
  * Create a session object from cookies and optional metadata.
  */
 export function createSession(
-  cookies: HEBCookies,
-  buildId?: string
+  cookies: HEBCookies
 ): HEBSession {
   return {
     cookies,
-    headers: buildHeaders(cookies, buildId),
+    headers: buildHeaders(cookies),
     expiresAt: parseJwtExpiry(cookies.sat),
-    buildId,
     authMode: 'cookie',
   };
 }
@@ -172,7 +133,6 @@ export function createTokenSession(
   options?: {
     cookies?: HEBCookies;
     endpoints?: Partial<HEBEndpoints>;
-    buildId?: string;
     userAgent?: string;
   }
 ): HEBSession {
@@ -189,7 +149,6 @@ export function createTokenSession(
     tokens,
     headers: buildBearerHeaders(tokens, { userAgent: options?.userAgent ?? MOBILE_USER_AGENT }),
     expiresAt,
-    buildId: options?.buildId,
     authMode: 'bearer',
     endpoints,
   };
@@ -227,133 +186,17 @@ export function resolveEndpoint(session: HEBSession, key: keyof HEBEndpoints): s
   return session.endpoints?.[key] ?? ENDPOINTS[key];
 }
 
-function buildCookieHeaders(cookies: HEBCookies): Record<string, string> {
-  const cookieHeader = formatCookieHeader(cookies);
-  return cookieHeader ? { cookie: cookieHeader } : {};
-}
-
-function extractNextDataJson(html: string): unknown | undefined {
-  const match = html.match(/<script[^>]*id=["']__NEXT_DATA__["'][^>]*>/i);
-  if (!match || match.index === undefined) {
-    return undefined;
-  }
-  const start = match.index + match[0].length;
-  const end = html.indexOf('</script>', start);
-  if (end === -1) {
-    return undefined;
-  }
-  const jsonText = html.slice(start, end).trim();
-  if (!jsonText) {
-    return undefined;
-  }
-  try {
-    return JSON.parse(jsonText);
-  } catch {
-    return undefined;
-  }
-}
-
-function extractBuildIdFromHtml(html: string): string | undefined {
-  const nextData = extractNextDataJson(html) as { buildId?: unknown } | undefined;
-  if (typeof nextData?.buildId === 'string') {
-    return nextData.buildId;
-  }
-
-  const staticMatch =
-    html.match(/\/_next\/static\/([^/]+)\/_buildManifest\.js/) ??
-    html.match(/\/_next\/static\/([^/]+)\/_ssgManifest\.js/) ??
-    html.match(/\/_next\/data\/([^/]+)\//);
-
-  return staticMatch?.[1];
-}
-
-function logBuildIdDebug(label: string, response: Response, html: string): void {
-  if (process.env.HEB_DEBUG_BUILDID !== '1') {
-    return;
-  }
-  const contentType = response.headers.get('content-type') ?? 'unknown';
-  const length = html.length;
-  const preview = html.slice(0, 500).replace(/\s+/g, ' ').trim();
-  console.error(`[heb-client] buildId debug (${label}): status=${response.status} content-type=${contentType} length=${length}`);
-  console.error(`[heb-client] buildId debug (${label}) preview: ${preview}`);
-
-  if (process.env.HEB_DEBUG_BUILDID_SAVE === '1') {
-    try {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `heb-buildid-${label}-${timestamp}.html`;
-      const filePath = path.resolve(process.cwd(), filename);
-      fs.writeFileSync(filePath, html, 'utf-8');
-      console.error(`[heb-client] buildId debug (${label}) saved: ${filePath}`);
-    } catch (error) {
-      console.error('[heb-client] buildId debug save failed:', error);
-    }
-  }
+/**
+ * Resolve the shopping context for the current session.
+ * Defaults to 'CURBSIDE_PICKUP' if not set.
+ */
+export function resolveShoppingContext(session: HEBSession): string {
+  return session.shoppingContext ?? session.cookies?.shoppingContext ?? 'CURBSIDE_PICKUP';
 }
 
 /**
- * Fetch the current Next.js build ID from the homepage.
- * 
- * This is required for data requests (x-nextjs-data).
+ * Get the simplified shopping mode ('CURBSIDE' or 'ONLINE') from the context string.
  */
-export async function fetchBuildId(cookies: HEBCookies): Promise<string> {
-  const attempts: Array<{ label: string; headers: Record<string, string> }> = [
-    {
-      label: 'with cookies',
-      headers: buildBrowserNavigationHeaders({
-        ...buildCookieHeaders(cookies),
-        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'accept-encoding': 'gzip, deflate, br, zstd',
-      }),
-    },
-    {
-      label: 'without cookies',
-      headers: buildBrowserNavigationHeaders({
-        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'accept-encoding': 'gzip, deflate, br, zstd',
-      }),
-    },
-  ];
-
-  let lastError: Error | undefined;
-  for (const attempt of attempts) {
-    try {
-      const response = await fetch(ENDPOINTS.home, {
-        method: 'GET',
-        headers: attempt.headers,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch homepage for buildId (${attempt.label}): ${response.status} ${response.statusText}`);
-      }
-
-      const html = await response.text();
-      logBuildIdDebug(attempt.label, response, html);
-      const buildId = extractBuildIdFromHtml(html);
-      if (buildId) {
-        return buildId;
-      }
-
-      throw new Error(`Could not find buildId in homepage HTML (${attempt.label})`);
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-    }
-  }
-
-  throw lastError ?? new Error('Could not find buildId in homepage HTML');
-}
-
-/**
- * Ensure the session has a valid buildId.
- */
-export async function ensureBuildId(session: HEBSession): Promise<void> {
-  if (session.buildId) {
-    return;
-  }
-
-  const buildId = await fetchBuildId(session.cookies);
-  session.buildId = buildId;
-
-  if (session.authMode !== 'bearer') {
-    session.headers = buildHeaders(session.cookies, buildId);
-  }
+export function getShoppingMode(context: string): 'CURBSIDE' | 'ONLINE' {
+  return context.includes('CURBSIDE') ? 'CURBSIDE' : 'ONLINE';
 }

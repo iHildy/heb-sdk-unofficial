@@ -4,59 +4,38 @@
  * @module homepage
  */
 
-import { nextDataRequest } from './api.js';
+import { persistedQuery } from './api.js';
+import { resolveShoppingContext } from './session.js';
 import type { HEBSession } from './types.js';
 
 // ─────────────────────────────────────────────────────────────
 // Raw API Response Types (internal)
 // ─────────────────────────────────────────────────────────────
 
-interface RawBanner {
-  id: string;
-  title?: string;
-  subtitle?: string;
-  imageUrl?: string;
-  url?: string;
-  linkUrl?: string;
-  position?: number;
+type RawComponent = Record<string, unknown>;
+
+interface MobileLayoutResponse {
+  collectionEntryPoint?: {
+    layout?: {
+      visualComponents?: RawComponent[];
+      components?: RawComponent[];
+    };
+    header?: Record<string, unknown>;
+  };
+  entryPoint?: {
+    collectionEntryPoint?: {
+      layout?: {
+        visualComponents?: RawComponent[];
+        components?: RawComponent[];
+      };
+      header?: Record<string, unknown>;
+    };
+  };
+  [key: string]: unknown;
 }
 
-interface RawGridBanner {
-  id: string;
-  type: string;
-  title?: string;
-  subtitle?: string;
-  url?: string;
-  linkUrl?: string;
-  imageUrl?: string;
-  position: number;
-}
-
-interface RawFeaturedProduct {
-  id: string;
-  name: string;
-  brand?: string;
-  imageUrl?: string;
-  price?: { formatted: string; amount: number };
-  productId?: string;
-}
-
-interface RawPromotion {
-  id: string;
-  title: string;
-  description?: string;
-  imageUrl?: string;
-  linkUrl?: string;
-  validFrom?: string;
-  validTo?: string;
-}
-
-interface RawHomepageSection {
-  id: string;
-  type: string;
-  title?: string;
-  items?: unknown[];
-}
+const MOBILE_DEVICE = 'iPhone16,2';
+const MOBILE_APP_VERSION = '5.9.0';
 
 // ─────────────────────────────────────────────────────────────
 // Public Types (exported)
@@ -125,7 +104,7 @@ export interface HomepageData {
  * Get the H-E-B homepage content.
  *
  * Returns featured banners, promotions, and product sections.
- * Requires a valid buildId on the session.
+ * Requires a bearer session for the mobile GraphQL API.
  *
  * @param session - Active HEB session
  * @returns Homepage data with banners, promotions, and sections
@@ -135,66 +114,250 @@ export interface HomepageData {
  * homepage.banners.forEach(b => console.log(b.title));
  */
 export async function getHomepage(session: HEBSession): Promise<HomepageData> {
-  const data = await nextDataRequest<{
-    pageProps: {
-      banners?: RawBanner[];
-      gridBanners?: RawGridBanner[];
-      heroBanners?: RawBanner[];
-      promotions?: RawPromotion[];
-      deals?: RawPromotion[];
-      featuredProducts?: RawFeaturedProduct[];
-      sections?: RawHomepageSection[];
-      components?: RawHomepageSection[];
-    };
-  }>(session, '/en.json');
+  if (session.authMode !== 'bearer') {
+    throw new Error('Homepage data requires a bearer session (mobile GraphQL).');
+  }
 
-  const pageProps = data.pageProps ?? {};
+  const storeIdRaw = session.cookies?.CURR_SESSION_STORE;
+  if (!storeIdRaw) {
+    throw new Error('No store selected. Set CURR_SESSION_STORE before fetching homepage.');
+  }
+  const storeId = Number(storeIdRaw);
+  if (!Number.isFinite(storeId) || storeId <= 0) {
+    throw new Error(`Invalid storeId: ${storeIdRaw}`);
+  }
 
-  // Parse banners (may come from multiple sources)
-  const rawBanners = [
-    ...(pageProps.banners ?? []),
-    ...(pageProps.heroBanners ?? []),
-    ...(pageProps.gridBanners ?? []),
+  const shoppingContext = resolveShoppingContext(session);
+  const device = MOBILE_DEVICE;
+  const version = MOBILE_APP_VERSION;
+
+  const [entryPointRes, layoutRes, detailRes, categoriesRes] = await Promise.all([
+    persistedQuery<MobileLayoutResponse>(session, 'entryPoint', {
+      device,
+      id: 'home-page',
+      isAuthenticated: true,
+      shoppingContext,
+      storeId,
+      storeIdID: String(storeId),
+      storeIdString: String(storeId),
+      version,
+    }),
+    persistedQuery<MobileLayoutResponse>(session, 'DiscoverLayout', {
+      device,
+      externalId: 'browse-shop',
+      isAuthenticated: true,
+      shoppingContext,
+      storeId,
+      storeIdID: String(storeId),
+      storeIdString: String(storeId),
+      version,
+    }),
+    persistedQuery<MobileLayoutResponse>(session, 'DiscoverDetail', {
+      device,
+      externalId: 'browse-shop',
+      shoppingContext,
+      storeId,
+      version,
+    }),
+    persistedQuery<Record<string, unknown>>(session, 'Categories', {
+      context: 'cspview',
+      storeId,
+    }),
+  ]);
+
+  const errors = [
+    ...(entryPointRes.errors ?? []),
+    ...(layoutRes.errors ?? []),
+    ...(detailRes.errors ?? []),
+    ...(categoriesRes.errors ?? []),
+  ];
+  if (errors.length) {
+    throw new Error(`Homepage fetch failed: ${errors.map(e => e.message).join(', ')}`);
+  }
+
+  const components = [
+    ...extractComponents(entryPointRes.data),
+    ...extractComponents(layoutRes.data),
+    ...extractComponents(detailRes.data),
   ];
 
-  const banners: HomepageBanner[] = rawBanners.map((b, i) => ({
-    id: b.id,
-    title: b.title,
-    subtitle: b.subtitle,
-    imageUrl: b.imageUrl,
-    linkUrl: b.linkUrl ?? b.url,
-    position: b.position ?? i,
-  }));
+  const sections: HomepageSection[] = [];
+  const banners: HomepageBanner[] = [];
+  const promotions: HomepagePromotion[] = [];
+  const featuredProducts: HomepageFeaturedProduct[] = [];
 
-  // Parse promotions
-  const rawPromos = pageProps.promotions ?? pageProps.deals ?? [];
-  const promotions: HomepagePromotion[] = rawPromos.map((p) => ({
-    id: p.id,
-    title: p.title,
-    description: p.description,
-    imageUrl: p.imageUrl,
-    linkUrl: p.linkUrl,
-  }));
+  const seenBannerIds = new Set<string>();
+  const seenPromoIds = new Set<string>();
+  const seenProductIds = new Set<string>();
 
-  // Parse featured products
-  const rawProducts = pageProps.featuredProducts ?? [];
-  const featuredProducts: HomepageFeaturedProduct[] = rawProducts.map((p) => ({
-    productId: p.productId ?? p.id,
-    name: p.name,
-    brand: p.brand,
-    imageUrl: p.imageUrl,
-    priceFormatted: p.price?.formatted,
-    price: p.price?.amount,
-  }));
+  components.forEach((component, index) => {
+    const componentType = String((component as any)?.type ?? (component as any)?.__typename ?? 'component');
+    const header = (component as any)?.header as Record<string, unknown> | undefined;
+    const title = String((component as any)?.title ?? header?.title ?? (component as any)?.heading ?? '').trim() || undefined;
+    const items = extractComponentItems(component);
 
-  // Parse sections
-  const rawSections = pageProps.sections ?? pageProps.components ?? [];
-  const sections: HomepageSection[] = rawSections.map((s) => ({
-    id: s.id,
-    type: s.type,
-    title: s.title,
-    itemCount: s.items?.length ?? 0,
-  }));
+    sections.push({
+      id: String((component as any)?.id ?? (component as any)?.externalId ?? (component as any)?.uuid ?? `${componentType}-${index}`),
+      type: componentType,
+      title,
+      itemCount: items.length,
+    });
+
+    const isBannerComponent = /banner|hero|carousel/i.test(componentType);
+    const isPromoComponent = /promo|deal|offer/i.test(componentType);
+
+    items.forEach((item, itemIndex) => {
+      const itemType = String(item?.type ?? item?.__typename ?? '').toLowerCase();
+      const itemId = String(item?.id ?? item?.externalId ?? `${componentType}-${index}-${itemIndex}`);
+
+      if ((isBannerComponent || itemType.includes('banner') || itemType.includes('hero')) && !seenBannerIds.has(itemId)) {
+        const banner = mapBanner(item, itemId, banners.length);
+        if (banner) {
+          seenBannerIds.add(banner.id);
+          banners.push(banner);
+        }
+        return;
+      }
+
+      if ((isPromoComponent || itemType.includes('promo') || itemType.includes('deal')) && !seenPromoIds.has(itemId)) {
+        const promo = mapPromotion(item, itemId);
+        if (promo) {
+          seenPromoIds.add(promo.id);
+          promotions.push(promo);
+        }
+        return;
+      }
+
+      if (isProductLike(item)) {
+        const product = mapFeaturedProduct(item);
+        if (product && !seenProductIds.has(product.productId)) {
+          seenProductIds.add(product.productId);
+          featuredProducts.push(product);
+        }
+      }
+    });
+  });
+
+  const categories = extractCategories(categoriesRes.data);
+  if (categories.length) {
+    sections.push({
+      id: 'categories',
+      type: 'Categories',
+      title: 'Categories',
+      itemCount: categories.length,
+    });
+  }
 
   return { banners, promotions, featuredProducts, sections };
+}
+
+function extractComponents(payload?: MobileLayoutResponse): RawComponent[] {
+  const components: RawComponent[] = [];
+  const candidates = [
+    payload?.collectionEntryPoint?.layout?.visualComponents,
+    payload?.collectionEntryPoint?.layout?.components,
+    payload?.entryPoint?.collectionEntryPoint?.layout?.visualComponents,
+    payload?.entryPoint?.collectionEntryPoint?.layout?.components,
+    (payload as any)?.discoverLayout?.collectionEntryPoint?.layout?.visualComponents,
+    (payload as any)?.discoverLayout?.collectionEntryPoint?.layout?.components,
+    (payload as any)?.discoverDetail?.collectionEntryPoint?.layout?.visualComponents,
+    (payload as any)?.discoverDetail?.collectionEntryPoint?.layout?.components,
+    (payload as Record<string, unknown>)?.['layout'] && (payload as any)?.layout?.visualComponents,
+    (payload as Record<string, unknown>)?.['layout'] && (payload as any)?.layout?.components,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      components.push(...candidate);
+    }
+  }
+
+  return components;
+}
+
+function extractComponentItems(component: RawComponent): RawComponent[] {
+  const keys = ['items', 'cards', 'tiles', 'banners', 'promotions', 'products', 'productList', 'entries', 'components'];
+  const results: RawComponent[] = [];
+  for (const key of keys) {
+    const value = component?.[key] as unknown;
+    if (Array.isArray(value)) {
+      results.push(...value);
+    } else if (value && typeof value === 'object' && Array.isArray((value as any).items)) {
+      results.push(...((value as any).items as RawComponent[]));
+    }
+  }
+  return results;
+}
+
+function mapBanner(item: RawComponent, id: string, position: number): HomepageBanner | null {
+  const imageUrl = resolveImageUrl(item);
+  if (!imageUrl) return null;
+  return {
+    id,
+    title: (item.title as string) ?? (item.headline as string) ?? (item.name as string),
+    subtitle: (item.subtitle as string) ?? (item.subTitle as string),
+    imageUrl,
+    linkUrl: (item.linkUrl as string) ?? (item.url as string) ?? (item.link as any)?.url,
+    position,
+  };
+}
+
+function mapPromotion(item: RawComponent, id: string): HomepagePromotion | null {
+  const title = (item.title as string) ?? (item.headline as string) ?? (item.name as string);
+  if (!title) return null;
+  return {
+    id,
+    title,
+    description: (item.description as string) ?? (item.subtitle as string),
+    imageUrl: resolveImageUrl(item),
+    linkUrl: (item.linkUrl as string) ?? (item.url as string) ?? (item.link as any)?.url,
+  };
+}
+
+function mapFeaturedProduct(item: RawComponent): HomepageFeaturedProduct | null {
+  const productId = String(item.productId ?? item.id ?? (item.product as any)?.id ?? '');
+  const name = (item.name as string) ?? (item.displayName as string) ?? (item.title as string);
+  if (!productId || !name) return null;
+
+  const brand = (item.brand as any)?.name ?? (item.brand as string);
+  const imageUrl = resolveImageUrl(item) ?? (item.thumbnailImageUrls as any)?.[0]?.url;
+  const priceAmount = (item.price as any)?.amount ?? (item.price as any)?.value;
+  const priceFormatted = (item.price as any)?.formattedAmount ?? (item.price as any)?.formatted;
+
+  return {
+    productId,
+    name,
+    brand: typeof brand === 'string' ? brand : undefined,
+    imageUrl,
+    price: typeof priceAmount === 'number' ? priceAmount : undefined,
+    priceFormatted: typeof priceFormatted === 'string' ? priceFormatted : undefined,
+  };
+}
+
+function resolveImageUrl(item: RawComponent): string | undefined {
+  const imageUrl = (item.imageUrl as string)
+    ?? (item.image as any)?.url
+    ?? (item.image as any)?.src
+    ?? (item.media as any)?.url;
+  return typeof imageUrl === 'string' ? imageUrl : undefined;
+}
+
+function isProductLike(item: RawComponent): boolean {
+  return Boolean(item.productId || item.id || (item.product as any)?.id) && Boolean(item.name || item.displayName || item.title);
+}
+
+function extractCategories(payload?: Record<string, unknown>): RawComponent[] {
+  if (!payload) return [];
+  const candidates = [
+    (payload as any).categories,
+    (payload as any).categoryTree,
+    (payload as any).categoryNavigation,
+    (payload as any).categories?.items,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate as RawComponent[];
+    }
+  }
+  return [];
 }

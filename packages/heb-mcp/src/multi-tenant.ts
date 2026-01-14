@@ -18,7 +18,6 @@ type StoredSessionRecord = {
   cookies?: HEBCookies;
   tokens?: HEBAuthTokensSerialized;
   authMode?: 'cookie' | 'bearer';
-  buildId?: string;
   updatedAt: string;
 };
 
@@ -166,7 +165,6 @@ export class MultiTenantSessionManager {
       }
       session = createTokenSession(tokens, {
         cookies: record.cookies ?? { sat: '', reese84: '', incap_ses: '' },
-        buildId: record.buildId,
       });
       session.refresh = async () => {
         await this.refreshUserTokens(userId, session);
@@ -176,17 +174,12 @@ export class MultiTenantSessionManager {
         this.cache.delete(userId);
         return;
       }
-      session = createSession(record.cookies, record.buildId);
+      session = createSession(record.cookies);
     }
 
     const client = new HEBClient(session);
     this.cache.set(userId, { session, client, updatedAt: Date.now() });
 
-    if (session.authMode !== 'bearer') {
-      client.ensureBuildId().catch((err) => {
-        console.error('[heb-mcp] Failed to ensure buildId:', err);
-      });
-    }
   }
 
   getClient(userId: string): HEBClient | null {
@@ -200,13 +193,8 @@ export class MultiTenantSessionManager {
 
     await this.store.save(userId, {
       cookies,
-      buildId: session.buildId,
       authMode: 'cookie',
       updatedAt: new Date().toISOString(),
-    });
-
-    client.ensureBuildId().catch((err) => {
-      console.error('[heb-mcp] Failed to ensure buildId:', err);
     });
   }
 
@@ -225,7 +213,6 @@ export class MultiTenantSessionManager {
       cookies: session.cookies,
       tokens: serializeTokens(tokens),
       authMode: 'bearer',
-      buildId: session.buildId,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -250,7 +237,6 @@ export class MultiTenantSessionManager {
       cookies: session.cookies,
       tokens: serializeTokens(nextTokens),
       authMode: 'bearer',
-      buildId: session.buildId,
       updatedAt: new Date().toISOString(),
     });
   }

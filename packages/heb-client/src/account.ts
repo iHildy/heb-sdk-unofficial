@@ -4,20 +4,21 @@
  * @module account
  */
 
-import { nextDataRequest } from './api.js';
+import { persistedQuery } from './api.js';
 import type { HEBSession } from './types.js';
 
 /**
- * Raw profile data from pageProps.
+ * Raw profile data from Me GraphQL query.
+ * 
+ * These field names match the mobile GraphQL API response structure.
+ * The `Me` query returns user profile info including name, email, and phone.
  */
 interface RawProfile {
   firstName?: string;
   lastName?: string;
   email?: string;
   phone?: string;
-  phoneNumber?: string;
   dateOfBirth?: string;
-  dob?: string;
   memberSince?: string;
   loyaltyNumber?: string;
   hPlusNumber?: string;
@@ -71,6 +72,23 @@ export interface AccountDetails {
   addresses: AccountAddress[];
 }
 
+type MobileMeResponse = {
+  me?: RawProfile;
+  profile?: RawProfile;
+  user?: RawProfile;
+  customer?: RawProfile;
+  account?: RawProfile;
+  [key: string]: unknown;
+};
+
+type MobileAddressesResponse = {
+  myAddresses?: RawAddress[] | { addresses?: RawAddress[] };
+  addresses?: RawAddress[];
+  savedAddresses?: RawAddress[];
+  deliveryAddresses?: RawAddress[];
+  [key: string]: unknown;
+};
+
 /**
  * Parse a raw address into AccountAddress.
  */
@@ -87,11 +105,63 @@ function parseAddress(raw: RawAddress): AccountAddress {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function extractProfile(payload?: MobileMeResponse): RawProfile {
+  if (!payload || !isRecord(payload)) {
+    return {};
+  }
+
+  const candidates = [
+    payload.me,
+    payload.profile,
+    payload.user,
+    payload.customer,
+    payload.account,
+    isRecord(payload.me) ? (payload.me as Record<string, unknown>)['profile'] : undefined,
+    isRecord(payload.user) ? (payload.user as Record<string, unknown>)['profile'] : undefined,
+    isRecord(payload.customer) ? (payload.customer as Record<string, unknown>)['profile'] : undefined,
+  ];
+
+  for (const candidate of candidates) {
+    if (isRecord(candidate)) {
+      return candidate as RawProfile;
+    }
+  }
+
+  return {};
+}
+
+function extractAddresses(payload?: MobileAddressesResponse): RawAddress[] {
+  if (!payload || !isRecord(payload)) {
+    return [];
+  }
+
+  const candidates = [
+    payload.myAddresses,
+    payload.addresses,
+    payload.savedAddresses,
+    payload.deliveryAddresses,
+    isRecord(payload.myAddresses) ? (payload.myAddresses as Record<string, unknown>)['addresses'] : undefined,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate as RawAddress[];
+    }
+  }
+
+  return [];
+}
+
 /**
  * Get account profile details.
  * 
  * Fetches the user's profile information including name, email, phone,
  * and saved addresses.
+ * Requires a bearer session for the mobile GraphQL API.
  * 
  * @param session - Active HEB session
  * @returns Account details
@@ -104,31 +174,31 @@ function parseAddress(raw: RawAddress): AccountAddress {
 export async function getAccountDetails(
   session: HEBSession
 ): Promise<AccountDetails> {
-  const data = await nextDataRequest<{
-    pageProps: {
-      profile?: RawProfile;
-      user?: RawProfile;
-      customer?: RawProfile;
-      addresses?: RawAddress[];
-      savedAddresses?: RawAddress[];
-      deliveryAddresses?: RawAddress[];
-    };
-  }>(session, '/en/my-account/profile.json');
+  if (session.authMode !== 'bearer') {
+    throw new Error('Account details require a bearer session (mobile GraphQL).');
+  }
 
-  const pageProps = data.pageProps;
-  
-  // Profile data may be under different keys
-  const profile = pageProps.profile ?? pageProps.user ?? pageProps.customer ?? {};
-  
-  // Addresses may be under different keys
-  const rawAddresses = pageProps.addresses ?? pageProps.savedAddresses ?? pageProps.deliveryAddresses ?? [];
+  const [meResponse, addressesResponse] = await Promise.all([
+    persistedQuery<MobileMeResponse>(session, 'Me', {}),
+    persistedQuery<MobileAddressesResponse>(session, 'MyAddresses', {}),
+  ]);
+
+  if (meResponse.errors?.length) {
+    throw new Error(`Account profile fetch failed: ${meResponse.errors.map(e => e.message).join(', ')}`);
+  }
+  if (addressesResponse.errors?.length) {
+    throw new Error(`Account addresses fetch failed: ${addressesResponse.errors.map(e => e.message).join(', ')}`);
+  }
+
+  const profile = extractProfile(meResponse.data);
+  const rawAddresses = extractAddresses(addressesResponse.data);
 
   return {
     firstName: profile.firstName ?? '',
     lastName: profile.lastName ?? '',
     email: profile.email ?? '',
-    phone: profile.phone ?? profile.phoneNumber,
-    dateOfBirth: profile.dateOfBirth ?? profile.dob,
+    phone: profile.phone,
+    dateOfBirth: profile.dateOfBirth,
     memberSince: profile.memberSince,
     loyaltyNumber: profile.loyaltyNumber ?? profile.hPlusNumber,
     addresses: rawAddresses.map(parseAddress),

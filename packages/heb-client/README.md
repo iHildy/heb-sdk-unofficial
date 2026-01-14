@@ -13,21 +13,21 @@ pnpm add heb-client
 ## Quick Start
 
 ```typescript
-import { createSession, HEBClient, type HEBCookies } from 'heb-client';
+import { createTokenSession, HEBClient } from 'heb-client';
 
-// Create session from browser cookies
-const cookies: HEBCookies = {
-  sat: 'your-sat-token',           // Required: auth token
-  reese84: 'your-reese84-token',   // Required: bot protection
-  incap_ses: '',
-  CURR_SESSION_STORE: '790',       // Optional: store ID
-};
-
-const session = createSession(cookies);
+// Create session from OAuth tokens (mobile)
+const session = createTokenSession({
+  accessToken: 'your-access-token',
+  refreshToken: 'your-refresh-token',
+  idToken: 'your-id-token',
+  expiresIn: 1800,
+});
 const heb = new HEBClient(session);
 
+// Set store context (required for search/homepage/products)
+await heb.setStore('790');
+
 // Search for products
-await heb.ensureBuildId();
 const results = await heb.search('organic milk', { limit: 20 });
 console.log(results.products);
 
@@ -76,10 +76,14 @@ Main client class with all methods:
 
 | Method | Description |
 |--------|-------------|
-| `search(query, { limit? })` | Search products (Next.js data) |
+| `search(query, { limit? })` | Search products (mobile GraphQL) |
 | `getWeeklyAdProducts({ limit? })` | Weekly ad products |
 | `getProduct(productId)` | Get full product details |
 | `getSkuId(productId)` | Get just the SKU ID |
+| `getAccountDetails()` | Account profile + saved addresses |
+| `getOrders({ page? })` | Order history |
+| `getOrder(orderId)` | Order details |
+| `getHomepage()` | Homepage sections |
 | `addToCart(productId, skuId, qty)` | Add/update cart item |
 | `removeFromCart(productId, skuId)` | Remove item (sets qty to 0) |
 | `addToCartById(productId, qty)` | Add to cart (auto-fetches SKU) |
@@ -90,9 +94,6 @@ Main client class with all methods:
 
 ```typescript
 const weeklyAd = await heb.getWeeklyAdProducts({
-  displayType: 'all',
-  categoryFilter: 'Fruit',
-  department: 'Seafood',
   limit: 20,
 });
 ```
@@ -101,8 +102,8 @@ const weeklyAd = await heb.getWeeklyAdProducts({
 
 | Function | Description |
 |----------|-------------|
-| `createSession(cookies, buildId?)` | Create session from cookies |
-| `createSessionFromCookies(cookieStr, buildId?)` | Parse cookie string |
+| `createSession(cookies)` | Create session from cookies |
+| `createSessionFromCookies(cookieStr)` | Parse cookie string |
 | `createTokenSession(tokens)` | Create session from OAuth bearer tokens (mobile) |
 | `isSessionValid(session)` | Check if session expired |
 
@@ -128,9 +129,8 @@ try {
 - **OAuth tokens (mobile)**: Access tokens expire in ~30 minutes. You must refresh using the `refresh_token`.
 - **Bot protection**: The `reese84` and `incap_ses` cookies can go stale. If requests fail with 403, refresh them.
 - **Store context**: Set `CURR_SESSION_STORE` to get accurate pricing and availability for your store.
-- **Search data**: Product search uses the Next.js data endpoint and requires a valid buildId.
-- **Bearer sessions**: Mobile OAuth sessions use mobile GraphQL persisted queries and require a store ID (set `CURR_SESSION_STORE` or pass `storeId` in search options).
-- **Weekly ad**: Weekly ad products come from Flipp endpoints and require a store ID (postal code is derived).
+- **Mobile GraphQL**: Search, product details, homepage, account, and orders require bearer sessions with a store ID.
+- **Weekly ad**: Weekly ad support is currently unavailable without Next.js endpoints.
 
 ## License
 

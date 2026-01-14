@@ -1,6 +1,6 @@
 import type { HEBSession } from './types.js';
 import { GRAPHQL_HASHES, MOBILE_GRAPHQL_HASHES } from './types.js';
-import { buildBrowserDataHeaders, ensureBuildId, ensureFreshSession, normalizeHeaders, resolveEndpoint } from './session.js';
+import { ensureFreshSession, normalizeHeaders, resolveEndpoint } from './session.js';
 
 /**
  * GraphQL request payload structure.
@@ -117,46 +117,6 @@ function resolvePersistedQuery(
     ? Array.from(new Set([...Object.keys(MOBILE_GRAPHQL_HASHES), ...Object.keys(GRAPHQL_HASHES)]))
     : Object.keys(GRAPHQL_HASHES);
   throw new Error(`Unknown operation: ${operationName}. Available: ${available.join(', ')}`);
-}
-
-/**
- * Fetch data from Next.js data endpoint.
- */
-export async function nextDataRequest<T>(
-  session: HEBSession,
-  path: string
-): Promise<T> {
-  if (!session.buildId) {
-    await ensureBuildId(session);
-  }
-
-  if (!session.buildId) {
-    throw new Error('Session buildId required for Next.js data requests. Re-fetch session or provide buildId.');
-  }
-
-  await ensureFreshSession(session);
-  const url = `${resolveEndpoint(session, 'home')}_next/data/${session.buildId}${path}`;
-
-  const headers: Record<string, string> = buildBrowserDataHeaders({
-    ...normalizeHeaders(session.headers),
-    'x-nextjs-data': '1',
-    accept: 'application/json',
-  });
-
-  if ('authorization' in headers) {
-    delete headers.authorization;
-  }
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Next.js data request failed: ${response.status} ${response.statusText}`);
-  }
-
-  return response.json() as Promise<T>;
 }
 
 /**

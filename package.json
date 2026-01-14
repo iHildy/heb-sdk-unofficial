@@ -7,7 +7,8 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "clean": "rm -rf packages/*/dist",
-    "sync:extension-config": "node packages/cookie-bridge-extension/scripts/sync-env.mjs"
+    "sync:extension-config": "node packages/cookie-bridge-extension/scripts/sync-env.mjs",
+    "summarize-flows": "tsx scripts/summarize-flows.ts"
   },
   "packageManager": "pnpm@10.15.1",
   "devDependencies": {

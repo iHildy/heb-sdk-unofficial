@@ -4,12 +4,13 @@ Unofficial TypeScript SDK for H-E-B grocery API — search, product details, and
 
 ## Features
 
-- ✅ **Next.js Search** - Reliable product search via data endpoint
+- ✅ **Mobile GraphQL** - Homepage, account details, orders, and order history
+- ✅ **Product Search** - Mobile GraphQL search results
 - ✅ **Product Details** - Full product info including nutrition, pricing, inventory
 - ✅ **Cart Management** - Add, update, remove items
 - ✅ **Typeahead** - Search suggestions with recent/trending terms
-- ✅ **Weekly Ad** - Weekly ad flyer products via Flipp
-- ✅ **Session Management** - Cookie-based authentication + experimental mobile OAuth tokens
+- ⚠️ **Weekly Ad** - Temporarily unavailable without Next.js endpoints
+- ✅ **Session Management** - Cookie-based authentication + mobile OAuth tokens
 
 ## Install
 
@@ -21,32 +22,34 @@ npx playwright install chromium  # Only if using automated login
 ## Quick Start
 
 ```typescript
-import { createSession, HEBClient, type HEBCookies } from 'heb-sdk-unofficial';
+import { createTokenSession, HEBClient } from 'heb-sdk-unofficial';
 
-// 1. Build cookies from your HEB session
-const cookies: HEBCookies = {
-  sat: process.env.HEB_SAT!,        // Session auth token (JWT)
-  reese84: process.env.HEB_REESE84!, // Bot protection token
-  incap_ses: '',                    // Imperva session (optional)
-  CURR_SESSION_STORE: '790',        // Store ID
+// 1. Exchange OAuth code for tokens (see Mobile OAuth section)
+const tokens = {
+  accessToken: process.env.HEB_ACCESS_TOKEN!,
+  refreshToken: process.env.HEB_REFRESH_TOKEN,
+  idToken: process.env.HEB_ID_TOKEN,
+  expiresIn: 1800,
 };
 
 // 2. Create session and client
-const session = createSession(cookies, 'buildId123');
+const session = createTokenSession(tokens);
 const heb = new HEBClient(session);
 
-// 3. Search for products
-await heb.ensureBuildId();
+// 3. Set store context (required for search, homepage, products)
+await heb.setStore('790');
+
+// 4. Search for products
 const results = await heb.search('cinnamon rolls', { limit: 20 });
 console.log(results.products[0].name); // "H E B Bakery Two Bite Cinnamon Rolls"
 
-// 4. Get detailed product info
+// 5. Get detailed product info
 const product = await heb.getProduct(results.products[0].productId);
 console.log(product.brand);      // "H-E-B"
 console.log(product.inStock);    // true
 console.log(product.nutrition);  // { calories: 210, ... }
 
-// 5. Add to cart
+// 6. Add to cart
 await heb.addToCart(product.productId, product.skuId, 2);
 ```
 
@@ -83,7 +86,7 @@ const heb = new HEBClient(session);
 
 Notes:
 - Token sessions use the mobile GraphQL host by default.
-- Search/typeahead still rely on the web Next.js data endpoint and may require a valid buildId.
+- Homepage, account details, orders, search, and product details require bearer sessions.
 - You must refresh tokens periodically (access tokens expire in ~30 minutes).
 
 ## API Reference
@@ -96,7 +99,7 @@ The main client class wrapping all functionality.
 const heb = new HEBClient(session);
 
 // Search
-await heb.search(query, { limit? })          // Product search (requires buildId)
+await heb.search(query, { limit? })          // Product search (bearer session)
 await heb.typeahead(query)                   // Get search suggestions
 
 // Weekly Ad
@@ -106,6 +109,16 @@ await heb.getWeeklyAdProducts({ limit? })    // Weekly ad products
 await heb.getProduct(productId)             // Full product details
 await heb.getSkuId(productId)               // Just the SKU ID
 heb.getImageUrl(productId, size?)           // Product image URL
+
+// Account
+await heb.getAccountDetails()               // Profile + saved addresses
+
+// Orders
+await heb.getOrders({ page? })              // Order history
+await heb.getOrder(orderId)                 // Order details
+
+// Homepage
+await heb.getHomepage()                     // Homepage sections
 
 // Cart
 await heb.addToCart(productId, skuId, qty)  // Add/update item
@@ -117,7 +130,6 @@ await heb.removeFromCart(productId, skuId)  // Remove item
 ### Search
 
 ```typescript
-await heb.ensureBuildId();
 const results = await heb.search('milk', { limit: 20 });
 
 // Returns:
@@ -130,12 +142,9 @@ interface SearchResult {
 ### Weekly Ad
 
 ```typescript
-const weeklyAd = await heb.getWeeklyAdProducts({
-  displayType: 'all',
-  categoryFilter: 'Fruit',
-  department: 'Seafood',
-  limit: 20,
-});
+// Weekly ad support is temporarily unavailable without Next.js endpoints.
+// This call currently throws until a mobile GraphQL operation is captured.
+await heb.getWeeklyAdProducts({ limit: 20 });
 ```
 
 ### Product Details
@@ -185,10 +194,10 @@ if (result.success) {
 import { createSession, createSessionFromCookies, isSessionValid } from 'heb-sdk-unofficial';
 
 // From cookies object
-const session = createSession(cookies, buildId);
+const session = createSession(cookies);
 
 // From cookie header string
-const session = createSessionFromCookies('sat=xxx; reese84=yyy; ...', buildId);
+const session = createSessionFromCookies('sat=xxx; reese84=yyy; ...');
 
 // Check expiration
 if (!isSessionValid(session)) {
@@ -201,7 +210,7 @@ if (!isSessionValid(session)) {
 For direct API access:
 
 ```typescript
-import { graphqlRequest, persistedQuery, nextDataRequest, GRAPHQL_HASHES } from 'heb-sdk-unofficial';
+import { graphqlRequest, persistedQuery, GRAPHQL_HASHES } from 'heb-sdk-unofficial';
 
 // GraphQL with persisted query
 const response = await persistedQuery(session, 'cartItemV2', {
@@ -211,8 +220,6 @@ const response = await persistedQuery(session, 'cartItemV2', {
   userIsLoggedIn: true,
 });
 
-// Next.js data endpoint
-const data = await nextDataRequest(session, '/en/product-detail/1875945.json');
 ```
 
 ## Constants
@@ -249,8 +256,8 @@ import type {
 - **Bot Protection**: H-E-B uses Imperva/Incapsula. The `reese84` cookie is essential.
 - **Store Context**: `CURR_SESSION_STORE` affects product availability and pricing.
 - **Session Expiry**: The `sat` JWT expires. Monitor for 401 errors.
-- **Search Data**: Product search uses the Next.js data endpoint and requires a valid buildId.
-- **Weekly Ad**: Weekly ad products come from Flipp endpoints and require a store ID (postal code is derived).
+- **Mobile GraphQL**: Homepage, account, orders, search, and product details require bearer sessions.
+- **Weekly Ad**: Weekly ad support is currently unavailable without Next.js endpoints.
 
 ## License
 

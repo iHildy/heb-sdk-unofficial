@@ -1,9 +1,8 @@
-import { nextDataRequest, persistedQuery } from './api.js';
+import { persistedQuery } from './api.js';
+import { getShoppingMode, resolveShoppingContext as resolveSessionContext } from './session.js';
 import type { HEBSession } from './types.js';
 
 const DEFAULT_SEARCH_LIMIT = 20;
-const CONTEXT_ONLINE = 'ONLINE';
-const CONTEXT_CURBSIDE = 'CURBSIDE';
 
 /**
  * Search options.
@@ -71,62 +70,6 @@ export interface TypeaheadResult {
   allTerms: string[];
 }
 
-// Raw response types for Next.js search data
-interface RawSearchResponse {
-  pageProps?: {
-    layout?: {
-      visualComponents?: RawSearchComponent[];
-    };
-    searchTerm?: string;
-  };
-}
-
-interface RawSearchComponent {
-  __typename?: string;
-  items?: RawSearchProduct[];
-  total?: number;
-  filters?: RawSearchFilter[];
-  categoryFilters?: RawCategoryFilter[];
-}
-
-interface RawSearchFilter {
-  id?: string;
-  displayTitle?: string;
-  options?: RawSearchFilterOption[];
-}
-
-interface RawSearchFilterOption {
-  id?: string;
-  displayTitle?: string;
-  count?: number;
-}
-
-interface RawCategoryFilter {
-  categoryId?: string;
-  displayTitle?: string;
-  count?: number;
-}
-
-interface RawSearchProduct {
-  id?: string;
-  displayName?: string;
-  fullDisplayName?: string;
-  brand?: string | { name?: string; isOwnBrand?: boolean };
-  productImageUrls?: Array<{ url?: string; size?: string }>;
-  carouselImageUrls?: string[];
-  productPageURL?: string;
-  inventory?: { inventoryState?: string };
-  SKUs?: RawSearchSku[];
-  shoppingContext?: string;
-}
-
-interface RawSearchSku {
-  id?: string;
-  contextPrices?: RawContextPrice[];
-  productAvailability?: string[];
-  customerFriendlySize?: string;
-}
-
 // ─────────────────────────────────────────────────────────────
 // Mobile GraphQL search response types
 // ─────────────────────────────────────────────────────────────
@@ -183,127 +126,9 @@ interface RawDisplayPrice {
   amount?: number;
 }
 
-function selectSearchGrid(response: RawSearchResponse): RawSearchComponent | undefined {
-  const components = response.pageProps?.layout?.visualComponents ?? [];
-  return (
-    components.find(c => c.__typename === 'SearchGridV2') ??
-    components.find(c => Array.isArray(c.items))
-  );
-}
 
-function getPreferredPriceContext(shoppingContext?: string): string {
-  if (!shoppingContext) return CONTEXT_ONLINE;
-  return shoppingContext.includes('CURBSIDE') ? CONTEXT_CURBSIDE : CONTEXT_ONLINE;
-}
 
-function selectContextPrice(prices: RawContextPrice[], shoppingContext?: string): RawContextPrice | undefined {
-  if (!prices.length) return undefined;
-  const preferred = getPreferredPriceContext(shoppingContext);
-  return (
-    prices.find(price => price.context === preferred) ??
-    prices.find(price => price.context === CONTEXT_ONLINE) ??
-    prices[0]
-  );
-}
 
-function toPrice(display?: RawDisplayPrice): { amount: number; formatted: string } | undefined {
-  if (!display) return undefined;
-  return {
-    amount: display.amount ?? 0,
-    formatted: display.formattedAmount ?? '',
-  };
-}
-
-function toUnitPrice(display?: RawDisplayPrice): { amount: number; unit: string; formatted: string } | undefined {
-  if (!display) return undefined;
-  return {
-    amount: display.amount ?? 0,
-    unit: display.unit ?? '',
-    formatted: display.formattedAmount ?? '',
-  };
-}
-
-function selectImageUrl(product: RawSearchProduct): string | undefined {
-  const images = product.productImageUrls;
-  if (Array.isArray(images) && images.length) {
-    const preferred =
-      images.find(img => img.size === 'LARGE') ??
-      images.find(img => img.size === 'MEDIUM') ??
-      images[0];
-    return preferred?.url;
-  }
-
-  if (Array.isArray(product.carouselImageUrls) && product.carouselImageUrls.length) {
-    return product.carouselImageUrls[0];
-  }
-
-  return undefined;
-}
-
-function extractSlug(productPageURL?: string): string | undefined {
-  if (!productPageURL) return undefined;
-  const match = productPageURL.match(/product-detail\/([^/]+)\/\d+$/);
-  return match?.[1];
-}
-
-function mapSearchProduct(raw: RawSearchProduct): SearchProduct {
-  const sku = raw.SKUs?.[0];
-  const contextPrice = sku?.contextPrices
-    ? selectContextPrice(sku.contextPrices, raw.shoppingContext)
-    : undefined;
-
-  const price = contextPrice?.salePrice ?? contextPrice?.listPrice;
-  const unitPrice = contextPrice?.unitSalePrice ?? contextPrice?.unitListPrice;
-
-  const brand = typeof raw.brand === 'string' ? raw.brand : raw.brand?.name;
-  const inventoryState = raw.inventory?.inventoryState;
-
-  return {
-    productId: raw.id ?? '',
-    name: raw.fullDisplayName ?? raw.displayName ?? '',
-    brand,
-    imageUrl: selectImageUrl(raw),
-    price: toPrice(price),
-    unitPrice: toUnitPrice(unitPrice),
-    skuId: sku?.id,
-    isAvailable: inventoryState ? inventoryState === 'IN_STOCK' : undefined,
-    fulfillmentOptions: sku?.productAvailability,
-    slug: extractSlug(raw.productPageURL),
-  };
-}
-
-function mapFacets(component?: RawSearchComponent): SearchResult['facets'] {
-  if (!component) return undefined;
-  const facets: NonNullable<SearchResult['facets']> = [];
-
-  if (Array.isArray(component.filters)) {
-    for (const filter of component.filters) {
-      const values = (filter.options ?? []).map(option => ({
-        value: option.id ?? option.displayTitle ?? '',
-        count: option.count ?? 0,
-      }));
-
-      facets.push({
-        key: filter.id ?? '',
-        label: filter.displayTitle ?? '',
-        values,
-      });
-    }
-  }
-
-  if (Array.isArray(component.categoryFilters) && component.categoryFilters.length) {
-    facets.push({
-      key: 'category',
-      label: 'Category',
-      values: component.categoryFilters.map(category => ({
-        value: category.categoryId ?? category.displayTitle ?? '',
-        count: category.count ?? 0,
-      })),
-    });
-  }
-
-  return facets.length ? facets : undefined;
-}
 
 function resolveStoreId(session: HEBSession, options?: SearchOptions): number {
   const storeIdRaw = options?.storeId ?? session.cookies?.CURR_SESSION_STORE;
@@ -317,8 +142,8 @@ function resolveStoreId(session: HEBSession, options?: SearchOptions): number {
   return storeId;
 }
 
-function resolveShoppingContext(options?: SearchOptions): string {
-  return options?.shoppingContext ?? 'CURBSIDE_PICKUP';
+function resolveShoppingContext(session: HEBSession, options?: SearchOptions): string {
+  return options?.shoppingContext ?? resolveSessionContext(session);
 }
 
 function selectMobileSearchGrid(page?: MobileSearchPage): MobileSearchComponent | undefined {
@@ -331,7 +156,7 @@ function selectMobileSearchGrid(page?: MobileSearchPage): MobileSearchComponent 
 
 function mapMobileSearchProduct(product: MobileSearchProduct, shoppingContext: string): SearchProduct {
   const sku = product.skus?.[0];
-  const preferredContext = shoppingContext.includes('CURBSIDE') ? 'CURBSIDE' : 'ONLINE';
+  const preferredContext = getShoppingMode(shoppingContext);
   const priceContext = sku?.contextPrices?.find(p => p.context === preferredContext)
     ?? sku?.contextPrices?.find(p => p.context === 'ONLINE')
     ?? sku?.contextPrices?.[0];
@@ -392,7 +217,7 @@ async function searchProductsMobile(
 ): Promise<SearchResult> {
   const limit = Math.max(1, options.limit ?? DEFAULT_SEARCH_LIMIT);
   const storeId = resolveStoreId(session, options);
-  const shoppingContext = resolveShoppingContext(options);
+  const shoppingContext = resolveShoppingContext(session, options);
 
   const response = await persistedQuery<{ productSearchPageV2?: MobileSearchPage }>(
     session,
@@ -472,7 +297,8 @@ async function typeaheadMobile(session: HEBSession, query: string): Promise<Type
 }
 
 /**
- * Search for products using Next.js data endpoint.
+ * Search for products using the mobile GraphQL API.
+ * Requires a bearer session.
  *
  * @example
  * const results = await searchProducts(session, 'milk', { limit: 20 });
@@ -483,34 +309,11 @@ export async function searchProducts(
   query: string,
   options: SearchOptions = {}
 ): Promise<SearchResult> {
-  if (session.authMode === 'bearer') {
-    return searchProductsMobile(session, query, options);
+  if (session.authMode !== 'bearer') {
+    throw new Error('Search requires a bearer session (mobile GraphQL).');
   }
 
-  const limit = Math.max(1, options.limit ?? DEFAULT_SEARCH_LIMIT);
-  const path = `/en/search.json?q=${encodeURIComponent(query)}`;
-
-  const response = await nextDataRequest<RawSearchResponse>(session, path);
-  const grid = selectSearchGrid(response);
-  const rawProducts = grid?.items ?? [];
-  /*
-   * Filter out products that don't have a valid ID or name.
-   * This prevents "empty" result cards (like ads or placeholders) from appearing.
-   */
-  const validProducts = rawProducts
-    .map(mapSearchProduct)
-    .filter(p => p.productId && p.name);
-
-  const products = validProducts.slice(0, limit);
-  const totalCount = grid?.total ?? rawProducts.length;
-
-  return {
-    products,
-    totalCount,
-    page: 1,
-    hasNextPage: totalCount > products.length,
-    facets: mapFacets(grid),
-  };
+  return searchProductsMobile(session, query, options);
 }
 
 /**

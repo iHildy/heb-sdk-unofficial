@@ -1,4 +1,5 @@
-import { nextDataRequest, persistedQuery } from './api.js';
+import { persistedQuery } from './api.js';
+import { getShoppingMode, resolveShoppingContext } from './session.js';
 import type { HEBSession } from './types.js';
 
 /**
@@ -90,98 +91,6 @@ interface RawNutritionLabel {
   }>;
 }
 
-// Raw response from Next.js data endpoint
-interface RawProductResponse {
-  pageProps?: {
-    product?: {
-      // ID fields
-      id?: string;
-      productId?: string;
-      skuId?: string;
-      masterSkuId?: string;
-      
-      // Name fields
-      name?: string;
-      fullDisplayName?: string;
-      
-      // Brand can be string or object
-      brand?: string | { name?: string; isOwnBrand?: boolean };
-      
-      // Description
-      description?: string;
-      productDescription?: string;
-      longDescription?: string;
-      
-      // Images
-      image?: { url?: string };
-      images?: Array<{ url?: string }>;
-      carouselImageUrls?: string[];
-      
-      // Price
-      price?: {
-        amount?: number;
-        formatted?: string;
-        wasPrice?: { amount?: number; formatted?: string };
-        unitPrice?: { amount?: number; unit?: string; formatted?: string };
-      };
-      
-      // Nutrition - new structure with labels array
-      nutritionLabels?: RawNutritionLabel[];
-      
-      // Legacy nutrition structure
-      nutrition?: {
-        servingSize?: string;
-        calories?: number;
-        totalFat?: string;
-        saturatedFat?: string;
-        cholesterol?: string;
-        sodium?: string;
-        totalCarbohydrate?: string;
-        dietaryFiber?: string;
-        sugars?: string;
-        protein?: string;
-      };
-      
-      // Fulfillment
-      fulfillment?: {
-        curbsideEligible?: boolean;
-        deliveryEligible?: boolean;
-        inStoreOnly?: boolean;
-        aisleLocation?: string;
-      };
-      
-      // Inventory
-      inventory?: {
-        inventoryState?: string;
-      };
-      inAssortment?: boolean;
-      
-      // SKUs array - contains actual SKU IDs for cart operations
-      SKUs?: Array<{
-        id?: string;
-        contextPrices?: Array<{
-          context?: string;
-          listPrice?: { amount?: number; formattedAmount?: string };
-          salePrice?: { amount?: number; formattedAmount?: string };
-        }>;
-        customerFriendlySize?: string;
-        productAvailability?: string[];
-      }>;
-      
-      // Other fields
-      ingredientStatement?: string;
-      ingredients?: string;
-      upc?: string;
-      size?: string;
-      category?: { name?: string };
-      breadcrumbs?: Array<{ title?: string; categoryId?: string }>;
-      isAvailable?: boolean;
-      maximumOrderQuantity?: number;
-      productPageURL?: string;
-    };
-  };
-}
-
 // Mobile GraphQL product details response
 interface MobileProductDetailsResponse {
   productDetailsPage?: {
@@ -217,19 +126,6 @@ interface MobileProduct {
   nutritionLabels?: RawNutritionLabel[];
   isAvailableForCheckout?: boolean;
   maximumOrderQuantity?: number;
-}
-
-/**
- * Parse brand from various formats.
- */
-function parseBrand(brand: unknown): { name?: string; isOwnBrand?: boolean } {
-  if (!brand) return {};
-  if (typeof brand === 'string') return { name: brand };
-  if (typeof brand === 'object' && brand !== null) {
-    const b = brand as { name?: string; isOwnBrand?: boolean };
-    return { name: b.name, isOwnBrand: b.isOwnBrand };
-  }
-  return {};
 }
 
 /**
@@ -290,9 +186,6 @@ function resolveStoreId(session: HEBSession): number {
   return storeId;
 }
 
-function resolveShoppingContext(session: HEBSession): string {
-  return session.cookies?.CURR_SESSION_STORE ? 'CURBSIDE_PICKUP' : 'CURBSIDE_PICKUP';
-}
 
 function mapMobileFulfillment(availability?: string[]): FulfillmentInfo | undefined {
   if (!availability) return undefined;
@@ -306,10 +199,10 @@ function mapMobileFulfillment(availability?: string[]): FulfillmentInfo | undefi
 /**
  * Get full product details by product ID.
  * 
- * Uses Next.js data endpoint which returns comprehensive product info
+ * Uses the mobile GraphQL API which returns comprehensive product info
  * including SKU ID, nutrition, aisle location, and fulfillment options.
  * 
- * @param session - Active HEB session with buildId
+ * @param session - Active HEB bearer session
  * @param productId - Product ID
  * 
  * @example
@@ -321,108 +214,11 @@ export async function getProductDetails(
   session: HEBSession,
   productId: string
 ): Promise<Product> {
-  if (session.authMode === 'bearer') {
-    return getProductDetailsMobile(session, productId);
+  if (session.authMode !== 'bearer') {
+    throw new Error('Product details require a bearer session (mobile GraphQL).');
   }
 
-  const path = `/en/product-detail/${productId}.json`;
-  
-  const data = await nextDataRequest<RawProductResponse>(session, path);
-  const p = data.pageProps?.product;
-
-  if (!p) {
-    throw new Error(`Product ${productId} not found`);
-  }
-
-  // Parse brand
-  const brandInfo = parseBrand(p.brand);
-  
-  // Choose the best SKU based on availability for curbside/online
-  // Some products have multiple SKUs (e.g. variants, or in-store vs online identifiers)
-  // We prefer one that explicitly says it's available for Curbside
-  const preferredSku = p.SKUs?.find(sku => 
-    sku.productAvailability?.includes('CURBSIDE_PICKUP') || 
-    sku.productAvailability?.includes('DELIVERY')
-  ) ?? p.SKUs?.[0];
-
-  // SKU ID - extract from SKUs array first (required for cart operations)
-  const skuId = preferredSku?.id ?? p.skuId ?? p.masterSkuId ?? p.id ?? productId;
-  
-  // Name - prefer fullDisplayName
-  const name = p.fullDisplayName ?? p.name ?? '';
-  
-  // Description - prefer productDescription
-  const description = p.productDescription ?? p.description;
-  
-  // Images
-  const images = p.carouselImageUrls ?? 
-    p.images?.map(img => img.url).filter((u): u is string => Boolean(u)) ??
-    (p.image?.url ? [p.image.url] : undefined);
-  
-  // Category path from breadcrumbs
-  const categoryPath = p.breadcrumbs
-    ?.filter(b => b.title && b.title !== 'H-E-B')
-    ?.map(b => b.title) as string[] | undefined;
-
-  // Price - try legacy structure first, fallback to SKUs array
-  const skuPrice = p.SKUs?.[0]?.contextPrices?.find(cp => cp.context === 'CURBSIDE') 
-    ?? p.SKUs?.[0]?.contextPrices?.[0];
-  const price = p.price ? {
-    amount: p.price.amount ?? 0,
-    formatted: p.price.formatted ?? '',
-    wasPrice: p.price.wasPrice ? {
-      amount: p.price.wasPrice.amount ?? 0,
-      formatted: p.price.wasPrice.formatted ?? '',
-    } : undefined,
-    unitPrice: p.price.unitPrice ? {
-      amount: p.price.unitPrice.amount ?? 0,
-      unit: p.price.unitPrice.unit ?? '',
-      formatted: p.price.unitPrice.formatted ?? '',
-    } : undefined,
-  } : (skuPrice ? {
-    amount: skuPrice.listPrice?.amount ?? 0,
-    formatted: skuPrice.listPrice?.formattedAmount ?? '',
-  } : undefined);
-
-  return {
-    productId: p.productId ?? p.id ?? productId,
-    skuId,
-    name,
-    brand: brandInfo.name,
-    isOwnBrand: brandInfo.isOwnBrand,
-    description,
-    longDescription: p.longDescription,
-    imageUrl: images?.[0] ?? p.image?.url,
-    images,
-    price,
-    nutrition: parseNutrition(p.nutritionLabels) ?? (p.nutrition ? {
-      servingSize: p.nutrition.servingSize,
-      calories: p.nutrition.calories,
-      totalFat: p.nutrition.totalFat,
-      saturatedFat: p.nutrition.saturatedFat,
-      cholesterol: p.nutrition.cholesterol,
-      sodium: p.nutrition.sodium,
-      totalCarbs: p.nutrition.totalCarbohydrate,
-      fiber: p.nutrition.dietaryFiber,
-      sugars: p.nutrition.sugars,
-      protein: p.nutrition.protein,
-    } : undefined),
-    fulfillment: p.fulfillment ? {
-      curbside: p.fulfillment.curbsideEligible ?? false,
-      delivery: p.fulfillment.deliveryEligible ?? false,
-      inStore: p.fulfillment.inStoreOnly ?? false,
-      aisleLocation: p.fulfillment.aisleLocation,
-    } : undefined,
-    ingredients: p.ingredientStatement ?? p.ingredients,
-    upc: p.upc,
-    size: p.SKUs?.[0]?.customerFriendlySize ?? p.size,
-    category: categoryPath?.at(-1),
-    categoryPath,
-    isAvailable: p.isAvailable ?? p.inAssortment,
-    inStock: p.inventory?.inventoryState === 'IN_STOCK',
-    maxQuantity: p.maximumOrderQuantity,
-    productUrl: p.productPageURL,
-  };
+  return getProductDetailsMobile(session, productId);
 }
 
 async function getProductDetailsMobile(session: HEBSession, productId: string): Promise<Product> {
@@ -454,7 +250,7 @@ async function getProductDetailsMobile(session: HEBSession, productId: string): 
     s.productAvailability?.includes('CURBSIDE_PICKUP') || 
     s.productAvailability?.includes('DELIVERY')
   ) ?? product.skus?.[0];
-  const preferredContext = shoppingContext.includes('CURBSIDE') ? 'CURBSIDE' : 'ONLINE';
+  const preferredContext = getShoppingMode(shoppingContext);
   const priceContext = sku?.contextPrices?.find(p => p.context === preferredContext)
     ?? sku?.contextPrices?.find(p => p.context === 'ONLINE')
     ?? sku?.contextPrices?.[0];
