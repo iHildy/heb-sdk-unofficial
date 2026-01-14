@@ -337,8 +337,16 @@ export async function getProductDetails(
   // Parse brand
   const brandInfo = parseBrand(p.brand);
   
+  // Choose the best SKU based on availability for curbside/online
+  // Some products have multiple SKUs (e.g. variants, or in-store vs online identifiers)
+  // We prefer one that explicitly says it's available for Curbside
+  const preferredSku = p.SKUs?.find(sku => 
+    sku.productAvailability?.includes('CURBSIDE_PICKUP') || 
+    sku.productAvailability?.includes('DELIVERY')
+  ) ?? p.SKUs?.[0];
+
   // SKU ID - extract from SKUs array first (required for cart operations)
-  const skuId = p.SKUs?.[0]?.id ?? p.skuId ?? p.masterSkuId ?? p.id ?? productId;
+  const skuId = preferredSku?.id ?? p.skuId ?? p.masterSkuId ?? p.id ?? productId;
   
   // Name - prefer fullDisplayName
   const name = p.fullDisplayName ?? p.name ?? '';
@@ -442,7 +450,10 @@ async function getProductDetailsMobile(session: HEBSession, productId: string): 
     throw new Error(`Product ${productId} not found`);
   }
 
-  const sku = product.skus?.[0];
+  const sku = product.skus?.find(s => 
+    s.productAvailability?.includes('CURBSIDE_PICKUP') || 
+    s.productAvailability?.includes('DELIVERY')
+  ) ?? product.skus?.[0];
   const preferredContext = shoppingContext.includes('CURBSIDE') ? 'CURBSIDE' : 'ONLINE';
   const priceContext = sku?.contextPrices?.find(p => p.context === preferredContext)
     ?? sku?.contextPrices?.find(p => p.context === 'ONLINE')
