@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import AuthSuccess from './AuthSuccess';
 import Connect from './Connect';
+import Layout from './Layout';
 import OAuthInterstitial from './OAuthInterstitial';
 
 export default function App() {
@@ -13,12 +14,24 @@ export default function App() {
   }, []);
 
   if (path === '/extension-auth-success') {
-    return <AuthSuccess />;
+    return (
+      <Layout>
+        <AuthSuccess />
+      </Layout>
+    );
   }
 
   if (path === '/oauth-interstitial.html' || path === '/authorize') {
-    return <OAuthInterstitial />;
+    return (
+      <Layout>
+        <OAuthInterstitial />
+      </Layout>
+    );
   }
 
-  return <Connect />;
+  return (
+    <Layout>
+      <Connect />
+    </Layout>
+  );
 }

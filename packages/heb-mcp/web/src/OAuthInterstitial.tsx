@@ -26,11 +26,9 @@ export default function OAuthInterstitial() {
   }, [user, isLoaded, openSignIn]);
 
   return (
-    <div className="bg-[#f5f1e8] min-h-screen flex items-center justify-center font-['Inter',sans-serif]">
-      <div className="text-center">
-        <Loader2 className="w-8 h-8 text-accent animate-spin mx-auto mb-4" />
-        <p className="text-muted font-medium">Redirecting to authentication...</p>
-      </div>
+    <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-10 h-10 text-heb-red animate-spin mb-4" />
+        <p className="text-heb-gray font-medium">Redirecting...</p>
     </div>
   );
 }

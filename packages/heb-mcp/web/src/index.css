@@ -1,37 +1,42 @@
 @import "tailwindcss";
 
 @theme {
-  --color-heb-red: #cc0000;
-  --color-heb-green: #008148;
-  
-  --color-bg: #f5f1e8;
-  --color-card: #fffaf2;
-  --color-ink: #1a1a1a;
-  --color-muted: #666;
-  --color-accent: #008753;
-  --color-accent-soft: rgba(0, 135, 83, 0.15);
-  --color-border-main: #efe4d4;
-  --color-danger: #b91c1c;
+  /* HEB Brand Colors */
+  --color-heb-red: #DE2822; /* Primary HEB Red */
+  --color-heb-red-dark: #b91c1c;
+  --color-heb-gray: #333333;
+  --color-heb-gray-light: #f4f4f4;
 
+  /* App Theme aliases */
+  --color-primary: var(--color-heb-red);
+  --color-primary-dark: var(--color-heb-red-dark);
+  
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f9fafb;
+  
+  --color-ink: #1f1f1f;
+  --color-ink-light: #6b7280;
+  
+  --color-border: #e5e7eb;
+  
   --animate-bounce-slow: bounce 3s infinite;
 }
 
-@utility error {
-  @apply text-danger font-semibold;
+@layer base {
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+  }
 }
 
-@utility status {
-  @apply text-accent font-semibold;
+@utility btn-primary {
+  @apply bg-heb-red text-white px-6 py-2.5 rounded-full font-bold shadow-sm hover:bg-heb-red-dark hover:shadow transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
-@utility success {
-  @apply text-accent font-semibold;
+@utility btn-secondary {
+  @apply bg-white text-heb-red border border-heb-red px-6 py-2.5 rounded-full font-bold hover:bg-heb-red/5 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
-@utility warn {
-  @apply bg-danger/10 text-danger border-danger/20;
-}
-
-body {
-  @apply bg-bg text-ink font-sans;
+@utility card {
+  @apply bg-surface border border-border rounded-xl p-6 shadow-sm;
 }

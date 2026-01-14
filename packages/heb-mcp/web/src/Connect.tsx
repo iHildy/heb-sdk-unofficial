@@ -1,6 +1,6 @@
 import { useAuth, useClerk, useUser } from '@clerk/clerk-react';
 import { clsx, type ClassValue } from 'clsx';
-import { Clipboard, ExternalLink, Loader2, LogIn, LogOut, RefreshCw } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clipboard, ExternalLink, Loader2, LogIn, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { twMerge } from 'tailwind-merge';
 
@@ -47,7 +47,7 @@ function extractCode(raw: string) {
 export default function Connect() {
   const { getToken, isLoaded: authLoaded } = useAuth();
   const { openSignIn, signOut } = useClerk();
-  const { user, isLoaded: userLoaded } = useUser();
+  const { user } = useUser();
   
   const [status, setStatus] = useState<'Linked' | 'Not linked' | 'Checking status…' | 'Unknown' | 'Sign in required'>('Checking status…');
   const [statusText, setStatusText] = useState('Checking…');
@@ -86,7 +86,7 @@ export default function Connect() {
       const data = await res.json();
       if (data.connected) {
         setStatus('Linked');
-        setStatusText(data.expiresAt ? `Connected · expires ${new Date(data.expiresAt).toLocaleString()}` : 'Connected');
+        setStatusText(data.expiresAt ? `Connected · Expires ${new Date(data.expiresAt).toLocaleDateString()}` : 'Connected');
       } else {
         setStatus('Not linked');
         setStatusText('Not connected yet.');
@@ -202,6 +202,7 @@ export default function Connect() {
       }
       setExchangeStatus({ text: 'Linked successfully!', type: 'success' });
       await refreshStatus();
+      setCodeInput('');
     } catch (err) {
       setExchangeStatus({ text: 'Failed to link. Try again or re-open login.', type: 'error' });
     } finally {
@@ -227,123 +228,148 @@ export default function Connect() {
   };
 
   return (
-    <div className="max-w-[960px] mx-auto grid gap-6 p-4 md:p-8">
-      <header className="flex items-center justify-between flex-wrap gap-3">
+    <div className="flex flex-col gap-6">
+      
+      {/* Intro / Status Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="inline-block bg-accent-soft text-accent px-3 py-1 rounded-full font-semibold text-xs tracking-wider uppercase">HEB MCP</div>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mt-2">Connect your H‑E‑B account</h1>
-          <p className="text-muted text-lg mt-1">Link H‑E‑B once to enable shopping, cart, and pickup actions.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-heb-gray">Connect Account</h1>
+          <p className="text-ink-light mt-1">Link your H‑E‑B account to enable shopping features.</p>
         </div>
+        
+        {/* Status Badge */}
         <div className={cn(
-          "px-3 py-1 rounded-full font-semibold text-xs tracking-wider uppercase",
-          status === 'Linked' ? "bg-accent-soft text-accent" : "warn"
+          "px-4 py-2 rounded-full font-bold text-sm tracking-wide border flex items-center gap-2 w-fit",
+          status === 'Linked' 
+            ? "bg-[#008148]/10 text-[#008148] border-[#008148]/20" 
+            : "bg-gray-100 text-gray-600 border-gray-200"
         )}>
+          {status === 'Linked' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
           {status}
-        </div>
-      </header>
-
-      <div className="bg-card rounded-[24px] border border-border-main p-6 md:p-8 shadow-xl shadow-black/5">
-        <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
-          <span className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-sm">0</span>
-          Sign in to HEB MCP
-        </h2>
-        <p className="text-muted mb-6">We store your H‑E‑B tokens securely in your account so you can use HEB MCP from any client.</p>
-        <div className="flex flex-wrap gap-3 items-center">
-          {!user ? (
-            <button 
-              onClick={() => openSignIn({ forceRedirectUrl: window.location.href })}
-              className="bg-accent text-white px-6 py-2.5 rounded-full font-semibold shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2"
-            >
-              <LogIn className="w-4 h-4" /> Sign in
-            </button>
-          ) : (
-            <button 
-              onClick={() => signOut()}
-              className="bg-transparent text-ink border border-border-main px-6 py-2.5 rounded-full font-semibold hover:bg-black/5 transition-all cursor-pointer flex items-center gap-2"
-            >
-              <LogOut className="w-4 h-4" /> Sign out
-            </button>
-          )}
-          <span className={cn("text-sm", user ? "status" : "text-muted italic")}>
-            {userLoaded ? (user ? user.primaryEmailAddress?.emailAddress || user.username || 'Signed in' : 'Not signed in') : 'Checking sign-in…'}
-          </span>
         </div>
       </div>
 
-      <div className="bg-card rounded-[24px] border border-border-main p-6 md:p-8 shadow-xl shadow-black/5">
-        <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
-          <span className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-sm">1</span>
-          Sign in with H‑E‑B
-        </h2>
-        <p className="text-muted mb-6">We’ll open the H‑E‑B mobile login in a new tab. Complete login and OTP, then return here.</p>
-        <div className="flex flex-wrap gap-3 items-center">
+      {/* Step 1: Sign In */}
+      <section className="card">
+        <h2 className="text-lg font-bold text-heb-red mb-1">Step 1: Sign in to MCP</h2>
+        <p className="text-ink-light text-sm mb-4">Authenticate with this MCP server securely.</p>
+        
+        <div className="flex flex-wrap items-center gap-4">
+          {!user ? (
+            <button 
+              onClick={() => openSignIn({ forceRedirectUrl: window.location.href })}
+              className="btn-primary"
+            >
+              <LogIn className="w-4 h-4" /> Sign In
+            </button>
+          ) : (
+            <div className="flex items-center gap-4 bg-gray-50 px-4 py-2 rounded-lg border border-gray-100">
+               <div className="flex flex-col">
+                  <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Signed in as</span>
+                  <span className="font-semibold text-heb-gray">
+                    {user.primaryEmailAddress?.emailAddress || user.username}
+                  </span>
+               </div>
+               <button 
+                  onClick={() => signOut()}
+                  className="text-xs text-heb-red hover:underline font-medium"
+                >
+                  Sign Out
+               </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Step 2: HEB Login */}
+      <section className={cn("card transition-opacity duration-300", !user && "opacity-60 pointer-events-none")}>
+        <h2 className="text-lg font-bold text-heb-red mb-1">Step 2: Authenticate with H‑E‑B</h2>
+        <p className="text-ink-light text-sm mb-4">Open the login page, sign in, and copy the code.</p>
+        
+        <div className="flex flex-wrap gap-3">
           <button 
             disabled={!user}
             onClick={handleOpenAuth} 
-            className="bg-accent text-white px-6 py-2.5 rounded-full font-semibold shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary"
           >
             <ExternalLink className="w-4 h-4" /> Open H‑E‑B Login
           </button>
           <button 
             disabled={!user}
             onClick={handleCopyAuth}
-            className="bg-white text-accent border border-accent px-6 py-2.5 rounded-full font-semibold hover:bg-accent/5 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-secondary"
           >
-            <Clipboard className="w-4 h-4" /> Copy Login URL
+            <Clipboard className="w-4 h-4" /> Copy URL
           </button>
         </div>
-      </div>
+      </section>
 
-      <div className="bg-card rounded-[24px] border border-border-main p-6 md:p-8 shadow-xl shadow-black/5">
-        <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
-          <span className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-sm">2</span>
-          Paste the redirect code
-        </h2>
-        <p className="text-muted mb-6">After login, your browser will attempt to open <code>com.heb.myheb://oauth2redirect</code>. Copy the full URL or just the <code>code</code> value and paste it below.</p>
-        <div className="grid gap-4">
-          <textarea 
-            value={codeInput}
-            onChange={(e) => setCodeInput(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-border-main text-sm font-mono min-h-[100px] focus:outline-none focus:ring-4 focus:ring-accent/10 focus:border-accent/50 transition-all bg-white" 
-            placeholder="Paste redirect URL or code here"
-          />
-          <div className="flex flex-wrap gap-3 items-center">
-            <button 
-              disabled={!user || loading}
-              onClick={handleExchange}
-              className="bg-accent text-white px-6 py-2.5 rounded-full font-semibold shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />} Link H‑E‑B
-            </button>
-            <button 
-              onClick={handlePaste}
-              className="bg-white text-accent border border-accent px-6 py-2.5 rounded-full font-semibold hover:bg-accent/5 transition-all cursor-pointer"
-            >
-              Paste from clipboard
-            </button>
-            <span className={cn("font-semibold text-sm", exchangeStatus.type === 'error' ? 'text-danger' : 'text-accent')}>
+      {/* Step 3: Exchange Code */}
+      <section className={cn("card transition-opacity duration-300", !user && "opacity-60 pointer-events-none")}>
+        <h2 className="text-lg font-bold text-heb-red mb-1">Step 3: Complete Connection</h2>
+        <p className="text-ink-light text-sm mb-4">Paste the redirect URL or authorization code below.</p>
+        
+        <div className="flex flex-col gap-3">
+            <div className="relative">
+                <textarea 
+                    value={codeInput}
+                    onChange={(e) => setCodeInput(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-border focus:border-heb-red focus:ring-1 focus:ring-heb-red outline-none text-sm font-mono min-h-[80px] bg-gray-50 placeholder:text-gray-400 resize-y" 
+                    placeholder="Paste com.heb.myheb://oauth2redirect... here"
+                />
+                 {codeInput && (
+                     <button onClick={() => setCodeInput('')} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                        <span className="sr-only">Clear</span>
+                        ×
+                     </button>
+                 )}
+            </div>
+
+          <div className="flex flex-wrap items-center gap-3 justify-between">
+            <div className="flex gap-3">
+                <button 
+                disabled={!user || loading || !codeInput}
+                onClick={handleExchange}
+                className="btn-primary"
+                >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Link Account'}
+                </button>
+                <button 
+                onClick={handlePaste}
+                className="text-sm font-semibold text-heb-red hover:underline px-2"
+                >
+                Paste from clipboard
+                </button>
+            </div>
+            
+             <span className={cn("text-sm font-medium animate-in fade-in slide-in-from-left-2", exchangeStatus.type === 'error' ? 'text-heb-red' : 'text-[#008148]')}>
               {exchangeStatus.text}
             </span>
           </div>
-          <details className="text-muted text-sm border border-dashed border-[#d7c8b3] rounded-xl p-3 bg-[#fffdf9]">
-            <summary className="cursor-pointer font-bold select-none">Stuck on “Allow”? Here’s how to find the code.</summary>
-            <p className="mt-2 leading-relaxed">After you click Allow, H‑E‑B responds with a redirect to <code>com.heb.myheb://oauth2redirect?code=…</code>. Some browsers hang when the app isn’t installed. Open the Network tab for the H‑E‑B login page and look for a <code>303</code> response with a <code>Location</code> header that starts with <code>com.heb.myheb://oauth2redirect</code>. Paste that URL or just the <code>code</code> value here.</p>
+
+           <details className="mt-2 text-xs text-gray-500 cursor-pointer group">
+            <summary className="font-semibold hover:text-heb-red transition-colors list-none flex items-center gap-1 select-none">
+                <span className="group-open:rotate-90 transition-transform">▸</span> Help: Where do I find the code?
+            </summary>
+            <div className="pl-4 pt-2 leading-relaxed">
+                After logging in on the H‑E‑B page, if you see a blank page or "Address Not Found", check the URL bar. It should start with <code>com.heb.myheb://</code>. Copy that entire URL.
+                <br/>
+                If the browser hangs, open Developer Tools (F12) &gt; Network, and look for a request starting with <code>oauth2redirect</code>.
+            </div>
           </details>
         </div>
-      </div>
+      </section>
 
-      <div className="bg-card rounded-[24px] border border-border-main p-6 md:p-8 shadow-xl shadow-black/5">
-        <h2 className="text-xl font-bold mb-2">Status</h2>
-        <p className="text-muted mb-6">{statusText}</p>
-        <div className="flex gap-3">
+      {/* Network Status */}
+       <div className="flex justify-end">
           <button 
             onClick={refreshStatus}
-            className="bg-white text-accent border border-accent px-6 py-2.5 rounded-full font-semibold hover:bg-accent/5 transition-all cursor-pointer flex items-center gap-2"
+            className="text-xs font-semibold text-gray-400 hover:text-heb-red flex items-center gap-1 transition-colors"
           >
-            <RefreshCw className="w-4 h-4" /> Refresh status
+            <RefreshCw className="w-3 h-3" /> {statusText}
           </button>
         </div>
-      </div>
+
     </div>
   );
 }
