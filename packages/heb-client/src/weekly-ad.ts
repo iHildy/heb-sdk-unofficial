@@ -49,26 +49,30 @@ export interface WeeklyAdResult {
 // ─────────────────────────────────────────────────────────────
 
 
-interface WeeklyAdPageResponse {
-  weeklyAd?: {
-    productSearch?: {
-      products?: WeeklyAdItem[];
-      info?: {
-        total?: number;
-        filterCounts?: {
-          categories?: Array<{
-            filter?: string; // This is the ID (e.g. 489924)
-            displayName?: string;
-            count?: number;
-          }>;
-        };
-      };
-      cursorList?: string[];
-    };
+
+interface WeeklyAdData {
+  productSearch?: {
+    products?: WeeklyAdItem[];
     info?: {
-      daysRemaining?: number;
+      total?: number;
+      filterCounts?: {
+        categories?: Array<{
+          filter?: string; 
+          displayName?: string;
+          count?: number;
+        }>;
+      };
     };
+    cursorList?: string[];
   };
+  info?: {
+    daysRemaining?: number;
+  };
+}
+
+interface WeeklyAdPageResponse {
+  weeklyAd?: WeeklyAdData;
+  weeklyAdProductCategoryPage?: WeeklyAdData;
 }
 
 interface WeeklyAdComponent {
@@ -203,9 +207,9 @@ export async function getWeeklyAdProducts(
       }
   );
 
-  console.log('DEBUG: weeklyAdProductCategoryPage response:', JSON.stringify(response, null, 2));
+  console.log('DEBUG: weeklyAdProductCategoryPage response:', JSON.stringify(response));
 
-  let landingPageData = response.data?.weeklyAd; 
+  let landingPageData = response.data?.weeklyAd ?? response.data?.weeklyAdProductCategoryPage; 
   
   if (limit === 0 || !categoryFilter) {
      const landingResponse = await persistedQuery<WeeklyAdPageResponse>(
@@ -217,7 +221,7 @@ export async function getWeeklyAdProducts(
             storeId
         }
      );
-     console.log('DEBUG: weeklyAdLandingPageInfo response:', JSON.stringify(landingResponse, null, 2));
+     console.log('DEBUG: weeklyAdLandingPageInfo response:', JSON.stringify(landingResponse));
 
      if (landingResponse.data?.weeklyAd) {
          landingPageData = landingResponse.data.weeklyAd;
@@ -228,7 +232,7 @@ export async function getWeeklyAdProducts(
     throw new Error(`Weekly ad fetch failed: ${response.errors.map(e => e.message).join(', ')}`);
   }
 
-  const data = response.data?.weeklyAd; // Both use 'weeklyAd' field
+  const data = response.data?.weeklyAd ?? response.data?.weeklyAdProductCategoryPage;
   
   // Extract products
   const productsList = data?.productSearch?.products ?? [];

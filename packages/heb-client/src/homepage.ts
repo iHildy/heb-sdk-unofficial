@@ -160,8 +160,8 @@ export async function getHomepage(session: HEBSession): Promise<HomepageData> {
     }),
   ]);
 
-  console.log('DEBUG: entryPoint(home-page) response:', JSON.stringify(entryPointRes, null, 2));
-  console.log('DEBUG: entryPoint(featured-savings) response:', JSON.stringify(savingsRes, null, 2));
+  console.log('DEBUG: entryPoint(home-page) response:', JSON.stringify(entryPointRes));
+  console.log('DEBUG: entryPoint(featured-savings) response:', JSON.stringify(savingsRes));
 
 
   const errors = [
