@@ -256,6 +256,8 @@ function extractComponents(payload?: MobileLayoutResponse): RawComponent[] {
     payload?.collectionEntryPoint?.layout?.components,
     payload?.entryPoint?.collectionEntryPoint?.layout?.visualComponents,
     payload?.entryPoint?.collectionEntryPoint?.layout?.components,
+    (payload as any)?.nativeEntryPoint?.visualComponents,
+    (payload as any)?.nativeEntryPoint?.components,
     (payload as any)?.discoverLayout?.collectionEntryPoint?.layout?.visualComponents,
     (payload as any)?.discoverLayout?.collectionEntryPoint?.layout?.components,
     (payload as any)?.discoverDetail?.collectionEntryPoint?.layout?.visualComponents,
