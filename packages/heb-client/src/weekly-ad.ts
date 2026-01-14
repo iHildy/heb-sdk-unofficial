@@ -168,6 +168,7 @@ export async function getWeeklyAdProducts(
   // We'll use weeklyAdProductCategoryPage as primary, but if we need categories specifically and don't get them, we might fallback.
   // Wait, let's just use `weeklyAdProductCategoryPage` for products.
   
+
   const response = await persistedQuery<WeeklyAdPageResponse>(
       session,
       'weeklyAdProductCategoryPage',
@@ -182,11 +183,14 @@ export async function getWeeklyAdProducts(
       }
   );
 
+  console.log('DEBUG: weeklyAdProductCategoryPage response:', JSON.stringify(response, null, 2));
+
   // If we wanted categories explicitly (limit=0 often implies metadata fetch),
   // and we didn't get them from the product page (sometimes empty on search results?),
   // let's fetch landing page info.
   let landingPageData = response.data?.weeklyAdLandingPageInfo; // Won't exist on this query
   
+
   if (limit === 0 || !categoryFilter) {
      const landingResponse = await persistedQuery<WeeklyAdPageResponse>(
         session, 
@@ -197,6 +201,8 @@ export async function getWeeklyAdProducts(
             storeId
         }
      );
+     console.log('DEBUG: weeklyAdLandingPageInfo response:', JSON.stringify(landingResponse, null, 2));
+
      if (landingResponse.data?.weeklyAdLandingPageInfo) {
          landingPageData = landingResponse.data.weeklyAdLandingPageInfo;
      }
