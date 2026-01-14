@@ -63,6 +63,8 @@ export interface HEBSession {
   shoppingContext?: string;
   /** Optional refresh hook for bearer sessions */
   refresh?: () => Promise<void>;
+  /** Enable detailed debug logging (default: false) */
+  debug?: boolean;
 }
 
 /**

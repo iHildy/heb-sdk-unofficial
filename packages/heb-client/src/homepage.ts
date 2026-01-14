@@ -77,6 +77,16 @@ export interface HomepageFeaturedProduct {
 }
 
 /**
+ * Generic item in a homepage section.
+ */
+export type HomepageItem = HomepageBanner | HomepagePromotion | HomepageFeaturedProduct | {
+  id: string;
+  type: string;
+  name: string;
+  [key: string]: unknown;
+};
+
+/**
  * Content section on the homepage.
  */
 export interface HomepageSection {
@@ -84,6 +94,7 @@ export interface HomepageSection {
   type: string;
   title?: string;
   itemCount: number;
+  items: HomepageItem[];
 }
 
 /**
@@ -94,6 +105,54 @@ export interface HomepageData {
   promotions: HomepagePromotion[];
   featuredProducts: HomepageFeaturedProduct[];
   sections: HomepageSection[];
+}
+
+/**
+ * Options for filtering and limiting homepage data.
+ */
+export interface HomepageOptions {
+  /**
+   * Maximum number of sections to return (default: unlimited).
+   */
+  maxSections?: number;
+
+  /**
+   * Maximum items to include per section (default: unlimited).
+   * Set to 0 to exclude item content entirely.
+   */
+  maxItemsPerSection?: number;
+
+  /**
+   * Section types to include (whitelist). If provided, only matching types are returned.
+   * Case-insensitive partial match (e.g., "carousel" matches "ContentDeliveryTextLinkCarousel").
+   */
+  includeSectionTypes?: string[];
+
+  /**
+   * Section types to exclude (blacklist). Excluded after include filter.
+   * Case-insensitive partial match.
+   */
+  excludeSectionTypes?: string[];
+
+  /**
+   * Whether to populate the top-level `banners` array (default: true).
+   */
+  includeBanners?: boolean;
+
+  /**
+   * Whether to populate the top-level `promotions` array (default: true).
+   */
+  includePromotions?: boolean;
+
+  /**
+   * Whether to populate the top-level `featuredProducts` array (default: true).
+   */
+  includeFeaturedProducts?: boolean;
+
+  /**
+   * Only include sections that have a title (default: false).
+   */
+  onlyTitledSections?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -107,13 +166,29 @@ export interface HomepageData {
  * Requires a bearer session for the mobile GraphQL API.
  *
  * @param session - Active HEB session
+ * @param options - Optional filtering/limiting options
  * @returns Homepage data with banners, promotions, and sections
  *
  * @example
+ * // Get all homepage content
  * const homepage = await getHomepage(session);
- * homepage.banners.forEach(b => console.log(b.title));
+ * 
+ * @example
+ * // Get only titled sections with max 5 items each
+ * const homepage = await getHomepage(session, {
+ *   onlyTitledSections: true,
+ *   maxItemsPerSection: 5,
+ * });
+ * 
+ * @example
+ * // Get only carousel sections, no banners/promos
+ * const homepage = await getHomepage(session, {
+ *   includeSectionTypes: ['carousel'],
+ *   includeBanners: false,
+ *   includePromotions: false,
+ * });
  */
-export async function getHomepage(session: HEBSession): Promise<HomepageData> {
+export async function getHomepage(session: HEBSession, options: HomepageOptions = {}): Promise<HomepageData> {
   if (session.authMode !== 'bearer') {
     throw new Error('Homepage data requires a bearer session (mobile GraphQL).');
   }
@@ -127,11 +202,21 @@ export async function getHomepage(session: HEBSession): Promise<HomepageData> {
     throw new Error(`Invalid storeId: ${storeIdRaw}`);
   }
 
+  // Destructure options with defaults
+  const {
+    maxSections,
+    maxItemsPerSection,
+    includeSectionTypes,
+    excludeSectionTypes,
+    includeBanners = true,
+    includePromotions = true,
+    includeFeaturedProducts = true,
+    onlyTitledSections = false,
+  } = options;
+
   const shoppingContext = resolveShoppingContext(session);
   const device = MOBILE_DEVICE;
   const version = MOBILE_APP_VERSION;
-
-
 
   const [entryPointRes, savingsRes, categoriesRes] = await Promise.all([
     persistedQuery<MobileLayoutResponse>(session, 'entryPoint', {
@@ -160,8 +245,6 @@ export async function getHomepage(session: HEBSession): Promise<HomepageData> {
     }),
   ]);
 
-  console.log('DEBUG: entryPoint(home-page) response:', JSON.stringify(entryPointRes));
-  console.log('DEBUG: entryPoint(featured-savings) response:', JSON.stringify(savingsRes));
 
 
   const errors = [
@@ -173,13 +256,18 @@ export async function getHomepage(session: HEBSession): Promise<HomepageData> {
     throw new Error(`Homepage fetch failed: ${errors.map(e => e.message).join(', ')}`);
   }
 
-
   const components = [
     ...extractComponents(entryPointRes.data),
     ...extractComponents(savingsRes.data),
   ];
 
-  const sections: HomepageSection[] = [];
+  // Helper to check if a section type matches filter patterns
+  const matchesPattern = (type: string, patterns: string[]): boolean => {
+    const lowerType = type.toLowerCase();
+    return patterns.some(p => lowerType.includes(p.toLowerCase()));
+  };
+
+  let sections: HomepageSection[] = [];
   const banners: HomepageBanner[] = [];
   const promotions: HomepagePromotion[] = [];
   const featuredProducts: HomepageFeaturedProduct[] = [];
@@ -192,61 +280,135 @@ export async function getHomepage(session: HEBSession): Promise<HomepageData> {
     const componentType = String((component as any)?.type ?? (component as any)?.__typename ?? 'component');
     const header = (component as any)?.header as Record<string, unknown> | undefined;
     const title = String((component as any)?.title ?? header?.title ?? (component as any)?.heading ?? '').trim() || undefined;
-    const items = extractComponentItems(component);
+
+    // Apply section type filters
+    if (includeSectionTypes && includeSectionTypes.length > 0) {
+      if (!matchesPattern(componentType, includeSectionTypes)) return;
+    }
+    if (excludeSectionTypes && excludeSectionTypes.length > 0) {
+      if (matchesPattern(componentType, excludeSectionTypes)) return;
+    }
+
+    // Apply titled-only filter
+    if (onlyTitledSections && !title) return;
+
+    const rawItems = extractComponentItems(component);
+    const sectionItems: HomepageItem[] = [];
+
+    const isBannerComponent = /banner|hero|carousel/i.test(componentType);
+    const isPromoComponent = /promo|deal|offer/i.test(componentType);
+
+    // Process items (respect maxItemsPerSection)
+    const itemsToProcess = maxItemsPerSection !== undefined 
+      ? rawItems.slice(0, maxItemsPerSection === 0 ? 0 : maxItemsPerSection)
+      : rawItems;
+
+    itemsToProcess.forEach((item, itemIndex) => {
+      const itemType = String(item?.type ?? item?.__typename ?? '').toLowerCase();
+      const itemId = String(item?.id ?? item?.externalId ?? `${componentType}-${index}-${itemIndex}`);
+
+      let mappedItem: HomepageItem | null = null;
+
+      // Handle banners
+      if (includeBanners && (isBannerComponent || itemType.includes('banner') || itemType.includes('hero'))) {
+        const banner = mapBanner(item, itemId, banners.length);
+        if (banner) {
+          if (!seenBannerIds.has(banner.id)) {
+            seenBannerIds.add(banner.id);
+            banners.push(banner);
+          }
+          mappedItem = banner;
+        }
+      }
+
+      // Handle promotions
+      if (!mappedItem && includePromotions && (isPromoComponent || itemType.includes('promo') || itemType.includes('deal'))) {
+        const promo = mapPromotion(item, itemId);
+        if (promo) {
+          if (!seenPromoIds.has(promo.id)) {
+            seenPromoIds.add(promo.id);
+            promotions.push(promo);
+          }
+          mappedItem = promo;
+        }
+      }
+
+      // Handle products
+      if (!mappedItem && includeFeaturedProducts && isProductLike(item)) {
+        const product = mapFeaturedProduct(item);
+        if (product) {
+          if (!seenProductIds.has(product.productId)) {
+            seenProductIds.add(product.productId);
+            featuredProducts.push(product);
+          }
+          mappedItem = product;
+        }
+      }
+
+      // Fallback: Generic Item
+      if (!mappedItem) {
+        mappedItem = {
+          id: itemId,
+          type: itemType || 'unknown',
+          name: (item.text as string) ?? (item.title as string) ?? (item.name as string) ?? 'Untitled',
+          ...item
+        };
+      }
+
+      sectionItems.push(mappedItem);
+    });
 
     sections.push({
       id: String((component as any)?.id ?? (component as any)?.externalId ?? (component as any)?.uuid ?? `${componentType}-${index}`),
       type: componentType,
       title,
-      itemCount: items.length,
-    });
-
-    const isBannerComponent = /banner|hero|carousel/i.test(componentType);
-    const isPromoComponent = /promo|deal|offer/i.test(componentType);
-
-    items.forEach((item, itemIndex) => {
-      const itemType = String(item?.type ?? item?.__typename ?? '').toLowerCase();
-      const itemId = String(item?.id ?? item?.externalId ?? `${componentType}-${index}-${itemIndex}`);
-
-      if ((isBannerComponent || itemType.includes('banner') || itemType.includes('hero')) && !seenBannerIds.has(itemId)) {
-        const banner = mapBanner(item, itemId, banners.length);
-        if (banner) {
-          seenBannerIds.add(banner.id);
-          banners.push(banner);
-        }
-        return;
-      }
-
-      if ((isPromoComponent || itemType.includes('promo') || itemType.includes('deal')) && !seenPromoIds.has(itemId)) {
-        const promo = mapPromotion(item, itemId);
-        if (promo) {
-          seenPromoIds.add(promo.id);
-          promotions.push(promo);
-        }
-        return;
-      }
-
-      if (isProductLike(item)) {
-        const product = mapFeaturedProduct(item);
-        if (product && !seenProductIds.has(product.productId)) {
-          seenProductIds.add(product.productId);
-          featuredProducts.push(product);
-        }
-      }
+      itemCount: rawItems.length, // Total count before limiting
+      items: sectionItems,        // Potentially limited items
     });
   });
 
+  // Add categories section if applicable
   const categories = extractCategories(categoriesRes.data);
   if (categories.length) {
-    sections.push({
-      id: 'categories',
-      type: 'Categories',
-      title: 'Categories',
-      itemCount: categories.length,
-    });
+    const categoryType = 'Categories';
+    
+    // Check filters
+    const includeCategories = 
+      (!includeSectionTypes || includeSectionTypes.length === 0 || matchesPattern(categoryType, includeSectionTypes)) &&
+      (!excludeSectionTypes || excludeSectionTypes.length === 0 || !matchesPattern(categoryType, excludeSectionTypes)) &&
+      !onlyTitledSections; // Categories has a title, so this would pass anyway
+    
+    if (includeCategories || !onlyTitledSections) {
+      const categoryItems = maxItemsPerSection !== undefined
+        ? categories.slice(0, maxItemsPerSection === 0 ? 0 : maxItemsPerSection)
+        : categories;
+
+      sections.push({
+        id: 'categories',
+        type: categoryType,
+        title: 'Categories',
+        itemCount: categories.length,
+        items: categoryItems.map((c: any) => ({
+          id: c.id ?? 'unknown',
+          type: 'Category',
+          name: c.name ?? 'Unknown Category',
+          ...c
+        })),
+      });
+    }
   }
 
-  return { banners, promotions, featuredProducts, sections };
+  // Apply maxSections limit
+  if (maxSections !== undefined && maxSections > 0) {
+    sections = sections.slice(0, maxSections);
+  }
+
+  return { 
+    banners: includeBanners ? banners : [], 
+    promotions: includePromotions ? promotions : [], 
+    featuredProducts: includeFeaturedProducts ? featuredProducts : [], 
+    sections 
+  };
 }
 
 function extractComponents(payload?: MobileLayoutResponse): RawComponent[] {

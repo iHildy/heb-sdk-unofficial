@@ -1,6 +1,7 @@
+import { logDebug } from './logger.js';
+import { ensureFreshSession, normalizeHeaders, resolveEndpoint } from './session.js';
 import type { HEBSession } from './types.js';
 import { GRAPHQL_HASHES, MOBILE_GRAPHQL_HASHES } from './types.js';
-import { ensureFreshSession, normalizeHeaders, resolveEndpoint } from './session.js';
 
 /**
  * GraphQL request payload structure.
@@ -53,6 +54,7 @@ export async function graphqlRequest<T>(
 ): Promise<GraphQLResponse<T>> {
   await ensureFreshSession(session);
   const headers = normalizeHeaders(session.headers);
+  logDebug(session, `${payload.operationName} request`, payload);
   const response = await fetch(resolveEndpoint(session, 'graphql'), {
     method: 'POST',
     headers,
@@ -61,10 +63,13 @@ export async function graphqlRequest<T>(
 
   if (!response.ok) {
     const body = await response.text();
+    logDebug(session, `${payload.operationName} error response`, body);
     throw new Error(`HEB API request failed: ${response.status} ${response.statusText}\n${body}`);
   }
 
-  return response.json() as Promise<GraphQLResponse<T>>;
+  const json = await response.json();
+  logDebug(session, `${payload.operationName} response`, json);
+  return json as GraphQLResponse<T>;
 }
 
 /**

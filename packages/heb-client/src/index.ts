@@ -118,6 +118,8 @@ export {
     type HomepageBanner,
     type HomepageData,
     type HomepageFeaturedProduct,
+    type HomepageItem,
+    type HomepageOptions,
     type HomepagePromotion,
     type HomepageSection
 } from './homepage.js';

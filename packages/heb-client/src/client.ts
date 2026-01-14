@@ -40,6 +40,13 @@ export class HEBClient {
   constructor(public session: HEBSession) {}
 
   /**
+   * Enable or disable detailed debug logging.
+   */
+  setDebug(enabled: boolean): void {
+    this.session.debug = enabled;
+  }
+
+  /**
    * Check if the session is still valid.
    */
   isValid(): boolean {
@@ -278,12 +285,21 @@ export class HEBClient {
    * Get the homepage content including banners, promotions, and featured products.
    * Requires a bearer session.
    * 
+   * @param options - Optional filtering/limiting options
    * @example
    * const homepage = await heb.getHomepage();
    * console.log(`Found ${homepage.banners.length} banners`);
+   * 
+   * @example
+   * // Get only titled carousel sections with max 5 items
+   * const homepage = await heb.getHomepage({
+   *   onlyTitledSections: true,
+   *   includeSectionTypes: ['carousel'],
+   *   maxItemsPerSection: 5,
+   * });
    */
-  async getHomepage(): Promise<HomepageData> {
-    return getHomepage(this.session);
+  async getHomepage(options: import('./homepage.js').HomepageOptions = {}): Promise<HomepageData> {
+    return getHomepage(this.session, options);
   }
 
   // ─────────────────────────────────────────────────────────────

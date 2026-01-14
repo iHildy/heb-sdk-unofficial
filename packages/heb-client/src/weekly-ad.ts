@@ -219,7 +219,7 @@ export async function getWeeklyAdProducts(
       }
   );
 
-  console.log('DEBUG: weeklyAdProductCategoryPage response:', JSON.stringify(response));
+
 
   let landingPageData = response.data?.weeklyAd ?? response.data?.weeklyAdProductCategoryPage; 
   
@@ -233,7 +233,7 @@ export async function getWeeklyAdProducts(
             storeId
         }
      );
-     console.log('DEBUG: weeklyAdLandingPageInfo response:', JSON.stringify(landingResponse));
+
 
      if (landingResponse.data?.weeklyAd) {
          landingPageData = landingResponse.data.weeklyAd;

@@ -599,15 +599,33 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
 
   server.tool(
     'get_homepage',
-    'Get the H-E-B homepage content including banners, promotions, deals, and featured products',
-    {},
-    async () => {
+    'Get the H-E-B homepage content including banners, promotions, deals, and featured products. Use options to filter/limit results.',
+    {
+      max_sections: z.number().min(1).optional().describe('Maximum number of content sections to return'),
+      items_per_section: z.number().min(0).optional().describe('Maximum items per section (0 = no items, just section headers)'),
+      include_types: z.string().optional().describe('Comma-separated section types to include (e.g., "carousel,banner"). Partial match.'),
+      exclude_types: z.string().optional().describe('Comma-separated section types to exclude (e.g., "legalText,NativeExm"). Partial match.'),
+      only_titled: z.boolean().optional().describe('Only include sections that have a title (default: false)'),
+      hide_banners: z.boolean().optional().describe('Hide the top-level banners array (default: false)'),
+      hide_promotions: z.boolean().optional().describe('Hide the top-level promotions array (default: false)'),
+      hide_products: z.boolean().optional().describe('Hide the top-level featured products array (default: false)'),
+    },
+    async ({ max_sections, items_per_section, include_types, exclude_types, only_titled, hide_banners, hide_promotions, hide_products }) => {
       const result = requireClient(getClient);
       if ('error' in result) return result.error;
       const { client } = result;
 
       try {
-        const homepage = await client.getHomepage();
+        const homepage = await client.getHomepage({
+          maxSections: max_sections,
+          maxItemsPerSection: items_per_section,
+          includeSectionTypes: include_types ? include_types.split(',').map(s => s.trim()) : undefined,
+          excludeSectionTypes: exclude_types ? exclude_types.split(',').map(s => s.trim()) : undefined,
+          onlyTitledSections: only_titled,
+          includeBanners: !hide_banners,
+          includePromotions: !hide_promotions,
+          includeFeaturedProducts: !hide_products,
+        });
 
         const parts: string[] = ['**H-E-B Homepage**'];
 
@@ -645,11 +663,44 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
           }
         }
 
-        // Sections summary
+        // Sections with content
         if (homepage.sections.length > 0) {
           parts.push(`\n**Content Sections (${homepage.sections.length}):**`);
           homepage.sections.forEach((s, i) => {
-            parts.push(`${i + 1}. ${s.title ?? s.type} (${s.itemCount} items)`);
+            parts.push(`\n${i + 1}. **${s.title ?? s.type}** (${s.itemCount} items)`);
+            
+            if (s.items && s.items.length > 0) {
+              // Show up to 10 items per section
+              s.items.slice(0, 10).forEach(item => {
+                let itemText = '';
+                
+                // Check for product
+                if ('productId' in item) {
+                   const p = item as any;
+                   const price = p.priceFormatted ?? (p.price ? `$${p.price}` : '');
+                   itemText = `${p.name} ${price}`.trim();
+                } 
+                // Check for banner/promo
+                else if ('imageUrl' in item) {
+                   const b = item as any;
+                   itemText = b.title ?? b.name ?? 'Banner';
+                   if (b.subtitle || b.description) itemText += ` - ${b.subtitle ?? b.description}`;
+                }
+                // Fallback
+                else {
+                   // item can be HomepageBanner (has title), HomepagePromotion (has title), 
+                   // HomepageFeaturedProduct (has name), or Generic (has name)
+                   const anyItem = item as any;
+                   itemText = anyItem.name ?? anyItem.title ?? anyItem.text ?? 'Unknown Item';
+                }
+
+                parts.push(`   - ${itemText}`);
+              });
+
+              if (s.items.length > 10) {
+                parts.push(`   - ... and ${s.items.length - 10} more`);
+              }
+            }
           });
         }
 
