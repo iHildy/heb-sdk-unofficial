@@ -64,6 +64,10 @@ interface WeeklyAdData {
       };
     };
     cursorList?: string[];
+    productPage?: {
+      products?: WeeklyAdItem[];
+      cursorList?: string[];
+    };
   };
   productPage?: {
     products?: WeeklyAdItem[];
@@ -240,7 +244,11 @@ export async function getWeeklyAdProducts(
   const data = response.data?.weeklyAd ?? response.data?.weeklyAdProductCategoryPage;
 
   // Extract products (weekly ad currently returns productPage.products, not productSearch.products)
-  const productsList = data?.productPage?.products ?? data?.productSearch?.products ?? [];
+  const productsList =
+    data?.productPage?.products ??
+    data?.productSearch?.productPage?.products ??
+    data?.productSearch?.products ??
+    [];
   
   let products = productsList
     .map(mapWeeklyAdProduct)
@@ -270,6 +278,9 @@ export async function getWeeklyAdProducts(
     validTo: undefined, 
     storeCode: String(storeId),
     categories,
-    cursor: data?.productPage?.cursorList?.[0] ?? data?.productSearch?.cursorList?.[0], // Just take first cursor if available?
+    cursor:
+      data?.productPage?.cursorList?.[0] ??
+      data?.productSearch?.productPage?.cursorList?.[0] ??
+      data?.productSearch?.cursorList?.[0], // Just take first cursor if available?
   };
 }
