@@ -106,8 +106,8 @@ async function startLocalCookieBridgeServer(): Promise<void> {
   app.use(express.json({ limit: '250kb' }));
 
   const iconPath = mode === 'local' 
-    ? join(__dirname, '..', 'icon16.png') // in src, icon is in ..
-    : join(__dirname, '..', 'icon16.png'); // in dist, icon is also in .. if copied correctly
+    ? join(__dirname, '..', 'favicon.ico') 
+    : join(__dirname, '..', 'favicon.ico');
 
   app.get('/favicon.ico', (_req, res) => {
     res.sendFile(iconPath);
@@ -175,7 +175,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
   app.set('trust proxy', 1); 
 
   app.get('/favicon.ico', (_req, res) => {
-    res.sendFile(join(__dirname, '..', 'icon16.png'));
+    res.sendFile(join(__dirname, '..', 'favicon.ico'));
   });
 
   const oauthProvider = new ClerkOAuthProvider({ publicUrl, supportedScopes: oauthScopes });
