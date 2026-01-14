@@ -65,6 +65,10 @@ interface WeeklyAdData {
     };
     cursorList?: string[];
   };
+  productPage?: {
+    products?: WeeklyAdItem[];
+    cursorList?: string[];
+  };
   info?: {
     daysRemaining?: number;
   };
@@ -89,6 +93,7 @@ interface WeeklyAdItem {
   brand?: { name?: string };
   carouselImageUrls?: string[];
   image?: { url?: string };
+  productLocation?: { location?: string };
   
   // Price is inside skus -> contextPrices
   skus?: Array<{
@@ -164,7 +169,7 @@ function mapWeeklyAdProduct(item: WeeklyAdItem): WeeklyAdProduct {
     disclaimerText: item.deal?.disclaimer,
     upc: item.twelveDigitUPC,
     skuId: sku?.id,
-    storeLocation: sku?.storeLocation?.location,
+    storeLocation: item.productLocation?.location ?? sku?.storeLocation?.location,
   };
 }
 
@@ -233,9 +238,9 @@ export async function getWeeklyAdProducts(
   }
 
   const data = response.data?.weeklyAd ?? response.data?.weeklyAdProductCategoryPage;
-  
-  // Extract products
-  const productsList = data?.productSearch?.products ?? [];
+
+  // Extract products (weekly ad currently returns productPage.products, not productSearch.products)
+  const productsList = data?.productPage?.products ?? data?.productSearch?.products ?? [];
   
   let products = productsList
     .map(mapWeeklyAdProduct)
@@ -265,6 +270,6 @@ export async function getWeeklyAdProducts(
     validTo: undefined, 
     storeCode: String(storeId),
     categories,
-    cursor: data?.productSearch?.cursorList?.[0], // Just take first cursor if available?
+    cursor: data?.productPage?.cursorList?.[0] ?? data?.productSearch?.cursorList?.[0], // Just take first cursor if available?
   };
 }
