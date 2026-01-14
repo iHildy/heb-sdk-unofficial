@@ -246,28 +246,47 @@ function extractBuildIdFromHtml(html: string): string | undefined {
  * This is required for data requests (x-nextjs-data).
  */
 export async function fetchBuildId(cookies: HEBCookies): Promise<string> {
-  // We need to fetch a page to get the build ID
-  // The homepage is a safe bet
-  const response = await fetch(ENDPOINTS.home, {
-    method: 'GET',
-    headers: buildBrowserHeaders({
-      ...buildCookieHeaders(cookies),
-      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    }),
-  });
+  const attempts: Array<{ label: string; headers: Record<string, string> }> = [
+    {
+      label: 'with cookies',
+      headers: buildBrowserHeaders({
+        ...buildCookieHeaders(cookies),
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      }),
+    },
+    {
+      label: 'without cookies',
+      headers: buildBrowserHeaders({
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      }),
+    },
+  ];
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch homepage for buildId: ${response.status} ${response.statusText}`);
+  let lastError: Error | undefined;
+  for (const attempt of attempts) {
+    try {
+      const response = await fetch(ENDPOINTS.home, {
+        method: 'GET',
+        headers: attempt.headers,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch homepage for buildId (${attempt.label}): ${response.status} ${response.statusText}`);
+      }
+
+      const html = await response.text();
+      const buildId = extractBuildIdFromHtml(html);
+      if (buildId) {
+        return buildId;
+      }
+
+      throw new Error(`Could not find buildId in homepage HTML (${attempt.label})`);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
   }
 
-  const html = await response.text();
-  const buildId = extractBuildIdFromHtml(html);
-
-  if (!buildId) {
-    throw new Error('Could not find buildId in homepage HTML');
-  }
-
-  return buildId;
+  throw lastError ?? new Error('Could not find buildId in homepage HTML');
 }
 
 /**
