@@ -48,27 +48,26 @@ export interface WeeklyAdResult {
 // GraphQL Types
 // ─────────────────────────────────────────────────────────────
 
+
 interface WeeklyAdPageResponse {
-  weeklyAdProductCategoryPage?: { // For products
-    total?: number;
-    nextCursor?: string;
-    validFrom?: string;
-    validTo?: string;
-    layout?: {
-      visualComponents?: WeeklyAdComponent[];
+  weeklyAd?: {
+    productSearch?: {
+      products?: WeeklyAdItem[];
+      info?: {
+        total?: number;
+        filterCounts?: {
+          categories?: Array<{
+            filter?: string; // This is the ID (e.g. 489924)
+            displayName?: string;
+            count?: number;
+          }>;
+        };
+      };
+      cursorList?: string[];
     };
-    categoryFilters?: Array<{
-      id?: string;
-      label?: string;
-      productCount?: number;
-    }>;
-  };
-  weeklyAdLandingPageInfo?: { // For initial categories
-    categoryFilters?: Array<{
-      id?: string;
-      label?: string;
-      productCount?: number;
-    }>;
+    info?: {
+      daysRemaining?: number;
+    };
   };
 }
 
@@ -79,28 +78,37 @@ interface WeeklyAdComponent {
   // Sometimes categories are in a separate component
 }
 
+
 interface WeeklyAdItem {
   productId?: string;
   displayName?: string;
   brand?: { name?: string };
+  carouselImageUrls?: string[];
   image?: { url?: string };
+  
+  // Price is inside skus -> contextPrices
+  skus?: Array<{
+    id?: string;
+    storeLocation?: { location?: string };
+    contextPrices?: Array<{
+      context?: string;
+      priceType?: string;
+      salePrice?: { formattedAmount?: string };
+      listPrice?: { formattedAmount?: string };
+      isOnSale?: boolean;
+    }>;
+  }>;
+  
+  // Also support old/other structure if needed
   price?: {
-    price?: number;
     priceString?: string;
-    salePrice?: number;
     salePriceString?: string;
   };
   deal?: {
-    mechanism?: string; // e.g. "Simple Savings"
-    callout?: string;   // e.g. "Save $1.00"
+    callout?: string;
     disclaimer?: string;
   };
-  upc?: string;
-  // Sku info might be nested
-  skus?: Array<{
-    id?: string;
-    storeLocation?: { aisle?: string; side?: string };
-  }>;
+  twelveDigitUPC?: string;
 }
 
 function resolveStoreId(session: HEBSession, options?: WeeklyAdOptions): number {
@@ -128,20 +136,31 @@ function normalizeLimit(limit?: number): number {
   return Math.floor(limit);
 }
 
+
 function mapWeeklyAdProduct(item: WeeklyAdItem): WeeklyAdProduct {
-  const priceText = item.price?.salePriceString ?? item.price?.priceString; // Prefer sale price
+  // Extract price from first SKU's first context price if available
+  const sku = item.skus?.[0];
+  const priceObj = sku?.contextPrices?.find(cp => cp.context === 'CURBSIDE' || cp.context === 'IN_STORE') 
+                  ?? sku?.contextPrices?.[0];
   
+  const priceText = priceObj?.salePrice?.formattedAmount 
+                   ?? priceObj?.listPrice?.formattedAmount 
+                   ?? item.price?.salePriceString 
+                   ?? item.price?.priceString;
+
+  const saleStory = priceObj?.isOnSale ? 'On Sale' : item.deal?.callout;
+
   return {
     id: item.productId ?? '',
     name: item.displayName ?? '',
     brand: item.brand?.name,
-    imageUrl: item.image?.url,
+    imageUrl: item.carouselImageUrls?.[0] ?? item.image?.url,
     priceText: priceText,
-    saleStory: item.deal?.callout,
+    saleStory: saleStory,
     disclaimerText: item.deal?.disclaimer,
-    upc: item.upc,
-    skuId: item.skus?.[0]?.id,
-    storeLocation: item.skus?.[0]?.storeLocation ? `Aisle ${item.skus[0].storeLocation.aisle}` : undefined,
+    upc: item.twelveDigitUPC,
+    skuId: sku?.id,
+    storeLocation: sku?.storeLocation?.location,
   };
 }
 
@@ -169,6 +188,7 @@ export async function getWeeklyAdProducts(
   // Wait, let's just use `weeklyAdProductCategoryPage` for products.
   
 
+
   const response = await persistedQuery<WeeklyAdPageResponse>(
       session,
       'weeklyAdProductCategoryPage',
@@ -185,12 +205,8 @@ export async function getWeeklyAdProducts(
 
   console.log('DEBUG: weeklyAdProductCategoryPage response:', JSON.stringify(response, null, 2));
 
-  // If we wanted categories explicitly (limit=0 often implies metadata fetch),
-  // and we didn't get them from the product page (sometimes empty on search results?),
-  // let's fetch landing page info.
-  let landingPageData = response.data?.weeklyAdLandingPageInfo; // Won't exist on this query
+  let landingPageData = response.data?.weeklyAd; 
   
-
   if (limit === 0 || !categoryFilter) {
      const landingResponse = await persistedQuery<WeeklyAdPageResponse>(
         session, 
@@ -203,8 +219,8 @@ export async function getWeeklyAdProducts(
      );
      console.log('DEBUG: weeklyAdLandingPageInfo response:', JSON.stringify(landingResponse, null, 2));
 
-     if (landingResponse.data?.weeklyAdLandingPageInfo) {
-         landingPageData = landingResponse.data.weeklyAdLandingPageInfo;
+     if (landingResponse.data?.weeklyAd) {
+         landingPageData = landingResponse.data.weeklyAd;
      }
   }
 
@@ -212,19 +228,12 @@ export async function getWeeklyAdProducts(
     throw new Error(`Weekly ad fetch failed: ${response.errors.map(e => e.message).join(', ')}`);
   }
 
-  const data = response.data?.weeklyAdProductCategoryPage;
+  const data = response.data?.weeklyAd; // Both use 'weeklyAd' field
   
   // Extract products
-  // Based on search.ts, we need to find the component that has items.
-  // Weekly Ad structure might be slightly different.
-  // Assuming 'layout.visualComponents' contains a grid.
-  const components = data?.layout?.visualComponents ?? [];
-  const gridComponent = components.find(c => Array.isArray(c.items) && c.items.length > 0) 
-                        ?? components.find(c => c.__typename === 'ProductGrid'); // Guessing typename
-
-  const rawItems = gridComponent?.items ?? [];
+  const productsList = data?.productSearch?.products ?? [];
   
-  let products = rawItems
+  let products = productsList
     .map(mapWeeklyAdProduct)
     .filter(p => p.id && p.name);
 
@@ -235,25 +244,23 @@ export async function getWeeklyAdProducts(
   }
 
   // Extract categories
-  // In search.ts it was categoryFilters. Here let's see.
-  // The summary showed "categories" in filters. 
-  // We hope the response includes available categories for the view.
-  // If not in categoryFilters, maybe we can infer from facets if they exist.
-
-  const categorySource = landingPageData?.categoryFilters ?? data?.categoryFilters ?? [];
+  const categorySource = landingPageData?.productSearch?.info?.filterCounts?.categories 
+                         ?? data?.productSearch?.info?.filterCounts?.categories 
+                         ?? [];
+                         
   const categories: WeeklyAdCategory[] = categorySource.map(c => ({
-    id: c.id ?? '',
-    name: c.label ?? 'Unknown',
-    count: c.productCount ?? 0,
+    id: String(c.filter ?? ''),
+    name: c.displayName ?? 'Unknown',
+    count: c.count ?? 0,
   }));
 
   return {
     products,
-    totalCount: data?.total ?? products.length,
-    validFrom: data?.validFrom, // These might be null if not returned
-    validTo: data?.validTo, 
+    totalCount: data?.productSearch?.info?.total ?? products.length,
+    validFrom: data?.productSearch?.info?.total ? undefined : undefined, // Dates not found in new schema yet
+    validTo: undefined, 
     storeCode: String(storeId),
     categories,
-    cursor: data?.nextCursor,
+    cursor: data?.productSearch?.cursorList?.[0], // Just take first cursor if available?
   };
 }
