@@ -7,6 +7,7 @@ const openAuth = document.getElementById('openAuth');
 const copyAuth = document.getElementById('copyAuth');
 const exchangeBtn = document.getElementById('exchangeBtn');
 const refreshStatus = document.getElementById('refreshStatus');
+const pasteClipboard = document.getElementById('pasteClipboard');
 const clerkSignIn = document.getElementById('clerkSignIn');
 const clerkSignOut = document.getElementById('clerkSignOut');
 const clerkStatus = document.getElementById('clerkStatus');
@@ -42,7 +43,10 @@ function randomString(bytes = 32) {
 
 function extractCode(raw) {
   if (!raw) return null;
-  const trimmed = raw.trim();
+  let trimmed = raw.trim();
+  if (trimmed.toLowerCase().startsWith('location:')) {
+    trimmed = trimmed.slice('location:'.length).trim();
+  }
   if (trimmed.includes('code=')) {
     try {
       const url = new URL(trimmed);
@@ -279,6 +283,29 @@ exchangeBtn.addEventListener('click', async () => {
     exchangeStatus.className = 'error';
   } finally {
     exchangeBtn.disabled = false;
+  }
+});
+
+pasteClipboard.addEventListener('click', async () => {
+  exchangeStatus.textContent = '';
+  if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
+    exchangeStatus.textContent = 'Clipboard access is not available in this browser.';
+    exchangeStatus.className = 'error';
+    return;
+  }
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text) {
+      exchangeStatus.textContent = 'Clipboard is empty.';
+      exchangeStatus.className = 'error';
+      return;
+    }
+    codeInput.value = text;
+    exchangeStatus.textContent = 'Pasted from clipboard.';
+    exchangeStatus.className = 'status';
+  } catch (err) {
+    exchangeStatus.textContent = 'Unable to read clipboard. Paste manually.';
+    exchangeStatus.className = 'error';
   }
 });
 

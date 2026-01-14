@@ -127,6 +127,19 @@
     .success { color: #0f7a45; }
     .muted { color: var(--muted); font-size: 13px; }
     .hidden { display: none; }
+    details {
+      border: 1px dashed #d7c8b3;
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fffdf9;
+    }
+    details summary {
+      cursor: pointer;
+      font-weight: 600;
+    }
+    details p {
+      margin: 10px 0 0;
+    }
     #clerkInline {
       min-height: 260px;
       border-radius: 14px;
@@ -182,9 +195,13 @@
         <textarea id="codeInput" placeholder="Paste redirect URL or code here"></textarea>
         <div class="row">
           <button class="button" id="exchangeBtn">Link H‑E‑B</button>
+          <button class="button secondary" id="pasteClipboard">Paste from clipboard</button>
           <span class="muted" id="exchangeStatus"></span>
         </div>
-        <p class="muted">Tip: If the browser says it can’t open the app, the URL is often still visible in the address bar or devtools Network tab.</p>
+        <details class="muted">
+          <summary>Stuck on “Allow”? Here’s how to find the code.</summary>
+          <p>After you click Allow, H‑E‑B responds with a redirect to <code>com.heb.myheb://oauth2redirect?code=…</code>. Some browsers hang when the app isn’t installed. Open the Network tab for the H‑E‑B login page and look for a <code>303</code> response with a <code>Location</code> header that starts with <code>com.heb.myheb://oauth2redirect</code>. Paste that URL or just the <code>code</code> value here.</p>
+        </details>
       </div>
     </div>
 
