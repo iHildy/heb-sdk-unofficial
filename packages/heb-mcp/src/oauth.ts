@@ -20,7 +20,8 @@ import { renderPage } from './utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const PUBLIC_DIR = path.join(__dirname, '..', 'web', 'dist');
+
 
 
 type EncryptedPayload = {
@@ -438,10 +439,11 @@ export class ClerkOAuthProvider implements OAuthServerProvider {
   ></script>`;
 
         try {
-          const html = renderPage(path.join(PUBLIC_DIR, 'oauth-interstitial.html'), {
+          const html = renderPage(path.join(PUBLIC_DIR, 'index.html'), {
             CLERK_SCRIPT: clerkScript,
             SIGN_IN_URL: signInUrl,
           });
+
           res.setHeader('Content-Type', 'text/html');
           res.send(html);
           return;

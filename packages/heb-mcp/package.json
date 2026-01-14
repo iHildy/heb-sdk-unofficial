@@ -9,12 +9,11 @@
     "heb-mcp": "./dist/server.js"
   },
   "scripts": {
-    "build": "npm run build:css && tsc",
-    "build:css": "tailwindcss -i src/input.css -o public/style.css --minify",
-    "watch:css": "tailwindcss -i src/input.css -o public/style.css --watch",
-    "dev": "npm run watch:css & tsx watch src/server.ts",
+    "build": "pnpm build:web && tsc",
+    "build:web": "cd web && pnpm build",
+    "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && cd web && pnpm typecheck"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

@@ -45,7 +45,8 @@ import { renderPage } from './utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const PUBLIC_DIR = join(__dirname, '..', 'public');
+const PUBLIC_DIR = join(__dirname, '..', 'web', 'dist');
+
 
 
 
@@ -226,10 +227,11 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
       : '';
 
     try {
-      const html = renderPage(join(PUBLIC_DIR, 'connect.html'), {
+      const html = renderPage(join(PUBLIC_DIR, 'index.html'), {
         CONFIG_SCRIPT: configScript,
         CLERK_SCRIPT: clerkScript,
       });
+
       res.status(200).send(html);
     } catch (err) {
       console.error('[heb-mcp] Error rendering connect page:', err);
@@ -240,7 +242,8 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
   // Landing page for post-sign-in redirect from browser extension
   app.get('/extension-auth-success', (_req, res) => {
     try {
-      const html = renderPage(join(PUBLIC_DIR, 'extension-auth-success.html'));
+      const html = renderPage(join(PUBLIC_DIR, 'index.html'));
+
       res.status(200).send(html);
     } catch (err) {
       console.error('[heb-mcp] Error rendering success page:', err);

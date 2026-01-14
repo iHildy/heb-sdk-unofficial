@@ -13,6 +13,8 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/heb-auth/package.json ./packages/heb-auth/
 COPY packages/heb-client/package.json ./packages/heb-client/
 COPY packages/heb-mcp/package.json ./packages/heb-mcp/
+COPY packages/heb-mcp/web/package.json ./packages/heb-mcp/web/
+
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
@@ -55,7 +57,7 @@ COPY --from=builder /app/packages/heb-client/dist ./packages/heb-client/dist
 # Copy built package artifacts for heb-mcp
 COPY --from=builder /app/packages/heb-mcp/package.json ./packages/heb-mcp/
 COPY --from=builder /app/packages/heb-mcp/dist ./packages/heb-mcp/dist
-COPY --from=builder /app/packages/heb-mcp/public ./packages/heb-mcp/public
+COPY --from=builder /app/packages/heb-mcp/web/dist ./packages/heb-mcp/web/dist
 COPY --from=builder /app/packages/heb-mcp/favicon.ico ./packages/heb-mcp/favicon.ico
 
 # Install production dependencies for the workspace, focused on heb-mcp
