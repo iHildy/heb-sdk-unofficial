@@ -203,14 +203,12 @@ async function refreshStatusUi() {
       statusBadge.classList.remove('warn');
       statusBadge.textContent = 'Linked';
       statusText.textContent = data.expiresAt ? 'Connected · expires ' + new Date(data.expiresAt).toLocaleString() : 'Connected';
-      statusBadge.style.background = 'rgba(0,135,83,0.15)';
-      statusBadge.style.color = '#008753';
+      statusBadge.className = 'inline-block bg-accent-soft text-accent px-3 py-1 rounded-full font-semibold text-xs tracking-wider uppercase';
     } else {
       statusBadge.classList.remove('warn');
       statusBadge.textContent = 'Not linked';
       statusText.textContent = 'Not connected yet.';
-      statusBadge.style.background = '#f5e1e1';
-      statusBadge.style.color = '#b91c1c';
+      statusBadge.className = 'inline-block warn px-3 py-1 rounded-full font-semibold text-xs tracking-wider uppercase border';
     }
   } catch (err) {
     statusBadge.textContent = 'Unknown';

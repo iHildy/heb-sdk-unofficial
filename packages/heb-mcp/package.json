@@ -9,24 +9,29 @@
     "heb-mcp": "./dist/server.js"
   },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsx watch src/server.ts",
+    "build": "npm run build:css && tsc",
+    "build:css": "tailwindcss -i src/input.css -o public/style.css --minify",
+    "watch:css": "tailwindcss -i src/input.css -o public/style.css --watch",
+    "dev": "npm run watch:css & tsx watch src/server.ts",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "express": "^4.21.0",
     "heb-auth": "workspace:*",
     "heb-client": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.12.0",
     "jose": "^5.9.0",
-    "zod": "^3.24.0",
-    "express": "^4.21.0"
+    "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
     "@types/express": "^4.17.21",
-    "typescript": "^5.9.0",
-    "tsx": "^4.19.0"
+    "@types/node": "^22.0.0",
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.0"
   },
   "engines": {
     "node": ">=18"

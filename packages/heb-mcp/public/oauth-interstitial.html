@@ -3,8 +3,12 @@
 <head>
   <title>Redirecting...</title>
   <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
 </head>
-<body>
+<body class="bg-[#f5f1e8] min-h-screen flex items-center justify-center font-['Inter',sans-serif]">
   <script>
     async function onClerkLoad() {
       try {
@@ -35,6 +39,10 @@
   </script>
   {{CLERK_SCRIPT}}
 
-  <p>Redirecting to authentication...</p>
+  <div class="text-center">
+    <div class="inline-block w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"></div>
+    <p class="text-muted font-medium">Redirecting to authentication...</p>
+  </div>
 </body>
 </html>
+

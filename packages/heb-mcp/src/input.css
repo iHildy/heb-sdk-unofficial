@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  --color-heb-red: #cc0000;
+  --color-heb-green: #008148;
+  
+  --color-bg: #f5f1e8;
+  --color-card: #fffaf2;
+  --color-ink: #1a1a1a;
+  --color-muted: #666;
+  --color-accent: #008753;
+  --color-accent-soft: rgba(0, 135, 83, 0.15);
+  --color-border-main: #efe4d4;
+  --color-danger: #b91c1c;
+
+  --animate-bounce-slow: bounce 3s infinite;
+}
+
+@utility error {
+  @apply text-danger font-semibold;
+}
+
+@utility status {
+  @apply text-accent font-semibold;
+}
+
+@utility success {
+  @apply text-accent font-semibold;
+}
+
+@utility warn {
+  @apply bg-danger/10 text-danger border-danger/20;
+}
+
+
