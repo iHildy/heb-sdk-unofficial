@@ -61,6 +61,14 @@ Cookies are stored per Clerk user.
 
 Since we are a third‑party, we impersonate the H‑E‑B mobile OAuth client. This uses Authorization Code + PKCE and returns Bearer tokens for the mobile GraphQL API.
 
+Fastest way to link:
+
+```
+GET /connect
+```
+
+This page walks the user through H‑E‑B login and code exchange.
+
 Flow outline:
 
 1. Generate PKCE (`code_verifier`, `code_challenge`) on the client.

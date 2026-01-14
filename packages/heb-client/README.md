@@ -117,6 +117,7 @@ try {
 - **Bot protection**: The `reese84` and `incap_ses` cookies can go stale. If requests fail with 403, refresh them.
 - **Store context**: Set `CURR_SESSION_STORE` to get accurate pricing and availability for your store.
 - **Search data**: Product search uses the Next.js data endpoint and requires a valid buildId.
+- **Bearer sessions**: Mobile OAuth sessions use mobile GraphQL persisted queries and require a store ID (set `CURR_SESSION_STORE` or pass `storeId` in search options).
 
 ## License
 

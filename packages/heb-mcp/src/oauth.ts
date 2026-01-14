@@ -13,7 +13,7 @@ import type { NextFunction, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 
-import { extractBearerToken, verifyClerkToken, type AuthContext } from './auth.js';
+import { resolveClerkToken, verifyClerkToken, type AuthContext } from './auth.js';
 
 type EncryptedPayload = {
   v: 1;
@@ -138,38 +138,6 @@ function normalizeTokenStorePayload(data: unknown): TokenStorePayload {
   };
 }
 
-function parseCookies(header?: string): Record<string, string> {
-  if (!header) return {};
-  const cookies: Record<string, string> = {};
-  for (const part of header.split(';')) {
-    const [key, ...rest] = part.trim().split('=');
-    if (!key) continue;
-    cookies[key] = decodeURIComponent(rest.join('=').trim());
-  }
-  return cookies;
-}
-
-function resolveClerkToken(req: Request): string | null {
-  const headerToken = extractBearerToken(req);
-  if (headerToken) return headerToken;
-
-  const queryToken = (req.query as Record<string, unknown> | undefined)?.clerk_token;
-  if (typeof queryToken === 'string' && queryToken.trim().length > 0) {
-    return queryToken.trim();
-  }
-
-  const cookies = parseCookies(req.headers.cookie);
-  const token = cookies.__session || cookies.__clerk_session || null;
-
-  if (!token) {
-    console.log('[heb-mcp] No token found in cookies. Available cookies:', Object.keys(cookies));
-    if (req.query.clerk_token) {
-      console.log('[heb-mcp] Found clerk_token in query:', req.query.clerk_token);
-    }
-  }
-
-  return token;
-}
 
 export function resolvePublicUrl(port: number): URL {
   const raw = process.env.MCP_SERVER_URL ?? `http://localhost:${port}`;

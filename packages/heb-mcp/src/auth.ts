@@ -33,6 +33,30 @@ export function extractBearerToken(req: Request): string | null {
   return null;
 }
 
+function parseCookies(header?: string): Record<string, string> {
+  if (!header) return {};
+  const cookies: Record<string, string> = {};
+  for (const part of header.split(';')) {
+    const [key, ...rest] = part.trim().split('=');
+    if (!key) continue;
+    cookies[key] = decodeURIComponent(rest.join('=').trim());
+  }
+  return cookies;
+}
+
+export function resolveClerkToken(req: Request): string | null {
+  const headerToken = extractBearerToken(req);
+  if (headerToken) return headerToken;
+
+  const queryToken = (req.query as Record<string, unknown> | undefined)?.clerk_token;
+  if (typeof queryToken === 'string' && queryToken.trim().length > 0) {
+    return queryToken.trim();
+  }
+
+  const cookies = parseCookies(req.headers.cookie);
+  return cookies.__session || cookies.__clerk_session || null;
+}
+
 export async function verifyClerkToken(token: string): Promise<AuthContext | null> {
   try {
     if (!CLERK_FRONTEND_URL) {
@@ -81,6 +105,22 @@ export async function requireAuth(req: Request, res: Response): Promise<AuthCont
   const token = extractBearerToken(req);
   if (!token) {
     res.status(401).json({ error: 'Missing Authorization token' });
+    return null;
+  }
+
+  const auth = await verifyClerkToken(token);
+  if (!auth) {
+    res.status(401).json({ error: 'Invalid or expired token' });
+    return null;
+  }
+
+  return auth;
+}
+
+export async function requireClerkAuth(req: Request, res: Response): Promise<AuthContext | null> {
+  const token = resolveClerkToken(req);
+  if (!token) {
+    res.status(401).json({ error: 'Missing Clerk session token' });
     return null;
   }
 

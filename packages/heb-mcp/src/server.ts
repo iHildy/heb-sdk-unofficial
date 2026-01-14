@@ -26,7 +26,7 @@ import type { HEBClient, HEBCookies, HEBSession } from 'heb-client';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-import { requireAuth } from './auth.js';
+import { requireAuth, requireClerkAuth } from './auth.js';
 import {
   exchangeHebCode,
   isUpsertEnabled,
@@ -173,6 +173,10 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     publicUrl,
     signInUrl: process.env.CLERK_SIGN_IN_URL,
   }));
+  app.use('/connect', createAuthorizeContextMiddleware({
+    publicUrl,
+    signInUrl: process.env.CLERK_SIGN_IN_URL,
+  }));
   app.use(mcpAuthRouter({
     provider: oauthProvider,
     issuerUrl,
@@ -189,6 +193,389 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', server: SERVER_NAME, version: SERVER_VERSION });
+  });
+
+  app.get('/connect', (req, res) => {
+    const auth = res.locals.clerkAuth as { userId: string } | undefined;
+    const signInUrl = res.locals.clerkSignInUrl as string | undefined;
+
+    if (!auth) {
+      res.status(200).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HEB MCP · Sign In</title>
+  <link rel="icon" href="/favicon.ico" type="image/png">
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "IBM Plex Sans", "Space Grotesk", system-ui, sans-serif;
+      --bg: #f7f5f0;
+      --card: #fffaf3;
+      --ink: #1b1b1b;
+      --muted: #6a6a6a;
+      --accent: #008753;
+    }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #ffffff 0%, var(--bg) 60%);
+      color: var(--ink);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+    }
+    .card {
+      max-width: 520px;
+      background: var(--card);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.1);
+      border: 1px solid #efe7da;
+    }
+    h1 { margin: 0 0 12px; font-size: 28px; }
+    p { margin: 0 0 16px; color: var(--muted); line-height: 1.5; }
+    a.button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 22px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 600;
+      box-shadow: 0 8px 20px rgba(0, 135, 83, 0.25);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Sign in to connect H‑E‑B</h1>
+    <p>You need to sign in with your HEB MCP account before linking H‑E‑B.</p>
+    ${signInUrl ? `<a class="button" href="${signInUrl}">Continue to Sign In</a>` : `<p>Missing Clerk sign-in URL. Configure CLERK_SIGN_IN_URL.</p>`}
+  </div>
+</body>
+</html>`);
+      return;
+    }
+
+    res.status(200).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HEB MCP · Connect H‑E‑B</title>
+  <link rel="icon" href="/favicon.ico" type="image/png">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f1e8;
+      --card: #fffaf2;
+      --ink: #1a1a1a;
+      --muted: #666;
+      --accent: #008753;
+      --accent-soft: rgba(0, 135, 83, 0.15);
+      --border: #efe4d4;
+    }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Space Grotesk", system-ui, sans-serif;
+      background: linear-gradient(160deg, #fffdf9 0%, var(--bg) 60%);
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 32px;
+    }
+    .wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      display: grid;
+      gap: 24px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .badge {
+      background: var(--accent-soft);
+      color: var(--accent);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+    }
+    h1 { font-size: 30px; margin: 0; }
+    h2 { font-size: 20px; margin: 0 0 8px; }
+    p { color: var(--muted); line-height: 1.5; }
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+    .steps {
+      display: grid;
+      gap: 12px;
+    }
+    .step {
+      display: grid;
+      gap: 8px;
+      padding: 16px;
+      border-radius: 14px;
+      border: 1px dashed #d7c8b3;
+      background: #fffdf9;
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .button {
+      padding: 10px 18px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(0, 135, 83, 0.2);
+    }
+    .button.secondary {
+      background: #fff;
+      color: var(--accent);
+      border-color: var(--accent);
+      box-shadow: none;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+      font-family: inherit;
+    }
+    textarea { min-height: 90px; }
+    .status {
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .error { color: #b91c1c; }
+    .success { color: #0f7a45; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="badge">HEB MCP</div>
+        <h1>Connect your H‑E‑B account</h1>
+        <p>Link H‑E‑B once to enable shopping, cart, and pickup actions.</p>
+      </div>
+      <div id="statusBadge" class="badge">Checking status…</div>
+    </header>
+
+    <div class="card">
+      <h2>Step 1 · Sign in with H‑E‑B</h2>
+      <p>We’ll open the H‑E‑B mobile login in a new tab. Complete login and OTP, then return here.</p>
+      <div class="row">
+        <button class="button" id="openAuth">Open H‑E‑B Login</button>
+        <button class="button secondary" id="copyAuth">Copy Login URL</button>
+        <span class="muted" id="authHint"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Step 2 · Paste the redirect code</h2>
+      <p>After login, your browser will attempt to open <code>com.heb.myheb://oauth2redirect</code>. Copy the full URL or just the <code>code</code> value and paste it below.</p>
+      <div class="grid">
+        <textarea id="codeInput" placeholder="Paste redirect URL or code here"></textarea>
+        <div class="row">
+          <button class="button" id="exchangeBtn">Link H‑E‑B</button>
+          <span class="muted" id="exchangeStatus"></span>
+        </div>
+        <p class="muted">Tip: If the browser says it can’t open the app, the URL is often still visible in the address bar or devtools Network tab.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Status</h2>
+      <p id="statusText">Checking…</p>
+      <div class="row">
+        <button class="button secondary" id="refreshStatus">Refresh status</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const statusBadge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    const authHint = document.getElementById('authHint');
+    const exchangeStatus = document.getElementById('exchangeStatus');
+    const codeInput = document.getElementById('codeInput');
+    const openAuth = document.getElementById('openAuth');
+    const copyAuth = document.getElementById('copyAuth');
+    const exchangeBtn = document.getElementById('exchangeBtn');
+    const refreshStatus = document.getElementById('refreshStatus');
+
+    let codeVerifier = sessionStorage.getItem('heb_code_verifier');
+    let authUrl = sessionStorage.getItem('heb_auth_url');
+
+    function base64Url(bytes) {
+      let binary = '';
+      bytes.forEach(b => binary += String.fromCharCode(b));
+      return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/g, '');
+    }
+
+    async function sha256(message) {
+      const data = new TextEncoder().encode(message);
+      const digest = await crypto.subtle.digest('SHA-256', data);
+      return new Uint8Array(digest);
+    }
+
+    function randomString(bytes = 32) {
+      const data = new Uint8Array(bytes);
+      crypto.getRandomValues(data);
+      return base64Url(data);
+    }
+
+    function extractCode(raw) {
+      if (!raw) return null;
+      const trimmed = raw.trim();
+      if (trimmed.includes('code=')) {
+        try {
+          const url = new URL(trimmed);
+          return url.searchParams.get('code');
+        } catch {
+          const match = trimmed.match(/code=([^&\\s]+)/);
+          return match ? match[1] : null;
+        }
+      }
+      return trimmed.length > 4 ? trimmed : null;
+    }
+
+    async function loadConfig() {
+      const res = await fetch('/api/heb/oauth/config', { credentials: 'include' });
+      if (!res.ok) throw new Error('Unable to load OAuth config');
+      return res.json();
+    }
+
+    async function prepareAuth() {
+      const config = await loadConfig();
+      codeVerifier = randomString(32);
+      const challengeBytes = await sha256(codeVerifier);
+      const codeChallenge = base64Url(challengeBytes);
+
+      const params = new URLSearchParams({
+        client_id: config.clientId,
+        response_type: 'code',
+        redirect_uri: config.redirectUri,
+        scope: config.scope,
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+        state: randomString(16),
+        nonce: randomString(16),
+        client_request_id: crypto.randomUUID(),
+        clientAmpDeviceId: crypto.randomUUID(),
+        clientAmpSessionId: String(Date.now()),
+        prompt: 'login',
+      });
+
+      authUrl = config.authUrl + '?' + params.toString();
+      sessionStorage.setItem('heb_code_verifier', codeVerifier);
+      sessionStorage.setItem('heb_auth_url', authUrl);
+      authHint.textContent = 'Ready';
+    }
+
+    async function refreshStatusUi() {
+      try {
+        const res = await fetch('/api/heb/oauth/status', { credentials: 'include' });
+        const data = await res.json();
+        if (data.connected) {
+          statusBadge.textContent = 'Linked';
+          statusText.textContent = data.expiresAt ? 'Connected · expires ' + new Date(data.expiresAt).toLocaleString() : 'Connected';
+          statusBadge.style.background = 'rgba(0,135,83,0.15)';
+          statusBadge.style.color = '#008753';
+        } else {
+          statusBadge.textContent = 'Not linked';
+          statusText.textContent = 'Not connected yet.';
+          statusBadge.style.background = '#f5e1e1';
+          statusBadge.style.color = '#b91c1c';
+        }
+      } catch (err) {
+        statusBadge.textContent = 'Unknown';
+        statusText.textContent = 'Unable to check status.';
+      }
+    }
+
+    openAuth.addEventListener('click', async () => {
+      exchangeStatus.textContent = '';
+      if (!authUrl) await prepareAuth();
+      window.open(authUrl, '_blank', 'noopener');
+    });
+
+    copyAuth.addEventListener('click', async () => {
+      if (!authUrl) await prepareAuth();
+      await navigator.clipboard.writeText(authUrl);
+      authHint.textContent = 'Copied login URL';
+      setTimeout(() => authHint.textContent = '', 1500);
+    });
+
+    exchangeBtn.addEventListener('click', async () => {
+      exchangeStatus.textContent = '';
+      const code = extractCode(codeInput.value);
+      if (!code) {
+        exchangeStatus.textContent = 'Please paste a valid code or redirect URL.';
+        exchangeStatus.className = 'error';
+        return;
+      }
+      if (!codeVerifier) {
+        exchangeStatus.textContent = 'Missing code verifier. Please click “Open H‑E‑B Login” again.';
+        exchangeStatus.className = 'error';
+        return;
+      }
+      exchangeBtn.disabled = true;
+      exchangeStatus.textContent = 'Linking…';
+      exchangeStatus.className = 'status';
+
+      try {
+        const res = await fetch('/api/heb/oauth/exchange', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, code_verifier: codeVerifier }),
+        });
+        if (!res.ok) {
+          throw new Error('Exchange failed');
+        }
+        exchangeStatus.textContent = 'Linked successfully!';
+        exchangeStatus.className = 'success';
+        await refreshStatusUi();
+      } catch (err) {
+        exchangeStatus.textContent = 'Failed to link. Try again or re-open login.';
+        exchangeStatus.className = 'error';
+      } finally {
+        exchangeBtn.disabled = false;
+      }
+    });
+
+    refreshStatus.addEventListener('click', refreshStatusUi);
+    refreshStatusUi();
+  </script>
+</body>
+</html>`);
   });
 
   // Landing page for post-sign-in redirect from browser extension
@@ -292,8 +679,18 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     }
   });
 
+  app.get('/api/heb/oauth/config', async (_req, res) => {
+    const config = resolveHebOAuthConfig();
+    res.json({
+      clientId: config.clientId,
+      redirectUri: config.redirectUri,
+      scope: config.scope,
+      authUrl: config.authUrl,
+    });
+  });
+
   app.post('/api/heb/oauth/exchange', async (req, res) => {
-    const auth = await requireAuth(req, res);
+    const auth = await requireClerkAuth(req, res);
     if (!auth) return;
 
     const { code, code_verifier: codeVerifierRaw, codeVerifier: codeVerifierAlt } = req.body ?? {};
@@ -333,7 +730,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
   });
 
   app.post('/api/heb/oauth/refresh', async (req, res) => {
-    const auth = await requireAuth(req, res);
+    const auth = await requireClerkAuth(req, res);
     if (!auth) return;
 
     const session = sessionManagerRemote.getSession(auth.userId);
@@ -355,7 +752,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
   });
 
   app.get('/api/heb/oauth/status', async (req, res) => {
-    const auth = await requireAuth(req, res);
+    const auth = await requireClerkAuth(req, res);
     if (!auth) return;
 
     const session = sessionManagerRemote.getSession(auth.userId);
