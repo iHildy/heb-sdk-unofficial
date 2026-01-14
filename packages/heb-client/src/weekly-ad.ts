@@ -103,6 +103,7 @@ interface WeeklyAdItem {
   skus?: Array<{
     id?: string;
     storeLocation?: { location?: string };
+    twelveDigitUPC?: string;
     contextPrices?: Array<{
       context?: string;
       priceType?: string;
@@ -171,7 +172,7 @@ function mapWeeklyAdProduct(item: WeeklyAdItem): WeeklyAdProduct {
     priceText: priceText,
     saleStory: saleStory,
     disclaimerText: item.deal?.disclaimer,
-    upc: item.twelveDigitUPC,
+    upc: item.twelveDigitUPC ?? sku?.twelveDigitUPC,
     skuId: sku?.id,
     storeLocation: item.productLocation?.location ?? sku?.storeLocation?.location,
   };
@@ -184,6 +185,7 @@ export async function getWeeklyAdProducts(
   const storeId = resolveStoreId(session, options);
   const limit = normalizeLimit(options.limit);
   const shoppingContext = resolveShoppingContext(session, options);
+  const cursor = options.cursor ? String(options.cursor) : undefined;
   
   // Build variables
   const categoryFilter = options.category ? [String(options.category)] : null;
@@ -213,6 +215,7 @@ export async function getWeeklyAdProducts(
         limit: Math.max(1, limit),
         shoppingContext,
         storeId,
+        ...(cursor ? { cursor, pageCursor: cursor } : {}),
       }
   );
 
@@ -249,6 +252,26 @@ export async function getWeeklyAdProducts(
     data?.productSearch?.productPage?.products ??
     data?.productSearch?.products ??
     [];
+
+  const cursorList =
+    data?.productPage?.cursorList ??
+    data?.productSearch?.productPage?.cursorList ??
+    data?.productSearch?.cursorList ??
+    [];
+
+  let nextCursor: string | undefined;
+  if (cursorList.length > 0) {
+    if (cursor) {
+      const index = cursorList.indexOf(cursor);
+      if (index >= 0 && index + 1 < cursorList.length) {
+        nextCursor = cursorList[index + 1];
+      }
+    } else if (cursorList.length > 1) {
+      nextCursor = cursorList[1];
+    } else {
+      nextCursor = cursorList[0];
+    }
+  }
   
   let products = productsList
     .map(mapWeeklyAdProduct)
@@ -278,9 +301,6 @@ export async function getWeeklyAdProducts(
     validTo: undefined, 
     storeCode: String(storeId),
     categories,
-    cursor:
-      data?.productPage?.cursorList?.[0] ??
-      data?.productSearch?.productPage?.cursorList?.[0] ??
-      data?.productSearch?.cursorList?.[0], // Just take first cursor if available?
+    cursor: nextCursor,
   };
 }
