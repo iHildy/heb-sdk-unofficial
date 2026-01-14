@@ -9,8 +9,8 @@ import { searchProducts, typeahead, typeaheadTerms, type SearchOptions, type Sea
 import { ensureBuildId, isSessionValid } from './session.js';
 import { getShoppingList, getShoppingLists, type GetShoppingListOptions, type ShoppingList, type ShoppingListDetails } from './shopping-list.js';
 import { searchStores, setStore, type Store } from './stores.js';
-import { getWeeklyAdProducts, type WeeklyAdOptions, type WeeklyAdResult } from './weekly-ad.js';
 import type { Address, HEBSession } from './types.js';
+import { getWeeklyAdProducts, type WeeklyAdOptions, type WeeklyAdResult } from './weekly-ad.js';
 
 /**
  * Unified HEB API client.
@@ -172,22 +172,24 @@ export class HEBClient {
    * Add or update item in cart.
    * 
    * @param productId - Product ID
-   * @param skuId - SKU ID (get from getProduct or getSkuId)
+   * @param skuId - SKU ID (optional, will be fetched if not provided)
    * @param quantity - Quantity to set (not add)
    * 
    * @example
    * const product = await heb.getProduct('1875945');
    * await heb.addToCart(product.productId, product.skuId, 2);
    */
-  async addToCart(productId: string, skuId: string, quantity: number): Promise<CartResponse> {
-    return addToCart(this.session, productId, skuId, quantity);
+  async addToCart(productId: string, skuId: string | undefined, quantity: number): Promise<CartResponse> {
+    const finalSkuId = skuId || await this.getSkuId(productId);
+    return addToCart(this.session, productId, finalSkuId, quantity);
   }
 
   /**
    * Update cart item quantity.
    */
-  async updateCartItem(productId: string, skuId: string, quantity: number): Promise<CartResponse> {
-    return updateCartItem(this.session, productId, skuId, quantity);
+  async updateCartItem(productId: string, skuId: string | undefined, quantity: number): Promise<CartResponse> {
+    const finalSkuId = skuId || await this.getSkuId(productId);
+    return updateCartItem(this.session, productId, finalSkuId, quantity);
   }
 
   /**

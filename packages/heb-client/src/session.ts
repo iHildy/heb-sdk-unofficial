@@ -3,6 +3,8 @@ import { ENDPOINTS } from './types.js';
 
 const CLIENT_NAME = 'WebPlatform-Solar (Production)';
 const MOBILE_USER_AGENT = 'MyHEB/5.9.0.60733 (iOS 18.7.2; iPhone16,2) CFNetwork/1.0 Darwin/24.6.0';
+const WEB_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36';
+const DEFAULT_ACCEPT_LANGUAGE = 'en-US,en;q=0.9';
 
 /**
  * Format cookies object into a Cookie header string.
@@ -58,6 +60,14 @@ export function normalizeHeaders(headers: HEBHeaders): Record<string, string> {
     }
   }
   return normalized;
+}
+
+export function buildBrowserHeaders(base: Record<string, string> = {}): Record<string, string> {
+  return {
+    'user-agent': WEB_USER_AGENT,
+    'accept-language': DEFAULT_ACCEPT_LANGUAGE,
+    ...base,
+  };
 }
 
 /**
@@ -190,6 +200,46 @@ export function resolveEndpoint(session: HEBSession, key: keyof HEBEndpoints): s
   return session.endpoints?.[key] ?? ENDPOINTS[key];
 }
 
+function buildCookieHeaders(cookies: HEBCookies): Record<string, string> {
+  const cookieHeader = formatCookieHeader(cookies);
+  return cookieHeader ? { cookie: cookieHeader } : {};
+}
+
+function extractNextDataJson(html: string): unknown | undefined {
+  const match = html.match(/<script[^>]*id=["']__NEXT_DATA__["'][^>]*>/i);
+  if (!match || match.index === undefined) {
+    return undefined;
+  }
+  const start = match.index + match[0].length;
+  const end = html.indexOf('</script>', start);
+  if (end === -1) {
+    return undefined;
+  }
+  const jsonText = html.slice(start, end).trim();
+  if (!jsonText) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(jsonText);
+  } catch {
+    return undefined;
+  }
+}
+
+function extractBuildIdFromHtml(html: string): string | undefined {
+  const nextData = extractNextDataJson(html) as { buildId?: unknown } | undefined;
+  if (typeof nextData?.buildId === 'string') {
+    return nextData.buildId;
+  }
+
+  const staticMatch =
+    html.match(/\/_next\/static\/([^/]+)\/_buildManifest\.js/) ??
+    html.match(/\/_next\/static\/([^/]+)\/_ssgManifest\.js/) ??
+    html.match(/\/_next\/data\/([^/]+)\//);
+
+  return staticMatch?.[1];
+}
+
 /**
  * Fetch the current Next.js build ID from the homepage.
  * 
@@ -200,10 +250,10 @@ export async function fetchBuildId(cookies: HEBCookies): Promise<string> {
   // The homepage is a safe bet
   const response = await fetch(ENDPOINTS.home, {
     method: 'GET',
-    headers: {
-      ...buildHeaders(cookies),
-      'accept': 'text/html,application/xhtml+xml',
-    },
+    headers: buildBrowserHeaders({
+      ...buildCookieHeaders(cookies),
+      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    }),
   });
 
   if (!response.ok) {
@@ -211,24 +261,13 @@ export async function fetchBuildId(cookies: HEBCookies): Promise<string> {
   }
 
   const html = await response.text();
-  
-  // Extract buildId from __NEXT_DATA__ script tag
-  // <script id="__NEXT_DATA__" type="application/json">{"props":{...},"buildId":"production-..."}</script>
-  const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([^<]+)<\/script>/);
-  
-  if (!match || !match[1]) {
-    throw new Error('Could not find __NEXT_DATA__ in homepage HTML');
+  const buildId = extractBuildIdFromHtml(html);
+
+  if (!buildId) {
+    throw new Error('Could not find buildId in homepage HTML');
   }
 
-  try {
-    const data = JSON.parse(match[1]);
-    if (typeof data.buildId === 'string') {
-      return data.buildId;
-    }
-    throw new Error('buildId not found in __NEXT_DATA__');
-  } catch (e) {
-    throw new Error(`Failed to parse __NEXT_DATA__ JSON: ${e instanceof Error ? e.message : String(e)}`);
-  }
+  return buildId;
 }
 
 /**

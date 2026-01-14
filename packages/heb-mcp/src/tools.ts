@@ -246,16 +246,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
-        let skuId = sku_id;
-        
-        // Auto-fetch SKU if not provided
-        if (!skuId) {
-          // Ensure buildId is available for product details fetch
-          await client.ensureBuildId();
-          skuId = await client.getSkuId(product_id);
-        }
-
-        const cartResult = await client.addToCart(product_id, skuId, quantity);
+        const cartResult = await client.addToCart(product_id, sku_id, quantity);
 
         if (!cartResult.success) {
           return {
@@ -284,8 +275,8 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
     'Update the quantity of an item already in the cart',
     {
       product_id: z.string().describe('Product ID'),
-      sku_id: z.string().describe('SKU ID'),
-      quantity: z.number().min(1).max(99).describe('New quantity'),
+      sku_id: z.string().optional().describe('SKU ID (auto-fetched if not provided)'),
+      quantity: z.number().min(0).max(99).describe('New quantity (0 to remove)'),
     },
     async ({ product_id, sku_id, quantity }) => {
       const result = requireClient(getClient);

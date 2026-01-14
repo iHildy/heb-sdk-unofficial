@@ -421,7 +421,14 @@ async function searchProductsMobile(
 
   const grid = selectMobileSearchGrid(response.data?.productSearchPageV2);
   const rawProducts = grid?.items ?? [];
-  const products = rawProducts.slice(0, limit).map(item => mapMobileSearchProduct(item, shoppingContext));
+  /*
+   * Filter out products that don't have a valid ID or name.
+   */
+  const validProducts = rawProducts
+    .map(item => mapMobileSearchProduct(item, shoppingContext))
+    .filter(p => p.productId && p.name);
+
+  const products = validProducts.slice(0, limit);
   const totalCount = grid?.total ?? rawProducts.length;
 
   return {
@@ -486,7 +493,15 @@ export async function searchProducts(
   const response = await nextDataRequest<RawSearchResponse>(session, path);
   const grid = selectSearchGrid(response);
   const rawProducts = grid?.items ?? [];
-  const products = rawProducts.slice(0, limit).map(mapSearchProduct);
+  /*
+   * Filter out products that don't have a valid ID or name.
+   * This prevents "empty" result cards (like ads or placeholders) from appearing.
+   */
+  const validProducts = rawProducts
+    .map(mapSearchProduct)
+    .filter(p => p.productId && p.name);
+
+  const products = validProducts.slice(0, limit);
   const totalCount = grid?.total ?? rawProducts.length;
 
   return {
