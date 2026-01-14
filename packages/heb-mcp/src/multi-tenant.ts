@@ -3,18 +3,26 @@ import fs from 'fs';
 import path from 'path';
 import {
   createSession,
+  createTokenSession,
   HEBClient,
+  updateTokenSession,
+  type HEBAuthTokens,
   type HEBCookies,
   type HEBSession,
 } from 'heb-client';
+import { refreshHebTokens, resolveHebOAuthConfig } from './heb-oauth.js';
 
 const DEFAULT_STORE_DIR = path.join(process.cwd(), 'data', 'sessions');
 
 type StoredSessionRecord = {
-  cookies: HEBCookies;
+  cookies?: HEBCookies;
+  tokens?: HEBAuthTokensSerialized;
+  authMode?: 'cookie' | 'bearer';
   buildId?: string;
   updatedAt: string;
 };
+
+type HEBAuthTokensSerialized = Omit<HEBAuthTokens, 'expiresAt'> & { expiresAt?: string };
 
 type EncryptedRecord = {
   v: 1;
@@ -64,6 +72,31 @@ function decryptRecord(record: EncryptedRecord, key: Buffer): StoredSessionRecor
   decipher.setAuthTag(tag);
   const decrypted = Buffer.concat([decipher.update(data), decipher.final()]);
   return JSON.parse(decrypted.toString('utf8')) as StoredSessionRecord;
+}
+
+function serializeTokens(tokens: HEBAuthTokens): HEBAuthTokensSerialized {
+  return {
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    idToken: tokens.idToken,
+    tokenType: tokens.tokenType,
+    scope: tokens.scope,
+    expiresIn: tokens.expiresIn,
+    expiresAt: tokens.expiresAt ? tokens.expiresAt.toISOString() : undefined,
+  };
+}
+
+function deserializeTokens(tokens?: HEBAuthTokensSerialized): HEBAuthTokens | undefined {
+  if (!tokens) return undefined;
+  return {
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    idToken: tokens.idToken,
+    tokenType: tokens.tokenType,
+    scope: tokens.scope,
+    expiresIn: tokens.expiresIn,
+    expiresAt: tokens.expiresAt ? new Date(tokens.expiresAt) : undefined,
+  };
 }
 
 export class SessionStore {
@@ -124,13 +157,36 @@ export class MultiTenantSessionManager {
       return;
     }
 
-    const session = createSession(record.cookies, record.buildId);
+    const tokens = deserializeTokens(record.tokens);
+    let session: HEBSession;
+    if (record.authMode === 'bearer' || tokens?.accessToken) {
+      if (!tokens?.accessToken) {
+        this.cache.delete(userId);
+        return;
+      }
+      session = createTokenSession(tokens, {
+        cookies: record.cookies ?? { sat: '', reese84: '', incap_ses: '' },
+        buildId: record.buildId,
+      });
+      session.refresh = async () => {
+        await this.refreshUserTokens(userId, session);
+      };
+    } else {
+      if (!record.cookies) {
+        this.cache.delete(userId);
+        return;
+      }
+      session = createSession(record.cookies, record.buildId);
+    }
+
     const client = new HEBClient(session);
     this.cache.set(userId, { session, client, updatedAt: Date.now() });
 
-    client.ensureBuildId().catch((err) => {
-      console.error('[heb-mcp] Failed to ensure buildId:', err);
-    });
+    if (session.authMode !== 'bearer') {
+      client.ensureBuildId().catch((err) => {
+        console.error('[heb-mcp] Failed to ensure buildId:', err);
+      });
+    }
   }
 
   getClient(userId: string): HEBClient | null {
@@ -145,11 +201,57 @@ export class MultiTenantSessionManager {
     await this.store.save(userId, {
       cookies,
       buildId: session.buildId,
+      authMode: 'cookie',
       updatedAt: new Date().toISOString(),
     });
 
     client.ensureBuildId().catch((err) => {
       console.error('[heb-mcp] Failed to ensure buildId:', err);
+    });
+  }
+
+  async saveTokens(userId: string, tokens: HEBAuthTokens, cookies?: HEBCookies): Promise<void> {
+    const session = createTokenSession(tokens, {
+      cookies: cookies ?? this.cache.get(userId)?.session.cookies ?? { sat: '', reese84: '', incap_ses: '' },
+    });
+    session.refresh = async () => {
+      await this.refreshUserTokens(userId, session);
+    };
+
+    const client = new HEBClient(session);
+    this.cache.set(userId, { session, client, updatedAt: Date.now() });
+
+    await this.store.save(userId, {
+      cookies: session.cookies,
+      tokens: serializeTokens(tokens),
+      authMode: 'bearer',
+      buildId: session.buildId,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  getSession(userId: string): HEBSession | null {
+    return this.cache.get(userId)?.session ?? null;
+  }
+
+  private async refreshUserTokens(userId: string, session: HEBSession): Promise<void> {
+    const refreshToken = session.tokens?.refreshToken;
+    if (!refreshToken) return;
+
+    const nextTokens = await refreshHebTokens({
+      refreshToken,
+      previous: session.tokens ?? undefined,
+      config: resolveHebOAuthConfig(),
+    });
+
+    updateTokenSession(session, nextTokens);
+
+    await this.store.save(userId, {
+      cookies: session.cookies,
+      tokens: serializeTokens(nextTokens),
+      authMode: 'bearer',
+      buildId: session.buildId,
+      updatedAt: new Date().toISOString(),
     });
   }
 }

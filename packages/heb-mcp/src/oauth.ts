@@ -11,9 +11,18 @@ import type { OAuthClientInformationFull, OAuthTokens } from '@modelcontextproto
 import crypto from 'crypto';
 import type { NextFunction, Request, Response } from 'express';
 import fs from 'fs';
-import path from 'path';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-import { extractBearerToken, verifyClerkToken, type AuthContext } from './auth.js';
+
+import { resolveClerkToken, verifyClerkToken, type AuthContext } from './auth.js';
+import { renderPage } from './utils.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const PUBLIC_DIR = path.join(__dirname, '..', 'web', 'dist');
+
+
 
 type EncryptedPayload = {
   v: 1;
@@ -138,38 +147,6 @@ function normalizeTokenStorePayload(data: unknown): TokenStorePayload {
   };
 }
 
-function parseCookies(header?: string): Record<string, string> {
-  if (!header) return {};
-  const cookies: Record<string, string> = {};
-  for (const part of header.split(';')) {
-    const [key, ...rest] = part.trim().split('=');
-    if (!key) continue;
-    cookies[key] = decodeURIComponent(rest.join('=').trim());
-  }
-  return cookies;
-}
-
-function resolveClerkToken(req: Request): string | null {
-  const headerToken = extractBearerToken(req);
-  if (headerToken) return headerToken;
-
-  const queryToken = (req.query as Record<string, unknown> | undefined)?.clerk_token;
-  if (typeof queryToken === 'string' && queryToken.trim().length > 0) {
-    return queryToken.trim();
-  }
-
-  const cookies = parseCookies(req.headers.cookie);
-  const token = cookies.__session || cookies.__clerk_session || null;
-
-  if (!token) {
-    console.log('[heb-mcp] No token found in cookies. Available cookies:', Object.keys(cookies));
-    if (req.query.clerk_token) {
-      console.log('[heb-mcp] Found clerk_token in query:', req.query.clerk_token);
-    }
-  }
-
-  return token;
-}
 
 export function resolvePublicUrl(port: number): URL {
   const raw = process.env.MCP_SERVER_URL ?? `http://localhost:${port}`;
@@ -451,50 +428,33 @@ export class ClerkOAuthProvider implements OAuthServerProvider {
 
       if (signInUrl && publishableKey) {
         // Serve an interstitial page to sync the session via Clerk JS
-        const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Redirecting...</title>
-  <meta charset="utf-8">
-</head>
-<body>
-  <script
+        const clerkScript = `<script
+    id="clerkScript"
     async
     crossorigin="anonymous"
     data-clerk-publishable-key="${publishableKey}"
     data-clerk-frontend-api="${frontendApi || ''}" 
     src="${frontendApi ? `${frontendApi}/npm/@clerk/clerk-js@5/dist/clerk.browser.js` : 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js'}"
     onload="onClerkLoad()"
-  ></script>
-  <script>
-    async function onClerkLoad() {
-      try {
-        await Clerk.load();
-        if (Clerk.user) {
-          // User is signed in, cookie should now be synced. Reload to let backend see it.
-          // Append a timestamp to avoid cache
-          const url = new URL(window.location.href);
-          url.searchParams.set('_t', Date.now());
-          window.location.href = url.toString();
-        } else {
-          // Not signed in, redirect to sign in flow
-          window.location.href = "${signInUrl}";
+  ></script>`;
+
+        try {
+          const html = renderPage(path.join(PUBLIC_DIR, 'index.html'), {
+            CLERK_SCRIPT: clerkScript,
+            SIGN_IN_URL: signInUrl,
+          });
+
+          res.setHeader('Content-Type', 'text/html');
+          res.send(html);
+          return;
+        } catch (err) {
+          console.error('[heb-mcp] Error rendering OAuth interstitial:', err);
+          // Fallback to direct redirect if rendering fails
+          res.redirect(signInUrl);
+          return;
         }
-      } catch (err) {
-        console.error('Clerk load error', err);
-        // Fallback
-        window.location.href = "${signInUrl}";
       }
-    }
-  </script>
-  <p>Redirecting to authentication...</p>
-</body>
-</html>`;
-        res.setHeader('Content-Type', 'text/html');
-        res.send(html);
-        return;
-      }
+
 
       if (signInUrl) {
         res.redirect(signInUrl);

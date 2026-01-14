@@ -74,6 +74,10 @@ export async function setStore(
 ): Promise<void> {
   // Update the session cookie locally
   session.cookies.CURR_SESSION_STORE = storeId;
+
+  if (session.authMode === 'bearer') {
+    return;
+  }
   
   // Perform the mutation to set it on the server
   const payload = {

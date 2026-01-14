@@ -12,10 +12,16 @@ export { HEBClient } from './client.js';
 export { createSessionFromCookies, parseCookies } from './cookies.js';
 export {
     buildHeaders,
+    buildBearerHeaders,
     createSession,
+    createTokenSession,
     formatCookieHeader,
+    ensureFreshSession,
+    isSessionAuthenticated,
     isSessionValid,
-    parseJwtExpiry
+    parseJwtExpiry,
+    resolveEndpoint,
+    updateTokenSession
 } from './session.js';
 
 // ─────────────────────────────────────────────────────────────
@@ -120,6 +126,20 @@ export {
 } from './api.js';
 
 // ─────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────
+export type {
+    HEBAuthMode,
+    HEBAuthTokens,
+    HEBEndpoints,
+    HEBCookies,
+    HEBCredentials,
+    HEBHeaders,
+    HEBSession,
+    LoginOptions
+} from './types.js';
+
+// ─────────────────────────────────────────────────────────────
 // Errors
 // ─────────────────────────────────────────────────────────────
 export {
@@ -131,15 +151,4 @@ export {
     HEBSessionError
 } from './errors.js';
 
-// ─────────────────────────────────────────────────────────────
-// Types & Constants
-// ─────────────────────────────────────────────────────────────
-export type {
-    HEBCookies,
-    HEBCredentials,
-    HEBHeaders,
-    HEBSession,
-    LoginOptions
-} from './types.js';
-
-export { ENDPOINTS, GRAPHQL_HASHES } from './types.js';
+export { ENDPOINTS, GRAPHQL_HASHES, MOBILE_GRAPHQL_HASHES } from './types.js';

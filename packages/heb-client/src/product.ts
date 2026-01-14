@@ -1,4 +1,4 @@
-import { nextDataRequest } from './api.js';
+import { nextDataRequest, persistedQuery } from './api.js';
 import type { HEBSession } from './types.js';
 
 /**
@@ -182,6 +182,43 @@ interface RawProductResponse {
   };
 }
 
+// Mobile GraphQL product details response
+interface MobileProductDetailsResponse {
+  productDetailsPage?: {
+    product?: MobileProduct;
+  };
+}
+
+interface MobileProduct {
+  productId?: string;
+  skus?: Array<{
+    id?: string;
+    contextPrices?: Array<{
+      context?: string;
+      listPrice?: { amount?: number; formattedAmount?: string; unit?: string };
+      salePrice?: { amount?: number; formattedAmount?: string; unit?: string };
+      unitListPrice?: { amount?: number; formattedAmount?: string; unit?: string };
+      unitSalePrice?: { amount?: number; formattedAmount?: string; unit?: string };
+    }>;
+    productAvailability?: string[];
+    customerFriendlySize?: string;
+  }>;
+  displayName?: string;
+  productCategory?: { name?: string };
+  brand?: { name?: string; isOwnBrand?: boolean };
+  productLocation?: { availability?: string; location?: string };
+  carouselImageUrls?: string[];
+  inAssortment?: boolean;
+  inventory?: { inventoryState?: string };
+  ingredientStatement?: string;
+  productDescription?: string;
+  preparationInstructions?: string;
+  safetyWarning?: string;
+  nutritionLabels?: RawNutritionLabel[];
+  isAvailableForCheckout?: boolean;
+  maximumOrderQuantity?: number;
+}
+
 /**
  * Parse brand from various formats.
  */
@@ -241,6 +278,31 @@ function parseNutrition(labels?: RawNutritionLabel[]): NutritionInfo | undefined
   return info;
 }
 
+function resolveStoreId(session: HEBSession): number {
+  const storeIdRaw = session.cookies?.CURR_SESSION_STORE;
+  if (!storeIdRaw) {
+    throw new Error('No store selected. Set CURR_SESSION_STORE before fetching product details.');
+  }
+  const storeId = Number(storeIdRaw);
+  if (!Number.isFinite(storeId) || storeId <= 0) {
+    throw new Error(`Invalid storeId: ${storeIdRaw}`);
+  }
+  return storeId;
+}
+
+function resolveShoppingContext(session: HEBSession): string {
+  return session.cookies?.CURR_SESSION_STORE ? 'CURBSIDE_PICKUP' : 'CURBSIDE_PICKUP';
+}
+
+function mapMobileFulfillment(availability?: string[]): FulfillmentInfo | undefined {
+  if (!availability) return undefined;
+  return {
+    curbside: availability.includes('CURBSIDE_PICKUP'),
+    delivery: availability.includes('CURBSIDE_DELIVERY') || availability.includes('DELIVERY'),
+    inStore: availability.includes('IN_STORE'),
+  };
+}
+
 /**
  * Get full product details by product ID.
  * 
@@ -259,6 +321,10 @@ export async function getProductDetails(
   session: HEBSession,
   productId: string
 ): Promise<Product> {
+  if (session.authMode === 'bearer') {
+    return getProductDetailsMobile(session, productId);
+  }
+
   const path = `/en/product-detail/${productId}.json`;
   
   const data = await nextDataRequest<RawProductResponse>(session, path);
@@ -348,6 +414,72 @@ export async function getProductDetails(
     inStock: p.inventory?.inventoryState === 'IN_STOCK',
     maxQuantity: p.maximumOrderQuantity,
     productUrl: p.productPageURL,
+  };
+}
+
+async function getProductDetailsMobile(session: HEBSession, productId: string): Promise<Product> {
+  const storeId = resolveStoreId(session);
+  const shoppingContext = resolveShoppingContext(session);
+
+  const response = await persistedQuery<{ productDetailsPage?: MobileProductDetailsResponse['productDetailsPage'] }>(
+    session,
+    'ProductDetailsPage',
+    {
+      id: productId,
+      isAuthenticated: true,
+      shoppingContext,
+      storeId: String(storeId),
+      storeIdInt: storeId,
+    }
+  );
+
+  if (response.errors?.length) {
+    throw new Error(`Product fetch failed: ${response.errors.map(e => e.message).join(', ')}`);
+  }
+
+  const product = response.data?.productDetailsPage?.product as MobileProduct | undefined;
+  if (!product) {
+    throw new Error(`Product ${productId} not found`);
+  }
+
+  const sku = product.skus?.[0];
+  const preferredContext = shoppingContext.includes('CURBSIDE') ? 'CURBSIDE' : 'ONLINE';
+  const priceContext = sku?.contextPrices?.find(p => p.context === preferredContext)
+    ?? sku?.contextPrices?.find(p => p.context === 'ONLINE')
+    ?? sku?.contextPrices?.[0];
+
+  const priceSource = priceContext?.salePrice ?? priceContext?.listPrice;
+  const unitSource = priceContext?.unitSalePrice ?? priceContext?.unitListPrice;
+
+  const images = product.carouselImageUrls?.length ? product.carouselImageUrls : undefined;
+
+  return {
+    productId: product.productId ?? productId,
+    skuId: sku?.id ?? productId,
+    name: product.displayName ?? '',
+    brand: product.brand?.name,
+    isOwnBrand: product.brand?.isOwnBrand,
+    description: product.productDescription,
+    longDescription: product.productDescription,
+    imageUrl: images?.[0],
+    images,
+    price: priceSource ? {
+      amount: priceSource.amount ?? 0,
+      formatted: priceSource.formattedAmount ?? '',
+      unitPrice: unitSource ? {
+        amount: unitSource.amount ?? 0,
+        unit: unitSource.unit ?? '',
+        formatted: unitSource.formattedAmount ?? '',
+      } : undefined,
+    } : undefined,
+    nutrition: parseNutrition(product.nutritionLabels),
+    fulfillment: mapMobileFulfillment(sku?.productAvailability),
+    ingredients: product.ingredientStatement,
+    size: sku?.customerFriendlySize,
+    category: product.productCategory?.name,
+    isAvailable: product.isAvailableForCheckout ?? product.inAssortment,
+    inStock: product.inventory?.inventoryState === 'IN_STOCK',
+    maxQuantity: product.maximumOrderQuantity,
   };
 }
 

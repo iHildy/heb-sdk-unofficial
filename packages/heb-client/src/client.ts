@@ -55,7 +55,9 @@ export class HEBClient {
       const buildId = await fetchBuildId(this.session.cookies);
       if (buildId) {
         this.session.buildId = buildId;
-        this.session.headers = buildHeaders(this.session.cookies, buildId);
+        if (this.session.authMode !== 'bearer') {
+          this.session.headers = buildHeaders(this.session.cookies, buildId);
+        }
       }
     } catch (error) {
       console.warn('Failed to fetch buildId, continuing with unknown version:', error);

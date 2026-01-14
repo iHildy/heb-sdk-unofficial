@@ -10,18 +10,25 @@ WORKDIR /app
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 
 # Copy package.json files for dependency installation
+COPY packages/heb-auth/package.json ./packages/heb-auth/
 COPY packages/heb-client/package.json ./packages/heb-client/
 COPY packages/heb-mcp/package.json ./packages/heb-mcp/
+COPY packages/heb-mcp/web/package.json ./packages/heb-mcp/web/
+
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
 # Copy source files
+COPY packages/heb-auth/ ./packages/heb-auth/
 COPY packages/heb-client/ ./packages/heb-client/
 COPY packages/heb-mcp/ ./packages/heb-mcp/
 COPY tsconfig.json ./
 
-# Build heb-client first (dependency)
+# Build dependencies first
+WORKDIR /app/packages/heb-auth
+RUN pnpm build
+
 WORKDIR /app/packages/heb-client
 RUN pnpm build
 
@@ -40,14 +47,18 @@ WORKDIR /app
 # Copy workspace configuration and lockfile
 COPY --from=builder /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/package.json ./
 
-# Copy built package artifacts for heb-client
+# Copy built package artifacts for workspace dependencies
+COPY --from=builder /app/packages/heb-auth/package.json ./packages/heb-auth/
+COPY --from=builder /app/packages/heb-auth/dist ./packages/heb-auth/dist
+
 COPY --from=builder /app/packages/heb-client/package.json ./packages/heb-client/
 COPY --from=builder /app/packages/heb-client/dist ./packages/heb-client/dist
 
 # Copy built package artifacts for heb-mcp
 COPY --from=builder /app/packages/heb-mcp/package.json ./packages/heb-mcp/
 COPY --from=builder /app/packages/heb-mcp/dist ./packages/heb-mcp/dist
-COPY --from=builder /app/packages/heb-mcp/icon16.png ./packages/heb-mcp/icon16.png
+COPY --from=builder /app/packages/heb-mcp/web/dist ./packages/heb-mcp/web/dist
+COPY --from=builder /app/packages/heb-mcp/favicon.ico ./packages/heb-mcp/favicon.ico
 
 # Install production dependencies for the workspace, focused on heb-mcp
 # We use --prod to skip devDependencies and --ignore-scripts to avoid heavy post-installs
@@ -57,6 +68,14 @@ RUN pnpm install --prod --frozen-lockfile --filter heb-mcp --ignore-scripts
 ENV MCP_MODE=remote
 ENV PORT=3000
 ENV NODE_ENV=production
+ENV MCP_OAUTH_CLIENTS_FILE=/data/oauth/clients.json
+ENV MCP_OAUTH_TOKENS_FILE=/data/oauth/tokens.json
+ENV HEB_SESSION_STORE_DIR=/data/sessions
+
+# Ensure persistent storage path exists in the image
+RUN mkdir -p /data/oauth /data/sessions
+
+VOLUME ["/data"]
 
 # The working directory should be the package directory for running
 WORKDIR /app/packages/heb-mcp

@@ -8,7 +8,7 @@ Unofficial TypeScript SDK for H-E-B grocery API — search, product details, and
 - ✅ **Product Details** - Full product info including nutrition, pricing, inventory
 - ✅ **Cart Management** - Add, update, remove items
 - ✅ **Typeahead** - Search suggestions with recent/trending terms
-- ✅ **Session Management** - Cookie-based authentication
+- ✅ **Session Management** - Cookie-based authentication + experimental mobile OAuth tokens
 
 ## Install
 
@@ -60,6 +60,30 @@ H-E-B uses aggressive bot protection (Imperva). Extract cookies manually from yo
 Or from the Network tab:
 1. Right-click any request → Copy as cURL
 2. Extract cookie values from the `-H 'Cookie: ...'` header
+
+## Mobile OAuth (Experimental)
+
+The H‑E‑B mobile app uses OAuth (Authorization Code + PKCE). This flow yields Bearer tokens that can be used against the mobile GraphQL API host. Since third‑party apps are not registered in the H‑E‑B IdP, this approach **impersonates the mobile client** and may break if H‑E‑B changes the flow.
+
+```typescript
+import { createTokenSession, HEBClient } from 'heb-sdk-unofficial';
+
+// After you perform the OAuth code exchange:
+const tokens = {
+  accessToken: '...',
+  refreshToken: '...',
+  idToken: '...',
+  expiresIn: 1800,
+};
+
+const session = createTokenSession(tokens);
+const heb = new HEBClient(session);
+```
+
+Notes:
+- Token sessions use the mobile GraphQL host by default.
+- Search/typeahead still rely on the web Next.js data endpoint and may require a valid buildId.
+- You must refresh tokens periodically (access tokens expire in ~30 minutes).
 
 ## API Reference
 

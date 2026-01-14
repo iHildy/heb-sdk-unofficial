@@ -19,24 +19,36 @@ import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import express from 'express';
-import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
-import type { HEBClient, HEBCookies } from 'heb-client';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-import { requireAuth } from './auth.js';
+import type { HEBClient, HEBCookies, HEBSession } from 'heb-client';
+import { requireAuth, requireClerkAuth } from './auth.js';
+import {
+  exchangeHebCode,
+  isUpsertEnabled,
+  maybeUpsertHebUser,
+  resolveHebOAuthConfig,
+} from './heb-oauth.js';
 import { createSessionStoreFromEnv, MultiTenantSessionManager } from './multi-tenant.js';
 import {
   ClerkOAuthProvider,
   createAuthorizeContextMiddleware,
   resolveIssuerUrl,
   resolveOAuthScopes,
-  resolvePublicUrl,
+  resolvePublicUrl
 } from './oauth.js';
 import { LOCAL_COOKIE_FILE, saveSessionToFile, sessionManager } from './session.js';
 import { registerTools } from './tools.js';
+import { renderPage } from './utils.js';
+
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const PUBLIC_DIR = join(__dirname, '..', 'web', 'dist');
+
+
+
 
 const SERVER_NAME = 'heb';
 const SERVER_VERSION = '0.1.0';
@@ -52,7 +64,7 @@ async function main(): Promise<void> {
     sessionManager.initialize();
     await startLocalCookieBridgeServer();
 
-    const server = createMcpServer(() => sessionManager.getClient(), saveSessionToFile, 'Local File');
+    const server = createMcpServer(() => sessionManager.getClient(), saveSessionToFile, undefined, 'Local File');
     await startSTDIOServer(server);
     return;
   }
@@ -66,6 +78,7 @@ async function main(): Promise<void> {
 function createMcpServer(
   getClient: () => HEBClient | null,
   saveCookies?: (cookies: HEBCookies) => Promise<void> | void,
+  saveSession?: (session: HEBSession) => Promise<void> | void,
   sessionStatusSource?: string
 ): McpServer {
   const server = new McpServer({
@@ -75,6 +88,7 @@ function createMcpServer(
 
   registerTools(server, getClient, {
     saveCookies,
+    saveSession,
     sessionStatusSource,
   });
 
@@ -88,8 +102,8 @@ async function startLocalCookieBridgeServer(): Promise<void> {
   app.use(express.json({ limit: '250kb' }));
 
   const iconPath = mode === 'local' 
-    ? join(__dirname, '..', 'icon16.png') // in src, icon is in ..
-    : join(__dirname, '..', 'icon16.png'); // in dist, icon is also in .. if copied correctly
+    ? join(__dirname, '..', 'favicon.ico') 
+    : join(__dirname, '..', 'favicon.ico');
 
   app.get('/favicon.ico', (_req, res) => {
     res.sendFile(iconPath);
@@ -157,11 +171,15 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
   app.set('trust proxy', 1); 
 
   app.get('/favicon.ico', (_req, res) => {
-    res.sendFile(join(__dirname, '..', 'icon16.png'));
+    res.sendFile(join(__dirname, '..', 'favicon.ico'));
   });
 
   const oauthProvider = new ClerkOAuthProvider({ publicUrl, supportedScopes: oauthScopes });
   app.use('/authorize', createAuthorizeContextMiddleware({
+    publicUrl,
+    signInUrl: process.env.CLERK_SIGN_IN_URL,
+  }));
+  app.use('/connect', createAuthorizeContextMiddleware({
     publicUrl,
     signInUrl: process.env.CLERK_SIGN_IN_URL,
   }));
@@ -183,86 +201,54 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     res.json({ status: 'ok', server: SERVER_NAME, version: SERVER_VERSION });
   });
 
+  app.get('/', (_req, res) => {
+    res.redirect('/connect');
+  });
+
+  app.use(express.static(PUBLIC_DIR));
+
+  app.get('/connect', (req, res) => {
+    const signInUrl = res.locals.clerkSignInUrl as string | undefined;
+    const clerkPublishableKey = process.env.CLERK_PUBLISHABLE_KEY ?? '';
+    const clerkFrontendApi = process.env.CLERK_FRONTEND_URL ?? '';
+    const clerkJwtTemplate = process.env.CLERK_JWT_TEMPLATE_NAME ?? '';
+
+    const connectConfig = JSON.stringify({
+      signInUrl: signInUrl ?? null,
+      clerkPublishableKey: clerkPublishableKey || null,
+      clerkFrontendApi: clerkFrontendApi || null,
+      clerkJwtTemplate: clerkJwtTemplate || null,
+    });
+
+    const configScript = `<script>window.__connectConfig = ${connectConfig};</script>`;
+
+    const clerkScript = clerkPublishableKey 
+      ? `<script id="clerkScript" async crossorigin="anonymous" data-clerk-publishable-key="${clerkPublishableKey}" data-clerk-frontend-api="${clerkFrontendApi}" src="${clerkFrontendApi ? `${clerkFrontendApi}/npm/@clerk/clerk-js@5/dist/clerk.browser.js` : 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js'}"></script>`
+      : '';
+
+    try {
+      const html = renderPage(join(PUBLIC_DIR, 'index.html'), {
+        CONFIG_SCRIPT: configScript,
+        CLERK_SCRIPT: clerkScript,
+      });
+
+      res.status(200).send(html);
+    } catch (err) {
+      console.error('[heb-mcp] Error rendering connect page:', err);
+      res.status(500).send('Internal server error');
+    }
+  });
+
   // Landing page for post-sign-in redirect from browser extension
   app.get('/extension-auth-success', (_req, res) => {
-    res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HEB MCP - Signed In</title>
-  <link rel="icon" href="/favicon.ico" type="image/png">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
+    try {
+      const html = renderPage(join(PUBLIC_DIR, 'index.html'));
+
+      res.status(200).send(html);
+    } catch (err) {
+      console.error('[heb-mcp] Error rendering success page:', err);
+      res.status(500).send('Internal server error');
     }
-    .container {
-      text-align: center;
-      padding: 2rem;
-      max-width: 480px;
-    }
-    .icon {
-      width: 80px;
-      height: 80px;
-      background: linear-gradient(135deg, #00c853 0%, #69f0ae 100%);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 1.5rem;
-      box-shadow: 0 4px 20px rgba(0, 200, 83, 0.3);
-    }
-    .icon svg {
-      width: 40px;
-      height: 40px;
-      stroke: #fff;
-      stroke-width: 3;
-      fill: none;
-    }
-    h1 {
-      font-size: 1.75rem;
-      font-weight: 600;
-      margin-bottom: 0.75rem;
-    }
-    p {
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 1rem;
-      line-height: 1.6;
-    }
-    .hint {
-      margin-top: 2rem;
-      padding: 1rem;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .hint p {
-      font-size: 0.875rem;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="icon">
-      <svg viewBox="0 0 24 24">
-        <polyline points="20 6 9 17 4 12"></polyline>
-      </svg>
-    </div>
-    <h1>Successfully Signed In</h1>
-    <p>You're now authenticated with the HEB MCP server.</p>
-    <div class="hint">
-      <p>You can close this tab and return to the extension to sync your cookies.</p>
-    </div>
-  </div>
-</body>
-</html>`);
   });
 
   app.post('/api/cookies', async (req, res) => {
@@ -284,6 +270,95 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     }
   });
 
+  app.get('/api/heb/oauth/config', async (_req, res) => {
+    const config = resolveHebOAuthConfig();
+    res.json({
+      clientId: config.clientId,
+      redirectUri: config.redirectUri,
+      scope: config.scope,
+      authUrl: config.authUrl,
+    });
+  });
+
+  app.post('/api/heb/oauth/exchange', async (req, res) => {
+    const auth = await requireClerkAuth(req, res);
+    if (!auth) return;
+
+    const { code, code_verifier: codeVerifierRaw, codeVerifier: codeVerifierAlt } = req.body ?? {};
+    const codeVerifier = codeVerifierRaw ?? codeVerifierAlt;
+    if (!code || !codeVerifier) {
+      res.status(400).json({ error: 'Missing code or code_verifier' });
+      return;
+    }
+
+    try {
+      const config = resolveHebOAuthConfig();
+      const tokens = await exchangeHebCode({ code, codeVerifier, config });
+
+      const existing = sessionManagerRemote.getSession(auth.userId);
+      await sessionManagerRemote.saveTokens(auth.userId, tokens, existing?.cookies);
+
+      if (isUpsertEnabled()) {
+        const upsert = await maybeUpsertHebUser({
+          accessToken: tokens.accessToken,
+          idToken: tokens.idToken,
+          enabled: isUpsertEnabled(),
+          userAgent: config.userAgent,
+        });
+        if (upsert && !upsert.ok) {
+          console.warn('[heb-mcp] UpsertUserMutation failed:', upsert.errors);
+        }
+      }
+
+      res.json({
+        success: true,
+        expiresAt: tokens.expiresAt ? tokens.expiresAt.toISOString() : null,
+      });
+    } catch (error) {
+      console.error('[heb-mcp] Failed to exchange HEB OAuth code:', error);
+      res.status(500).json({ error: 'Failed to exchange HEB OAuth code' });
+    }
+  });
+
+  app.post('/api/heb/oauth/refresh', async (req, res) => {
+    const auth = await requireClerkAuth(req, res);
+    if (!auth) return;
+
+    const session = sessionManagerRemote.getSession(auth.userId);
+    if (!session?.tokens?.refreshToken) {
+      res.status(400).json({ error: 'No refresh token found for user' });
+      return;
+    }
+
+    try {
+      await session.refresh?.();
+      res.json({
+        success: true,
+        expiresAt: session.expiresAt ? session.expiresAt.toISOString() : null,
+      });
+    } catch (error) {
+      console.error('[heb-mcp] Failed to refresh HEB OAuth tokens:', error);
+      res.status(500).json({ error: 'Failed to refresh tokens' });
+    }
+  });
+
+  app.get('/api/heb/oauth/status', async (req, res) => {
+    const auth = await requireClerkAuth(req, res);
+    if (!auth) return;
+
+    const session = sessionManagerRemote.getSession(auth.userId);
+    if (!session || session.authMode !== 'bearer') {
+      res.json({ connected: false });
+      return;
+    }
+
+    res.json({
+      connected: true,
+      expiresAt: session.expiresAt ? session.expiresAt.toISOString() : null,
+      hasRefreshToken: Boolean(session.tokens?.refreshToken),
+    });
+  });
+
   const transports = new Map<string, { transport: InstanceType<typeof SSEServerTransport>; server: McpServer; userId: string }>();
 
   app.get('/sse', requireOAuth, async (req, res) => {
@@ -303,6 +378,12 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
       const server = createMcpServer(
         () => sessionManagerRemote.getClient(userId),
         (cookies) => sessionManagerRemote.saveCookies(userId, cookies),
+        (session) => {
+          if (session.authMode === 'bearer' && session.tokens) {
+            return sessionManagerRemote.saveTokens(userId, session.tokens, session.cookies);
+          }
+          return sessionManagerRemote.saveCookies(userId, session.cookies);
+        },
         'Remote Session Store'
       );
 
