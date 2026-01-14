@@ -7,12 +7,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <header className="bg-heb-red text-white py-3 shadow-md sticky top-0 z-10 w-full">
         <div className="max-w-[1240px] mx-auto px-4 flex items-center justify-between">
             <div className="flex items-center gap-2 select-none">
-                <div className="bg-white text-heb-red font-black px-2 py-0.5 text-xl tracking-tighter border-2 border-white rounded-sm inline-flex items-center justify-center italic" style={{ fontFamily: 'Arial, sans-serif' }}>
-                   H-E-B
-                </div>
-                <span className="font-semibold text-white/90 tracking-wide text-sm ml-2 border-l border-white/30 pl-3">
-                   MCP
-                </span>
+                <span className="font-bold text-xl tracking-tight">H-E-B MCP</span>
             </div>
         </div>
       </header>

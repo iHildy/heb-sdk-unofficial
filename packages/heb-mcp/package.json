@@ -21,7 +21,7 @@
     "heb-auth": "workspace:*",
     "heb-client": "workspace:*",
     "jose": "^5.9.0",
-    "zod": "^3.24.0"
+    "zod": "3.24.2"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
@@ -30,7 +30,7 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.19.0",
-    "typescript": "^5.9.0"
+    "typescript": "5.7.3"
   },
   "engines": {
     "node": ">=18"
