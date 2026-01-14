@@ -22,6 +22,8 @@ services:
       - CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY}
       - HEB_SESSION_ENCRYPTION_KEY=${HEB_SESSION_ENCRYPTION_KEY}
       - HEB_SESSION_STORE_DIR=/data/sessions
+      - HEB_DEBUG_BUILDID=1
+      - HEB_DEBUG_BUILDID_SAVE=1
     restart: unless-stopped
     volumes:
       - heb-mcp-data:/data

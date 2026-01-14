@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import type { HEBAuthTokens, HEBCookies, HEBEndpoints, HEBHeaders, HEBSession } from './types.js';
 import { ENDPOINTS } from './types.js';
 
@@ -5,6 +7,7 @@ const CLIENT_NAME = 'WebPlatform-Solar (Production)';
 const MOBILE_USER_AGENT = 'MyHEB/5.9.0.60733 (iOS 18.7.2; iPhone16,2) CFNetwork/1.0 Darwin/24.6.0';
 const WEB_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36';
 const DEFAULT_ACCEPT_LANGUAGE = 'en-US,en;q=0.9';
+const DEFAULT_SEC_CH_UA = '"Not;A=Brand";v="24", "Chromium";v="143", "Google Chrome";v="143"';
 
 /**
  * Format cookies object into a Cookie header string.
@@ -66,8 +69,32 @@ export function buildBrowserHeaders(base: Record<string, string> = {}): Record<s
   return {
     'user-agent': WEB_USER_AGENT,
     'accept-language': DEFAULT_ACCEPT_LANGUAGE,
+    'sec-ch-ua': DEFAULT_SEC_CH_UA,
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"macOS"',
     ...base,
   };
+}
+
+export function buildBrowserNavigationHeaders(base: Record<string, string> = {}): Record<string, string> {
+  return buildBrowserHeaders({
+    'cache-control': 'max-age=0',
+    'upgrade-insecure-requests': '1',
+    'sec-fetch-dest': 'document',
+    'sec-fetch-mode': 'navigate',
+    'sec-fetch-site': 'none',
+    'sec-fetch-user': '?1',
+    ...base,
+  });
+}
+
+export function buildBrowserDataHeaders(base: Record<string, string> = {}): Record<string, string> {
+  return buildBrowserHeaders({
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
+    ...base,
+  });
 }
 
 /**
@@ -240,6 +267,29 @@ function extractBuildIdFromHtml(html: string): string | undefined {
   return staticMatch?.[1];
 }
 
+function logBuildIdDebug(label: string, response: Response, html: string): void {
+  if (process.env.HEB_DEBUG_BUILDID !== '1') {
+    return;
+  }
+  const contentType = response.headers.get('content-type') ?? 'unknown';
+  const length = html.length;
+  const preview = html.slice(0, 500).replace(/\s+/g, ' ').trim();
+  console.error(`[heb-client] buildId debug (${label}): status=${response.status} content-type=${contentType} length=${length}`);
+  console.error(`[heb-client] buildId debug (${label}) preview: ${preview}`);
+
+  if (process.env.HEB_DEBUG_BUILDID_SAVE === '1') {
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `heb-buildid-${label}-${timestamp}.html`;
+      const filePath = path.resolve(process.cwd(), filename);
+      fs.writeFileSync(filePath, html, 'utf-8');
+      console.error(`[heb-client] buildId debug (${label}) saved: ${filePath}`);
+    } catch (error) {
+      console.error('[heb-client] buildId debug save failed:', error);
+    }
+  }
+}
+
 /**
  * Fetch the current Next.js build ID from the homepage.
  * 
@@ -249,15 +299,17 @@ export async function fetchBuildId(cookies: HEBCookies): Promise<string> {
   const attempts: Array<{ label: string; headers: Record<string, string> }> = [
     {
       label: 'with cookies',
-      headers: buildBrowserHeaders({
+      headers: buildBrowserNavigationHeaders({
         ...buildCookieHeaders(cookies),
         accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'accept-encoding': 'gzip, deflate, br, zstd',
       }),
     },
     {
       label: 'without cookies',
-      headers: buildBrowserHeaders({
+      headers: buildBrowserNavigationHeaders({
         accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'accept-encoding': 'gzip, deflate, br, zstd',
       }),
     },
   ];
@@ -275,6 +327,7 @@ export async function fetchBuildId(cookies: HEBCookies): Promise<string> {
       }
 
       const html = await response.text();
+      logBuildIdDebug(attempt.label, response, html);
       const buildId = extractBuildIdFromHtml(html);
       if (buildId) {
         return buildId;

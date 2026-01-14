@@ -1,6 +1,6 @@
 import type { HEBSession } from './types.js';
 import { GRAPHQL_HASHES, MOBILE_GRAPHQL_HASHES } from './types.js';
-import { buildBrowserHeaders, ensureBuildId, ensureFreshSession, normalizeHeaders, resolveEndpoint } from './session.js';
+import { buildBrowserDataHeaders, ensureBuildId, ensureFreshSession, normalizeHeaders, resolveEndpoint } from './session.js';
 
 /**
  * GraphQL request payload structure.
@@ -137,7 +137,7 @@ export async function nextDataRequest<T>(
   await ensureFreshSession(session);
   const url = `${resolveEndpoint(session, 'home')}_next/data/${session.buildId}${path}`;
 
-  const headers: Record<string, string> = buildBrowserHeaders({
+  const headers: Record<string, string> = buildBrowserDataHeaders({
     ...normalizeHeaders(session.headers),
     'x-nextjs-data': '1',
     accept: 'application/json',
