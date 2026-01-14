@@ -185,7 +185,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
 
   server.tool(
     'get_buy_it_again',
-    'Get previously purchased products ("Buy It Again").',
+    'Get previously purchased products ("Buy It Again"). Use this instead of searching shopping lists for recently bought items. This tool returns the specific "Buy It Again" products from the user history, not a shopping list.',
     {
       limit: z.number().min(1).max(20).optional().describe('Max results to return (default: 20)'),
     },
@@ -865,7 +865,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
 
   server.tool(
     'get_shopping_lists',
-    'Get all shopping lists for the current user',
+    'Get all shopping lists for the current user. Note: This does NOT include "Buy It Again" items; use get_buy_it_again for previously purchased products.',
     {},
     async () => {
       const result = requireClient(getClient);
