@@ -182,6 +182,25 @@ export async function getAccountDetails(
     throw new Error('Account details require a bearer session (mobile GraphQL).');
   }
 
+  // Try to get profile from ID token first (it's often more complete/reliable than Me query)
+  let idTokenProfile: RawProfile = {};
+  if (session.tokens?.idToken) {
+    try {
+      const payload = session.tokens.idToken.split('.')[1];
+      if (payload) {
+        const decoded = JSON.parse(Buffer.from(payload, 'base64').toString());
+        idTokenProfile = {
+          firstName: decoded.given_name,
+          lastName: decoded.family_name,
+          email: decoded.email,
+          phone: decoded.phone_number,
+        };
+      }
+    } catch (e) {
+      // Ignore token parsing errors, fallback to API
+    }
+  }
+
   const [meResponse, addressesResponse] = await Promise.all([
     persistedQuery<MobileMeResponse>(session, 'Me', {}),
     persistedQuery<MobileAddressesResponse>(session, 'MyAddresses', {}),
@@ -197,11 +216,12 @@ export async function getAccountDetails(
   const profile = extractProfile(meResponse.data);
   const rawAddresses = extractAddresses(addressesResponse.data);
 
+  // Merge ID token profile with API profile, preferring ID token for basic info
   return {
-    firstName: profile.firstName ?? profile.givenName ?? profile.given_name ?? '',
-    lastName: profile.lastName ?? profile.familyName ?? profile.family_name ?? '',
-    email: profile.email ?? '',
-    phone: profile.phone,
+    firstName: idTokenProfile.firstName ?? profile.firstName ?? profile.givenName ?? profile.given_name ?? '',
+    lastName: idTokenProfile.lastName ?? profile.lastName ?? profile.familyName ?? profile.family_name ?? '',
+    email: idTokenProfile.email ?? profile.email ?? '',
+    phone: idTokenProfile.phone ?? profile.phone,
     dateOfBirth: profile.dateOfBirth,
     memberSince: profile.memberSince,
     loyaltyNumber: profile.loyaltyNumber ?? profile.hPlusNumber,
