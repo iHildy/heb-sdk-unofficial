@@ -39,7 +39,6 @@ export function cleanHtml(text?: string): string | undefined {
     // Decode common entities
     .replace(/&bull;/g, '•')
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
@@ -49,6 +48,7 @@ export function cleanHtml(text?: string): string | undefined {
     .replace(/&trade;/g, '™')
     .replace(/&reg;/g, '®')
     .replace(/&copy;/g, '©')
+    .replace(/&amp;/g, '&')
     // Strip remaining HTML tags
     .replace(/<[^>]*>/g, '')
     // Collapse multiple newlines
