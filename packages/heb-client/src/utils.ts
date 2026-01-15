@@ -92,6 +92,19 @@ export function formatExpiryTime(isoString: string): string {
 }
 
 /**
+ * Format a number as USD currency (e.g., "$26.44").
+ * 
+ * @param amount - Amount in dollars
+ * @returns Formatted currency string
+ */
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount);
+}
+
+/**
  * Clean HTML tags and entities from text.
  * Converts <br> to newlines, decodes common entities, and strips other tags.
  * 

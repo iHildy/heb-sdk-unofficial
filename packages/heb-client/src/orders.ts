@@ -16,6 +16,7 @@ import { formatSlotTime, formatSlotDate } from './utils.js';
 export interface RawHistoryOrder {
   orderId: string;
   orderStatusMessageShort?: string;
+  status?: string; // Add status
   orderChangesOverview?: {
     reviewChangesEligible?: boolean;
     unfulfilledCount?: number;
@@ -41,6 +42,9 @@ export interface RawHistoryOrder {
   totalPrice?: {
     formattedAmount?: string;
     __typename?: string;
+  };
+  priceDetails?: {
+    total?: { formattedAmount?: string };
   };
   productCount?: number;
   __typename?: string;
@@ -408,9 +412,10 @@ export function formatOrderHistory(orders: RawHistoryOrder[]): string {
   const formatted = orders.map(order => {
     const ts = order.orderTimeslot;
     const timeRange = ts?.formattedStartTime ? ` (${ts.formattedStartTime} - ${ts.formattedEndTime})` : '';
-    const dateText = ts?.formattedDate ?? (ts?.startTime ? new Date(ts.startTime).toLocaleDateString() : 'Unknown date');
-    const totalText = order.totalPrice?.formattedAmount ?? (order as any)?.priceDetails?.total?.formattedAmount ?? 'Unknown total';
-    const statusText = order.orderStatusMessageShort ?? (order as any)?.status ?? 'Unknown status';
+    // Use formatSlotDate if available, otherwise default to local string (but formatSlotDate is safer)
+    const dateText = ts?.formattedDate ?? (ts?.startTime ? formatSlotDate(ts.startTime) : 'Unknown date');
+    const totalText = order.totalPrice?.formattedAmount ?? order.priceDetails?.total?.formattedAmount ?? 'Unknown total';
+    const statusText = order.orderStatusMessageShort ?? order.status ?? 'Unknown status';
     return `* Order ID: ${order.orderId} - Date: ${dateText}${timeRange} - Total: ${totalText} (${statusText})`;
   }).join('\n');
 

@@ -6,6 +6,7 @@
 
 import { persistedQuery } from './api.js';
 import type { HEBSession } from './types.js';
+import { formatSlotDate, formatCurrency } from './utils.js';
 
 // ─────────────────────────────────────────────────────────────
 // Raw API Response Types
@@ -343,7 +344,7 @@ export function formatShoppingLists(lists: ShoppingList[]): string {
 
   const formatted = lists.map((list, i) => {
     const itemCount = list.itemCount ?? 0;
-    const updated = list.updatedAt ? ` (updated ${list.updatedAt.toLocaleDateString()})` : '';
+    const updated = list.updatedAt ? ` (updated ${formatSlotDate(list.updatedAt.toISOString())})` : '';
     return `${i + 1}. ${list.name} - ${itemCount} items${updated} (ID: ${list.id})`;
   }).join('\n');
 
@@ -359,7 +360,7 @@ export function formatShoppingList(list: ShoppingListDetails): string {
   }
 
   const itemsList = list.items.map((item, i) => {
-    const priceStr = item.price?.total ? ` - $${item.price.total.toFixed(2)}` : '';
+    const priceStr = item.price?.total ? ` - ${formatCurrency(item.price.total)}` : '';
     const checked = item.checked ? ' [x]' : ' [ ]';
     return `${i + 1}.${checked} ${item.name}${priceStr} (ID: ${item.productId})`;
   }).join('\n');

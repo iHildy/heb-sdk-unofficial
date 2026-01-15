@@ -597,20 +597,27 @@ export function formatHomepageData(homepage: HomepageData): string {
           
           // Check for product
           if ('productId' in item) {
-             const p = item as any;
-             const price = p.priceFormatted ?? (p.price ? `$${p.price}` : '');
-             itemText = `${p.name} ${price}`.trim();
+             const price = item.priceFormatted ?? (item.price ? `$${item.price}` : '');
+             itemText = `${item.name} ${price}`.trim();
           } 
           // Check for banner/promo
           else if ('imageUrl' in item) {
-             const b = item as any;
-             itemText = b.title ?? b.name ?? 'Banner';
-             if (b.subtitle || b.description) itemText += ` - ${b.subtitle ?? b.description}`;
+             const title = 'title' in item && typeof item.title === 'string' ? item.title : undefined;
+             itemText = title ?? 'Banner';
+             
+             const subtitle = 'subtitle' in item && typeof item.subtitle === 'string' ? item.subtitle : undefined;
+             const description = 'description' in item && typeof item.description === 'string' ? item.description : undefined;
+             
+             if (subtitle || description) {
+                itemText += ` - ${subtitle ?? description}`;
+             }
           }
           // Fallback
           else {
-             const anyItem = item as any;
-             itemText = anyItem.name ?? anyItem.title ?? anyItem.text ?? 'Unknown Item';
+             const name = 'name' in item && typeof item.name === 'string' ? item.name : undefined;
+             const title = 'title' in item && typeof item.title === 'string' ? item.title : undefined;
+             const text = 'text' in item && typeof item.text === 'string' ? item.text : undefined;
+             itemText = name ?? title ?? text ?? 'Unknown Item';
           }
 
           parts.push(`   - ${itemText}`);

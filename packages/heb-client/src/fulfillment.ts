@@ -298,11 +298,11 @@ export async function reserveSlot(
 }
 
 /**
- * Format delivery slots for display.
+ * Shared slot formatter.
  */
-export function formatDeliverySlots(slots: FulfillmentSlot[], debug = false): string {
+function formatSlots(slots: FulfillmentSlot[], typeName: string, emptyMessage: string, debug = false): string {
   if (slots.length === 0) {
-    return 'No delivery slots found.';
+    return emptyMessage;
   }
 
   const formatted = slots.map((s) => {
@@ -313,24 +313,19 @@ export function formatDeliverySlots(slots: FulfillmentSlot[], debug = false): st
     return `- [${status}] ${s.formattedDate} (${s.localDate}) ${timeRange} (${fee}) (ID: ${s.slotId})${utc}`;
   }).join('\n');
 
-  return `Found ${slots.length} slots:\n\n${formatted}`;
+  return `Found ${slots.length} ${typeName}:\n\n${formatted}`;
+}
+
+/**
+ * Format delivery slots for display.
+ */
+export function formatDeliverySlots(slots: FulfillmentSlot[], debug = false): string {
+  return formatSlots(slots, 'slots', 'No delivery slots found.', debug);
 }
 
 /**
  * Format curbside slots for display.
  */
 export function formatCurbsideSlots(slots: FulfillmentSlot[], debug = false): string {
-  if (slots.length === 0) {
-    return 'No curbside pickup slots found.';
-  }
-
-  const formatted = slots.map((s) => {
-    const status = s.isAvailable ? 'AVAILABLE' : 'FULL';
-    const fee = s.fee > 0 ? `${s.fee.toFixed(2)}` : 'FREE';
-    const timeRange = `${s.formattedStartTime} - ${s.formattedEndTime}`;
-    const utc = debug ? ` [UTC: ${s.startTime}]` : '';
-    return `- [${status}] ${s.formattedDate} (${s.localDate}) ${timeRange} (${fee}) (ID: ${s.slotId})${utc}`;
-  }).join('\n');
-
-  return `Found ${slots.length} curbside slots:\n\n${formatted}`;
+  return formatSlots(slots, 'curbside slots', 'No curbside pickup slots found.', debug);
 }
