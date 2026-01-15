@@ -220,6 +220,31 @@ function normalizeOrderItem(item: any): OrderDetailsItem {
   };
 }
 
+/**
+ * Normalize a single order from history list to ensure totalPrice is populated.
+ * The mobile API returns totalPrice directly, but we ensure consistent structure.
+ */
+function normalizeHistoryOrder(order: any): RawHistoryOrder {
+  const priceDetails = order?.priceDetails ?? order?.priceSummary ?? {};
+  const totalPrice = order?.totalPrice ?? order?.total ?? order?.orderTotal ?? {};
+  
+  // Try to find a formatted amount from various possible locations
+  const formattedAmount = 
+    totalPrice?.formattedAmount ?? 
+    priceDetails?.total?.formattedAmount ?? 
+    order?.grandTotal?.formattedAmount ??
+    order?.price?.total?.formattedAmount;
+
+  // Ensure totalPrice exists with the found amount
+  return {
+    ...order,
+    totalPrice: {
+      ...totalPrice,
+      formattedAmount,
+    }
+  };
+}
+
 function normalizeOrderDetails(order: any): OrderDetailsPageOrder {
   const orderTimeslot = order?.orderTimeslot ?? order?.timeslot ?? order?.orderTimeSlot ?? {};
   const priceDetails = order?.priceDetails ?? order?.priceSummary ?? {};
@@ -292,9 +317,9 @@ export async function getOrders(
 
   const combined = [...extractOrders(active.data), ...extractOrders(completed.data)];
   const uniqueOrders = new Map<string, RawHistoryOrder>();
-  for (const order of combined) {
-    if (order?.orderId && !uniqueOrders.has(order.orderId)) {
-      uniqueOrders.set(order.orderId, order);
+  for (const rawOrder of combined) {
+    if (rawOrder?.orderId && !uniqueOrders.has(rawOrder.orderId)) {
+      uniqueOrders.set(rawOrder.orderId, normalizeHistoryOrder(rawOrder));
     }
   }
 
