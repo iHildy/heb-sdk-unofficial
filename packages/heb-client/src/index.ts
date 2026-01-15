@@ -40,9 +40,7 @@ export {
 export {
     searchProducts,
     typeahead,
-    typeaheadTerms,
     type SearchOptions,
-    type SearchProduct,
     type SearchResult,
     type TypeaheadResult,
     type TypeaheadSuggestion

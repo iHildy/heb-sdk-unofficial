@@ -6,11 +6,19 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { HEBClient, HEBCookies, HEBSession } from 'heb-client';
+import type { HEBClient, HEBCookies, HEBSession, Product } from 'heb-client';
 import { z } from 'zod';
 import { getSessionStatus, saveSessionToFile } from './session.js';
 
 type ClientGetter = () => HEBClient | null;
+
+function formatProductListItem(p: Product, index: number): string {
+  const price = p.price?.formatted ? ` - ${p.price.formatted}` : '';
+  const size = p.size ? ` - ${p.size}` : '';
+  const brand = p.brand ? ` (${p.brand})` : '';
+  const stock = p.inStock ? '' : ' [OUT OF STOCK]';
+  return `${index + 1}. ${p.name}${brand}${size}${price}${stock} (ID: ${p.productId})`;
+}
 
 type ToolOptions = {
   saveCookies?: (cookies: HEBCookies) => Promise<void> | void;
@@ -169,9 +177,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
           };
         }
 
-        const formatted = products.map((p, i) => 
-          `${i + 1}. ${p.name} (ID: ${p.productId})`
-        ).join('\n');
+        const formatted = products.map((p, i) => formatProductListItem(p, i)).join('\n');
 
         return {
           content: [{ 
@@ -210,9 +216,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
           };
         }
 
-        const formatted = products.map((p, i) => 
-          `${i + 1}. ${p.name} (ID: ${p.productId})`
-        ).join('\n');
+        const formatted = products.map((p, i) => formatProductListItem(p, i)).join('\n');
 
         return {
           content: [{ 

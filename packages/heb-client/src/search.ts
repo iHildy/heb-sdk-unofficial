@@ -1,6 +1,11 @@
 import { persistedQuery } from './api.js';
-import { getShoppingMode, resolveShoppingContext as resolveSessionContext } from './session.js';
+import { resolveShoppingContext as resolveSessionContext } from './session.js';
 import type { HEBSession } from './types.js';
+import { 
+  type MobileProduct, 
+  type Product, 
+  mapMobileProduct 
+} from './product-mapper.js';
 
 const DEFAULT_SEARCH_LIMIT = 20;
 
@@ -12,38 +17,14 @@ export interface SearchOptions {
   storeId?: string | number;
   shoppingContext?: string;
   searchMode?: 'MAIN_SEARCH' | 'BIA_SEARCH';
-}
-
-/**
- * Product from search results.
- */
-export interface SearchProduct {
-  productId: string;
-  name: string;
-  brand?: string;
-  description?: string;
-  imageUrl?: string;
-  price?: {
-    amount: number;
-    formatted: string;
-  };
-  unitPrice?: {
-    amount: number;
-    unit: string;
-    formatted: string;
-  };
-  skuId?: string;
-  isAvailable?: boolean;
-  fulfillmentOptions?: string[];
-  /** URL slug for product page */
-  slug?: string;
+  includeImages?: boolean;
 }
 
 /**
  * Search result structure.
  */
 export interface SearchResult {
-  products: SearchProduct[];
+  products: Product[];
   totalCount: number;
   page: number;
   hasNextPage: boolean;
@@ -83,7 +64,7 @@ interface MobileSearchPage {
 
 interface MobileSearchComponent {
   __typename?: string;
-  items?: MobileSearchProduct[];
+  items?: MobileProduct[];
   total?: number;
   nextCursor?: string;
   searchContextToken?: string;
@@ -94,42 +75,6 @@ interface MobileSearchComponent {
   }>;
   categoryFilters?: Array<{ categoryId?: string; displayTitle?: string; count?: number }>;
 }
-
-interface MobileSearchProduct {
-  productId?: string;
-  displayName?: string;
-  brand?: { name?: string; isOwnBrand?: boolean };
-  productCategory?: { name?: string };
-  carouselImageUrls?: string[];
-  inventory?: { inventoryState?: string };
-  skus?: Array<{
-    id?: string;
-    contextPrices?: RawContextPrice[];
-    productAvailability?: string[];
-    customerFriendlySize?: string;
-  }>;
-}
-
-interface RawContextPrice {
-  context?: string;
-  isOnSale?: boolean;
-  isPriceCut?: boolean;
-  priceType?: string;
-  listPrice?: RawDisplayPrice;
-  salePrice?: RawDisplayPrice;
-  unitListPrice?: RawDisplayPrice;
-  unitSalePrice?: RawDisplayPrice;
-}
-
-interface RawDisplayPrice {
-  unit?: string;
-  formattedAmount?: string;
-  amount?: number;
-}
-
-
-
-
 
 function resolveStoreId(session: HEBSession, options?: SearchOptions): number {
   const storeIdRaw = options?.storeId ?? session.cookies?.CURR_SESSION_STORE;
@@ -153,29 +98,6 @@ function selectMobileSearchGrid(page?: MobileSearchPage): MobileSearchComponent 
     components.find(c => c.__typename === 'SearchGridV2') ??
     components.find(c => Array.isArray(c.items))
   );
-}
-
-function mapMobileSearchProduct(product: MobileSearchProduct, shoppingContext: string): SearchProduct {
-  const sku = product.skus?.[0];
-  const preferredContext = getShoppingMode(shoppingContext);
-  const priceContext = sku?.contextPrices?.find(p => p.context === preferredContext)
-    ?? sku?.contextPrices?.find(p => p.context === 'ONLINE')
-    ?? sku?.contextPrices?.[0];
-
-  const priceSource = priceContext?.salePrice ?? priceContext?.listPrice;
-  const unitSource = priceContext?.unitSalePrice ?? priceContext?.unitListPrice;
-
-  return {
-    productId: product.productId ?? '',
-    name: product.displayName ?? '',
-    brand: product.brand?.name,
-    imageUrl: product.carouselImageUrls?.[0],
-    price: priceSource ? { amount: priceSource.amount ?? 0, formatted: priceSource.formattedAmount ?? '' } : undefined,
-    unitPrice: unitSource ? { amount: unitSource.amount ?? 0, unit: unitSource.unit ?? '', formatted: unitSource.formattedAmount ?? '' } : undefined,
-    skuId: sku?.id,
-    isAvailable: product.inventory?.inventoryState === 'IN_STOCK',
-    fulfillmentOptions: sku?.productAvailability,
-  };
 }
 
 function mapMobileFacets(component?: MobileSearchComponent): SearchResult['facets'] {
@@ -251,7 +173,7 @@ async function searchProductsMobile(
    * Filter out products that don't have a valid ID or name.
    */
   const validProducts = rawProducts
-    .map(item => mapMobileSearchProduct(item, shoppingContext))
+    .map(item => mapMobileProduct(item, shoppingContext, { includeImages: options.includeImages }))
     .filter(p => p.productId && p.name);
 
   const products = validProducts.slice(0, limit);
@@ -395,19 +317,6 @@ export async function typeahead(
     trendingSearches,
     allTerms: [...recentSearches, ...trendingSearches],
   };
-}
-
-/**
- * Get typeahead terms as a flat array.
- *
- * @deprecated Use typeahead() for full results with categorization.
- */
-export async function typeaheadTerms(
-  session: HEBSession,
-  query: string
-): Promise<string[]> {
-  const result = await typeahead(session, query);
-  return result.allTerms;
 }
 
 // Raw response types for GraphQL typeahead
