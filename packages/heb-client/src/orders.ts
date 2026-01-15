@@ -226,7 +226,9 @@ function normalizeOrderItem(item: any): OrderDetailsItem {
  */
 function normalizeHistoryOrder(order: any): RawHistoryOrder {
   const priceDetails = order?.priceDetails ?? order?.priceSummary ?? {};
-  const totalPrice = order?.totalPrice ?? order?.total ?? order?.orderTotal ?? {};
+  // Ensure totalPrice is an object before spreading (could be primitive in edge cases)
+  const totalPriceSource = order?.totalPrice ?? order?.total ?? order?.orderTotal;
+  const totalPrice = typeof totalPriceSource === 'object' && totalPriceSource !== null ? totalPriceSource : {};
   
   // Try to find a formatted amount from various possible locations
   const formattedAmount = 

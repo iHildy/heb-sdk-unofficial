@@ -263,7 +263,8 @@ function calculateCartCounts(
   explicitTotal?: number
 ): { itemCount: number; isTruncated: boolean } {
   const sumQuantities = items.reduce((sum, item) => sum + item.quantity, 0);
-  const itemCount = explicitTotal ?? sumQuantities;
+  // Use server total only when it's sensible (>= items we have); otherwise fallback to sum
+  const itemCount = (explicitTotal !== undefined && explicitTotal >= sumQuantities) ? explicitTotal : sumQuantities;
   const isTruncated = explicitTotal !== undefined && sumQuantities < explicitTotal;
   return { itemCount, isTruncated };
 }
