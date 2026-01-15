@@ -1,4 +1,30 @@
 /**
+ * Valid shopping context values for HEB API.
+ * These map to different browse/fulfillment modes in the app.
+ * 
+ * - CURBSIDE_PICKUP: Order online, pick up at store
+ * - CURBSIDE_DELIVERY: Order online, home delivery
+ * - EXPLORE_MY_STORE: In-store browsing mode
+ */
+export type ShoppingContext = 'CURBSIDE_PICKUP' | 'CURBSIDE_DELIVERY' | 'EXPLORE_MY_STORE';
+
+/**
+ * Fulfillment type for timeslot reservations.
+ * This is a separate concept from ShoppingContext - used specifically
+ * in reserveTimeslotV3 mutation.
+ */
+export type FulfillmentType = 'DELIVERY' | 'PICKUP';
+
+/**
+ * Maps ShoppingContext to the Categories API context parameter.
+ */
+export const SHOPPING_CONTEXT_TO_CATEGORIES: Record<ShoppingContext, string> = {
+  EXPLORE_MY_STORE: 'instoreview',
+  CURBSIDE_PICKUP: 'cspview',
+  CURBSIDE_DELIVERY: 'csdview',
+};
+
+/**
  * Core cookie values required for authenticated HEB requests.
  */
 export interface HEBCookies {
@@ -10,8 +36,8 @@ export interface HEBCookies {
   incap_ses: string;
   /** Selected store ID for fulfillment context */
   CURR_SESSION_STORE?: string;
-  /** Shopping context (e.g., CURBSIDE_PICKUP, DELIVERY) */
-  shoppingContext?: string;
+  /** Shopping context for browse/fulfillment mode */
+  shoppingContext?: ShoppingContext;
   /** Any additional cookies captured during auth */
   [key: string]: string | undefined;
 }
@@ -60,7 +86,7 @@ export interface HEBSession {
   /** Override endpoints (e.g., mobile GraphQL host) */
   endpoints?: Partial<HEBEndpoints>;
   /** Active shopping context (defaults to CURBSIDE_PICKUP if unset) */
-  shoppingContext?: string;
+  shoppingContext?: ShoppingContext;
   /** Optional refresh hook for bearer sessions */
   refresh?: () => Promise<void>;
   /** Enable detailed debug logging (default: false) */
@@ -111,7 +137,7 @@ export interface Address {
 export interface ReserveTimeslotVariables {
   id: string; // The slot ID (e.g. from getDeliverySlots 'id' or 'timeslotId')
   date: string; // YYYY-MM-DD
-  fulfillmentType: 'DELIVERY' | 'PICKUP';
+  fulfillmentType: FulfillmentType;
   pickupStoreId?: string; // e.g. "790", if pickup
   deliveryAddress?: Address;
   ignoreCartConflicts: boolean;

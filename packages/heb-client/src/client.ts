@@ -9,7 +9,7 @@ import { getBuyItAgain, searchProducts, typeahead, typeaheadTerms, type SearchOp
 import { getSessionInfo, isSessionValid } from './session.js';
 import { getShoppingList, getShoppingLists, type GetShoppingListOptions, type ShoppingList, type ShoppingListDetails } from './shopping-list.js';
 import { searchStores, setStore, type Store } from './stores.js';
-import type { Address, HEBSession } from './types.js';
+import type { Address, HEBSession, ShoppingContext } from './types.js';
 import { getWeeklyAdProducts, type WeeklyAdOptions, type WeeklyAdResult } from './weekly-ad.js';
 
 /**
@@ -405,9 +405,9 @@ export class HEBClient {
   /**
    * Set the shopping context for the session.
    * 
-   * @param context - Context string (e.g. 'CURBSIDE_PICKUP', 'DELIVERY', 'IN_STORE')
+   * @param context - CURBSIDE_PICKUP, CURBSIDE_DELIVERY, or EXPLORE_MY_STORE
    */
-  setShoppingContext(context: string): void {
+  setShoppingContext(context: ShoppingContext): void {
     this.session.shoppingContext = context;
     if (this.session.cookies) {
       this.session.cookies.shoppingContext = context;

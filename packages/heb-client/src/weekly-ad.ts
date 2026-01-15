@@ -1,5 +1,6 @@
 import { persistedQuery } from './api.js';
-import type { HEBSession } from './types.js';
+import { resolveShoppingContext } from './session.js';
+import type { HEBSession, ShoppingContext } from './types.js';
 
 export interface WeeklyAdOptions {
   storeCode?: string | number;
@@ -137,10 +138,6 @@ function resolveStoreId(session: HEBSession, options?: WeeklyAdOptions): number 
   return storeId;
 }
 
-function resolveShoppingContext(session: HEBSession, options?: WeeklyAdOptions): string {
-  return session.shoppingContext ?? session.cookies?.shoppingContext ?? 'CURBSIDE_PICKUP';
-}
-
 function normalizeLimit(limit?: number): number {
   if (limit === undefined) return 20;
   if (!Number.isFinite(limit) || limit < 0) {
@@ -184,7 +181,7 @@ export async function getWeeklyAdProducts(
 ): Promise<WeeklyAdResult> {
   const storeId = resolveStoreId(session, options);
   const limit = normalizeLimit(options.limit);
-  const shoppingContext = resolveShoppingContext(session, options);
+  const shoppingContext = resolveShoppingContext(session);
   const cursor = options.cursor ? String(options.cursor) : undefined;
   
   // Build variables
