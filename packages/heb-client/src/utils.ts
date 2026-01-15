@@ -17,3 +17,42 @@ export function formatExpiryTime(isoString: string): string {
   const minuteStr = minutes.toString().padStart(2, '0');
   return `${hours}:${minuteStr}${ampm}`;
 }
+
+/**
+ * Clean HTML tags and entities from text.
+ * Converts <br> to newlines, decodes common entities, and strips other tags.
+ * 
+ * @param text - Raw text with HTML tags and entities
+ * @returns Cleaned text
+ */
+export function cleanHtml(text?: string): string | undefined {
+  if (!text) return undefined;
+
+  return text
+    // Replace breaks with newlines
+    .replace(/<br\s*\/?>/gi, '\n')
+    // Replace <b>/<strong> tags with markdown bold (just strip them for now to avoid confusion or use simple chars)
+    // The request mentioned "Description: • Certified USDA Organic<br>• 1 Gallon..."
+    // Converting <b> to nothing or simple text is safer than markdown if not rendered as such.
+    // However, the AI report example output was plain text. Let's strip tags but keep structure.
+    .replace(/<\/?(b|strong)(\s+[^>]*)?>/gi, '') 
+    // Decode common entities
+    .replace(/&bull;/g, '•')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
+    .replace(/&trade;/g, '™')
+    .replace(/&reg;/g, '®')
+    .replace(/&copy;/g, '©')
+    // Strip remaining HTML tags
+    .replace(/<[^>]*>/g, '')
+    // Collapse multiple newlines
+    .replace(/\n\s*\n/g, '\n')
+    // Trim whitespace
+    .trim();
+}

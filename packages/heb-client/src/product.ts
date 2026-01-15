@@ -1,6 +1,7 @@
 import { persistedQuery } from './api.js';
 import { getShoppingMode, resolveShoppingContext } from './session.js';
 import type { HEBSession } from './types.js';
+import { cleanHtml } from './utils.js';
 
 /**
  * Product nutrition info.
@@ -58,6 +59,8 @@ export interface Product {
   isOwnBrand?: boolean;
   description?: string;
   longDescription?: string;
+  /** Raw HTML description from source */
+  rawDescription?: string;
   imageUrl?: string;
   images?: string[];
   price?: ProductPrice;
@@ -266,8 +269,9 @@ async function getProductDetailsMobile(session: HEBSession, productId: string): 
     name: product.displayName ?? '',
     brand: product.brand?.name,
     isOwnBrand: product.brand?.isOwnBrand,
-    description: product.productDescription,
-    longDescription: product.productDescription,
+    description: cleanHtml(product.productDescription),
+    longDescription: cleanHtml(product.productDescription),
+    rawDescription: product.productDescription,
     imageUrl: images?.[0],
     images,
     price: priceSource ? {
