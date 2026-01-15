@@ -256,7 +256,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
         return {
           content: [{ 
             type: 'text', 
-            text: `Added to cart! Cart now has ${cartResult.cart?.itemCount ?? 0} items. Subtotal: ${cartResult.cart?.subtotal?.formatted ?? 'Unknown'}` 
+            text: `Updated cart! Cart now has ${cartResult.cart?.itemCount ?? 0} items. Subtotal: ${cartResult.cart?.subtotal?.formatted ?? 'Unknown'}` 
           }],
         };
       } catch (error) {
