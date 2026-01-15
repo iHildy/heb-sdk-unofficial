@@ -45,6 +45,26 @@ export interface GetFulfillmentSlotsOptions {
 }
 
 /**
+ * Options for fetching delivery slots.
+ */
+export interface GetDeliverySlotsOptions {
+  /** Delivery address */
+  address: Address;
+  /** Number of days to fetch (default: 14) */
+  days?: number;
+}
+
+/**
+ * Options for fetching curbside pickup slots.
+ */
+export interface GetCurbsideSlotsOptions {
+  /** Store number */
+  storeNumber: number;
+  /** Number of days to fetch (default: 14) */
+  days?: number;
+}
+
+/**
  * Result of a reservation attempt.
  */
 export interface ReserveSlotResult {
@@ -63,11 +83,17 @@ export interface ReserveSlotResult {
 /**
  * Helper to map a raw slot object to a FulfillmentSlot.
  */
-function mapSlot(slot: any, dayDate: string): FulfillmentSlot {
+function mapSlot(
+  slot: any,
+  dayDate: string,
+  fallbackIsFull?: boolean,
+): FulfillmentSlot {
   const startTimeRaw = slot.startTime || slot.start || "";
   const endTimeRaw = slot.endTime || slot.end || "";
 
   const localDate = startTimeRaw ? getLocalDateString(startTimeRaw) : dayDate;
+
+  const isFull = slot.isFull ?? fallbackIsFull;
 
   return {
     slotId: slot.id,
@@ -79,7 +105,7 @@ function mapSlot(slot: any, dayDate: string): FulfillmentSlot {
     formattedDate: startTimeRaw ? formatSlotDate(startTimeRaw) : "",
     localDate,
     fee: slot.totalPrice?.amount || 0,
-    isAvailable: slot.isFull === undefined ? true : !slot.isFull,
+    isAvailable: isFull === undefined ? true : !isFull,
     raw: slot,
   };
 }
@@ -93,7 +119,7 @@ function mapSlot(slot: any, dayDate: string): FulfillmentSlot {
  */
 export async function getDeliverySlots(
   session: HEBSession,
-  options: { address: Address; days?: number },
+  options: GetDeliverySlotsOptions,
 ): Promise<FulfillmentSlot[]> {
   const { address, days = 14 } = options;
 
@@ -140,7 +166,7 @@ export async function getDeliverySlots(
  */
 export async function getCurbsideSlots(
   session: HEBSession,
-  options: { storeNumber: number; days?: number },
+  options: GetCurbsideSlotsOptions,
 ): Promise<FulfillmentSlot[]> {
   const { storeNumber, days = 14 } = options;
 
@@ -174,12 +200,8 @@ export async function getCurbsideSlots(
     for (const group of slotsByGroup) {
       if (group.slots && Array.isArray(group.slots)) {
         for (const slot of group.slots) {
-          // Curbside sometimes has isFull on the day level if not on slot
-          const slotData = { ...slot };
-          if (slotData.isFull === undefined && day.isFull !== undefined) {
-            slotData.isFull = day.isFull;
-          }
-          slots.push(mapSlot(slotData, day.date));
+          // Curbside sometimes has isFull on the day level if not on slot. Pass this to the mapper as a fallback.
+          slots.push(mapSlot(slot, day.date, day.isFull));
         }
       }
     }
