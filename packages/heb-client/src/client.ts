@@ -4,8 +4,8 @@ import { getCurbsideSlots, reserveCurbsideSlot, type CurbsideSlot, type GetCurbs
 import { getDeliverySlots, reserveSlot, type DeliverySlot, type GetDeliverySlotsOptions, type ReserveSlotResult } from './delivery.js';
 import { getHomepage, type HomepageData } from './homepage.js';
 import { getOrder, getOrders, type GetOrdersOptions, type OrderDetailsResponse, type OrderHistoryResponse } from './orders.js';
-import { getProductDetails, getProductImageUrl, getProductSkuId, type Product } from './product.js';
-import { getBuyItAgain, searchProducts, typeahead, typeaheadTerms, type SearchOptions, type SearchResult, type TypeaheadResult } from './search.js';
+import { getProductDetails, getProductImageUrl, getProductSkuId, type Product, type GetProductOptions } from './product.js';
+import { getBuyItAgain, searchProducts, typeahead, type SearchOptions, type SearchResult, type TypeaheadResult } from './search.js';
 import { getSessionInfo, isSessionValid } from './session.js';
 import { getShoppingList, getShoppingLists, type GetShoppingListOptions, type ShoppingList, type ShoppingListDetails } from './shopping-list.js';
 import { searchStores, setStore, type Store } from './stores.js';
@@ -106,15 +106,6 @@ export class HEBClient {
     return typeahead(this.session, query);
   }
 
-  /**
-   * Get typeahead terms as a flat array.
-   * 
-   * @deprecated Use typeahead() for categorized results.
-   */
-  async typeaheadTerms(query: string): Promise<string[]> {
-    return typeaheadTerms(this.session, query);
-  }
-
   // ─────────────────────────────────────────────────────────────
   // Weekly Ad
   // ─────────────────────────────────────────────────────────────
@@ -141,8 +132,8 @@ export class HEBClient {
    * console.log(product.inStock);     // true
    * console.log(product.nutrition);   // { calories: 210, ... }
    */
-  async getProduct(productId: string): Promise<Product> {
-    return getProductDetails(this.session, productId);
+  async getProduct(productId: string, options?: GetProductOptions): Promise<Product> {
+    return getProductDetails(this.session, productId, options);
   }
 
   /**
