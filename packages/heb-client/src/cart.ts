@@ -55,7 +55,13 @@ export interface CartFee {
 export interface Cart {
   id: string;
   items: CartItem[];
+  /** Total item count reported by the server (sum of all quantities). */
   itemCount: number;
+  /**
+   * True if the server reported more items than were returned in the items array.
+   * When true, the UI should indicate truncation (e.g., "Showing 12 of 22 items").
+   */
+  isTruncated: boolean;
   subtotal: DisplayPrice;
   total: DisplayPrice;
   tax?: DisplayPrice;
@@ -72,6 +78,10 @@ export interface CartResponse {
   cart?: {
     items: CartItem[];
     itemCount: number;
+    /**
+     * True if the server reported more items than were returned in the items array.
+     */
+    isTruncated: boolean;
     subtotal?: DisplayPrice;
   };
   errors?: string[];
@@ -244,6 +254,20 @@ function parseMobileDisplayPrice(raw?: MobileCartPrice): DisplayPrice {
   };
 }
 
+/**
+ * Calculate itemCount and isTruncated from items array and optional server-reported total.
+ * This centralizes the logic (DRY) to detect when the API truncates items.
+ */
+function calculateCartCounts(
+  items: CartItem[],
+  explicitTotal?: number
+): { itemCount: number; isTruncated: boolean } {
+  const sumQuantities = items.reduce((sum, item) => sum + item.quantity, 0);
+  const itemCount = explicitTotal ?? sumQuantities;
+  const isTruncated = explicitTotal !== undefined && sumQuantities < explicitTotal;
+  return { itemCount, isTruncated };
+}
+
 function parseMobileCartItems(items?: MobileCartItem[]): CartItem[] {
   if (!items?.length) return [];
   return items.map(item => {
@@ -299,10 +323,13 @@ function parseMobileCart(cart: MobileCart): Cart {
     formatted: `$${savingsAmount.toFixed(2)}`,
   } : undefined;
 
+  const { itemCount, isTruncated } = calculateCartCounts(items, cart.itemCount?.total);
+
   return {
     id: cart.id ?? '',
     items,
-    itemCount: cart.itemCount?.total ?? items.reduce((sum, i) => sum + i.quantity, 0),
+    itemCount,
+    isTruncated,
     subtotal: parseMobileDisplayPrice(cart.priceWithoutTax?.subtotal),
     total: parseMobileDisplayPrice(cart.priceWithoutTax?.total),
     savings,
@@ -370,11 +397,13 @@ function parseCartResponse(response: GraphQLResponse<RawCartResponse>): CartResp
 
   if (Array.isArray(cart.items)) {
     const items = parseMobileCartItems(cart.items);
+    const { itemCount, isTruncated } = calculateCartCounts(items, cart.itemCount?.total);
     return {
       success: true,
       cart: {
         items,
-        itemCount: cart.itemCount?.total ?? items.reduce((sum, i) => sum + i.quantity, 0),
+        itemCount,
+        isTruncated,
         subtotal: cart.priceWithoutTax?.subtotal ? parseMobileDisplayPrice(cart.priceWithoutTax.subtotal) : undefined,
       },
     };
@@ -392,11 +421,15 @@ function parseCartResponse(response: GraphQLResponse<RawCartResponse>): CartResp
     imageUrl: item.productImage?.url,
   }));
 
+  // commerceItems path: no explicit total from server, so never truncated
+  const { itemCount, isTruncated } = calculateCartCounts(items);
+
   return {
     success: true,
     cart: {
       items,
-      itemCount: items.reduce((sum, i) => sum + i.quantity, 0),
+      itemCount,
+      isTruncated,
       subtotal: cart.price?.subtotal ? {
         amount: cart.price.subtotal.amount ?? 0,
         formatted: cart.price.subtotal.formattedAmount ?? '',
@@ -470,10 +503,14 @@ function parseGetCartResponse(response: GraphQLResponse<RawCartEstimatedResponse
     formatted: `$${savingsAmount.toFixed(2)}`,
   } : undefined;
 
+  // commerceItems path: no explicit total from server, so never truncated
+  const { itemCount, isTruncated } = calculateCartCounts(items);
+
   return {
     id: cartV2.id ?? '',
     items,
-    itemCount: items.reduce((sum, i) => sum + i.quantity, 0),
+    itemCount,
+    isTruncated,
     subtotal: parseDisplayPrice(cartV2.price?.subtotal),
     total: parseDisplayPrice(cartV2.price?.total),
     tax: cartV2.price?.tax?.amount ? parseDisplayPrice(cartV2.price.tax) : undefined,
