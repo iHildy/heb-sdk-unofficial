@@ -6,7 +6,7 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { HEBClient, HEBCookies, HEBSession, Product } from 'heb-client';
+import type { HEBClient, HEBCookies, HEBSession, Product, OrderHistoryResponse, OrderDetailsResponse } from 'heb-client';
 import { z } from 'zod';
 import { getSessionStatus, saveSessionToFile } from './session.js';
 
@@ -26,53 +26,6 @@ type ToolOptions = {
   sessionStatusSource?: string;
 };
 
-type OrderHistoryResponse = {
-  pageProps?: {
-    orders?: Array<{
-      orderId: string;
-      orderStatusMessageShort?: string;
-      orderTimeslot?: {
-        startTime?: string;
-        startDateTime?: string;
-        formattedStartTime?: string;
-        formattedEndTime?: string;
-        formattedDate?: string;
-      };
-      totalPrice?: { formattedAmount?: string };
-    }>;
-  };
-};
-
-type OrderDetailsResponse = {
-  page?: {
-    pageProps?: {
-      order?: {
-        orderId?: string;
-        status?: string;
-        items?: Array<{
-          id: string;
-          name: string;
-          quantity: number;
-          price: string;
-          unitPrice: number;
-          image?: string;
-        }>;
-        priceDetails?: { total?: { formattedAmount?: string } };
-        orderTimeslot?: {
-          startDateTime?: string;
-          endDateTime?: string;
-          formattedStartTime?: string;
-          formattedEndTime?: string;
-          formattedDate?: string;
-        };
-      };
-    };
-  };
-};
-
-/**
- * Helper to require a valid client, returning an error response if missing.
- */
 function requireClient(getClient: ClientGetter): { client: HEBClient } | { error: { content: [{ type: 'text'; text: string }]; isError: true } } {
   const client = getClient();
   if (!client) {
@@ -474,7 +427,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
-        const history = await client.getOrders({ page }) as OrderHistoryResponse;
+        const history = await client.getOrders({ page });
         const orders = history.pageProps?.orders ?? [];
 
         if (orders.length === 0) {
@@ -519,7 +472,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       const { client } = result;
 
       try {
-        const order = await client.getOrder(order_id) as OrderDetailsResponse;
+        const order = await client.getOrder(order_id);
         const pageOrder = order.page?.pageProps?.order;
 
         // Use normalized items from SDK (prices already in dollars, not cents)
