@@ -1,12 +1,17 @@
 /**
  * Curbside pickup slot operations.
- * 
+ *
  * @module curbside
  */
 
-import { persistedQuery } from './api.js';
-import type { HEBSession, ReserveTimeslotVariables } from './types.js';
-import { formatExpiryTime } from './utils.js';
+import { persistedQuery } from "./api.js";
+import type { HEBSession, ReserveTimeslotVariables } from "./types.js";
+import {
+  formatExpiryTime,
+  formatSlotTime,
+  formatSlotDate,
+  getLocalDateString,
+} from "./utils.js";
 
 /**
  * A curbside pickup time slot.
@@ -16,6 +21,10 @@ export interface CurbsideSlot {
   date: Date;
   startTime: string;
   endTime: string;
+  formattedStartTime: string;
+  formattedEndTime: string;
+  formattedDate: string;
+  localDate: string; // YYYY-MM-DD format
   fee: number;
   isAvailable: boolean;
   raw?: any;
@@ -49,24 +58,24 @@ export interface ReserveCurbsideSlotResult {
 
 /**
  * Get available curbside pickup slots for a store.
- * 
+ *
  * @param session - Active HEB session
  * @param options - Slot options with storeNumber
  * @returns Available curbside pickup slots
  */
 export async function getCurbsideSlots(
   session: HEBSession,
-  options: GetCurbsideSlotsOptions
+  options: GetCurbsideSlotsOptions,
 ): Promise<CurbsideSlot[]> {
   const { storeNumber, days = 14 } = options;
 
   const response = await persistedQuery<{ listPickupTimeslotsV2: any }>(
     session,
-    'listPickupTimeslotsV2',
+    "listPickupTimeslotsV2",
     {
       storeNumber: Number(storeNumber),
       limit: days > 0 ? 2147483647 : 14, // HEB uses max int for "all slots"
-    }
+    },
   );
 
   if (response.errors) {
@@ -74,10 +83,10 @@ export async function getCurbsideSlots(
   }
 
   const result = response.data?.listPickupTimeslotsV2;
-  
+
   // Handle different response types
-  if (result?.__typename === 'TimeslotsStandardErrorV2') {
-    throw new Error(result.message || 'Failed to fetch curbside slots');
+  if (result?.__typename === "TimeslotsStandardErrorV2") {
+    throw new Error(result.message || "Failed to fetch curbside slots");
   }
 
   const slotsByDay = result?.slotsByDay;
@@ -86,23 +95,37 @@ export async function getCurbsideSlots(
   }
 
   const slots: CurbsideSlot[] = [];
-  
+
   for (const day of slotsByDay) {
     // Each day has slotsByGroup which contains groups like "Morning", "Afternoon", etc.
     const slotsByGroup = day.slotsByGroup || [];
-    
+
     for (const group of slotsByGroup) {
       if (group.slots && Array.isArray(group.slots)) {
         for (const slot of group.slots) {
-          const isFull = typeof slot.isFull === 'boolean' ? slot.isFull : day.isFull;
+          const isFull =
+            typeof slot.isFull === "boolean" ? slot.isFull : day.isFull;
+          const startTimeRaw = slot.start || "";
+          const endTimeRaw = slot.end || "";
+
+          const localDate = startTimeRaw
+            ? getLocalDateString(startTimeRaw)
+            : day.date;
+
           slots.push({
             slotId: slot.id,
-            date: new Date(day.date),
-            startTime: slot.start || '',
-            endTime: slot.end || '',
+            date: new Date(startTimeRaw || day.date),
+            startTime: startTimeRaw,
+            endTime: endTimeRaw,
+            formattedStartTime: startTimeRaw
+              ? formatSlotTime(startTimeRaw)
+              : "",
+            formattedEndTime: endTimeRaw ? formatSlotTime(endTimeRaw) : "",
+            formattedDate: startTimeRaw ? formatSlotDate(startTimeRaw) : "",
+            localDate,
             fee: slot.totalPrice?.amount || 0,
             isAvailable: isFull === undefined ? true : !isFull,
-            raw: slot
+            raw: slot,
           });
         }
       }
@@ -114,7 +137,7 @@ export async function getCurbsideSlots(
 
 /**
  * Reserve a curbside pickup slot.
- * 
+ *
  * @param session - Active HEB session
  * @param slotId - Slot ID to reserve
  * @param date - Date of the slot (YYYY-MM-DD)
@@ -125,13 +148,12 @@ export async function reserveCurbsideSlot(
   session: HEBSession,
   slotId: string,
   date: string,
-  storeId: string
+  storeId: string,
 ): Promise<ReserveCurbsideSlotResult> {
-  
   const variables: ReserveTimeslotVariables = {
     id: slotId,
     date,
-    fulfillmentType: 'PICKUP',
+    fulfillmentType: "PICKUP",
     pickupStoreId: storeId,
     ignoreCartConflicts: false,
     storeId: parseInt(storeId, 10),
@@ -140,40 +162,42 @@ export async function reserveCurbsideSlot(
 
   const response = await persistedQuery<{ reserveTimeslotV3: any }>(
     session,
-    'ReserveTimeslot',
-    session.authMode === 'bearer'
+    "ReserveTimeslot",
+    session.authMode === "bearer"
       ? {
           fulfillmentPickup: { pickupStoreId: String(storeId) },
-          fulfillmentType: 'PICKUP',
+          fulfillmentType: "PICKUP",
           ignoreCartConflicts: false,
           includeTax: false,
           isAuthenticated: true,
           storeId: parseInt(storeId, 10),
           timeslot: { date, id: slotId },
         }
-      : (variables as any)
+      : (variables as any),
   );
-  
+
   if (response.errors) {
     throw new Error(`GraphQL error: ${JSON.stringify(response.errors)}`);
   }
-  
+
   const result = response.data?.reserveTimeslotV3;
   if (!result) {
-    throw new Error('No data returned from reserveTimeslotV3');
+    throw new Error("No data returned from reserveTimeslotV3");
   }
 
   // Check for error response type
-  if (result.__typename === 'ReserveTimeslotErrorV3') {
-    throw new Error(result.message || 'Failed to reserve slot');
+  if (result.__typename === "ReserveTimeslotErrorV3") {
+    throw new Error(result.message || "Failed to reserve slot");
   }
 
   // Extract expiry from the timeslot in the response
   const timeslot = result.timeslot;
   const expiresAt = timeslot?.expiry || timeslot?.expiryDateTime;
-  const expiresAtFormatted = expiresAt ? formatExpiryTime(expiresAt) : undefined;
-  const deadlineMessage = expiresAtFormatted 
-    ? `Place your order by ${expiresAtFormatted} to keep this time` 
+  const expiresAtFormatted = expiresAt
+    ? formatExpiryTime(expiresAt)
+    : undefined;
+  const deadlineMessage = expiresAtFormatted
+    ? `Place your order by ${expiresAtFormatted} to keep this time`
     : undefined;
 
   return {
@@ -182,6 +206,6 @@ export async function reserveCurbsideSlot(
     expiresAt,
     expiresAtFormatted,
     deadlineMessage,
-    raw: result
+    raw: result,
   };
 }

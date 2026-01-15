@@ -5,17 +5,90 @@
  */
 
 /**
+ * HEB operates in Central Time (Texas). All slot times should be displayed
+ * in this timezone for consistency with HEB's in-store experience.
+ */
+export const HEB_TIMEZONE = 'America/Chicago';
+
+/**
+ * Format an ISO date string to a 12-hour time in HEB's timezone (e.g., "8:00pm").
+ * 
+ * @param isoString - ISO 8601 timestamp (e.g., "2026-01-15T02:00:00Z")
+ * @returns Formatted time string in Central Time (e.g., "8:00pm")
+ */
+export function formatSlotTime(isoString: string): string {
+  const date = new Date(isoString);
+  return date.toLocaleTimeString('en-US', {
+    timeZone: HEB_TIMEZONE,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).toLowerCase().replace(' ', '');
+}
+
+/**
+ * Format an ISO date string to a human-readable date in HEB's timezone.
+ * 
+ * @param isoString - ISO 8601 timestamp (e.g., "2026-01-15T02:00:00Z")
+ * @returns Formatted date string (e.g., "Wednesday, Jan 14")
+ */
+export function formatSlotDate(isoString: string): string {
+  const date = new Date(isoString);
+  return date.toLocaleDateString('en-US', {
+    timeZone: HEB_TIMEZONE,
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/**
+ * Format an ISO date string to a short date in HEB's timezone (e.g., "1/14/2026").
+ * 
+ * @param isoString - ISO 8601 timestamp
+ * @returns Formatted short date string
+ */
+export function formatSlotDateShort(isoString: string): string {
+  const date = new Date(isoString);
+  return date.toLocaleDateString('en-US', {
+    timeZone: HEB_TIMEZONE,
+    month: 'numeric',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Get the date portion (YYYY-MM-DD) from an ISO timestamp in HEB's timezone.
+ * This is useful for grouping slots by local date rather than UTC date.
+ * 
+ * @param isoString - ISO 8601 timestamp
+ * @returns Date string in YYYY-MM-DD format (in Central Time)
+ */
+export function getLocalDateString(isoString: string): string {
+  const date = new Date(isoString);
+  // Use Intl to get date parts in the correct timezone
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: HEB_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  
+  const year = parts.find(p => p.type === 'year')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Format an ISO date string to a 12-hour time (e.g., "3:40pm").
- * Handles timezones based on the input string.
+ * Uses HEB's timezone for consistent display.
+ * 
+ * @deprecated Use formatSlotTime instead for slot-related formatting
  */
 export function formatExpiryTime(isoString: string): string {
-  const date = new Date(isoString);
-  let hours = date.getHours();
-  const minutes = date.getMinutes();
-  const ampm = hours >= 12 ? 'pm' : 'am';
-  hours = hours % 12 || 12; // Convert 0 to 12 for 12-hour format
-  const minuteStr = minutes.toString().padStart(2, '0');
-  return `${hours}:${minuteStr}${ampm}`;
+  return formatSlotTime(isoString);
 }
 
 /**

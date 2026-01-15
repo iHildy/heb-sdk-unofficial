@@ -1,12 +1,17 @@
 /**
  * Delivery slot operations.
- * 
+ *
  * @module delivery
  */
 
-import { persistedQuery } from './api.js';
-import type { Address, HEBSession, ReserveTimeslotVariables } from './types.js';
-import { formatExpiryTime } from './utils.js';
+import { persistedQuery } from "./api.js";
+import type { Address, HEBSession, ReserveTimeslotVariables } from "./types.js";
+import {
+  formatExpiryTime,
+  formatSlotTime,
+  formatSlotDate,
+  getLocalDateString,
+} from "./utils.js";
 
 /**
  * A delivery time slot.
@@ -16,6 +21,10 @@ export interface DeliverySlot {
   date: Date;
   startTime: string;
   endTime: string;
+  formattedStartTime: string;
+  formattedEndTime: string;
+  formattedDate: string;
+  localDate: string; // YYYY-MM-DD format
   fee: number;
   isAvailable: boolean;
   raw?: any; // To store extra data if needed for reservation
@@ -51,30 +60,28 @@ export interface ReserveSlotResult {
 
 /**
  * Get available delivery slots.
- * 
+ *
  * @param session - Active HEB session
  * @param options - Slot options
  * @returns Available delivery slots
  */
 export async function getDeliverySlots(
   session: HEBSession,
-  options: GetDeliverySlotsOptions = {}
+  options: GetDeliverySlotsOptions = {},
 ): Promise<DeliverySlot[]> {
   const { address, days = 14 } = options;
 
   if (!address) {
-    throw new Error('Address is required to fetch delivery slots');
+    throw new Error("Address is required to fetch delivery slots");
   }
-
-
 
   const response = await persistedQuery<{ listDeliveryTimeslotsV2: any }>(
     session,
-    'listDeliveryTimeslotsV2',
+    "listDeliveryTimeslotsV2",
     {
       address,
-      limit: days, 
-    }
+      limit: days,
+    },
   );
 
   if (response.errors) {
@@ -87,19 +94,30 @@ export async function getDeliverySlots(
   }
 
   const slots: DeliverySlot[] = [];
-  
+
   for (const day of slotsByDay) {
     if (day.slots && Array.isArray(day.slots)) {
       for (const slot of day.slots) {
-         slots.push({
-           slotId: slot.id,
-           date: new Date(day.date),
-           startTime: slot.startTime || slot.start,
-           endTime: slot.endTime || slot.end,
-           fee: slot.totalPrice?.amount || 0,
-           isAvailable: !slot.isFull, 
-           raw: slot
-         });
+        const startTimeRaw = slot.startTime || slot.start || "";
+        const endTimeRaw = slot.endTime || slot.end || "";
+
+        const localDate = startTimeRaw
+          ? getLocalDateString(startTimeRaw)
+          : day.date;
+
+        slots.push({
+          slotId: slot.id,
+          date: new Date(startTimeRaw || day.date),
+          startTime: startTimeRaw,
+          endTime: endTimeRaw,
+          formattedStartTime: startTimeRaw ? formatSlotTime(startTimeRaw) : "",
+          formattedEndTime: endTimeRaw ? formatSlotTime(endTimeRaw) : "",
+          formattedDate: startTimeRaw ? formatSlotDate(startTimeRaw) : "",
+          localDate,
+          fee: slot.totalPrice?.amount || 0,
+          isAvailable: !slot.isFull,
+          raw: slot,
+        });
       }
     }
   }
@@ -109,7 +127,7 @@ export async function getDeliverySlots(
 
 /**
  * Reserve a delivery slot.
- * 
+ *
  * @param session - Active HEB session
  * @param slotId - Slot ID to reserve
  * @param date - Date of the slot (YYYY-MM-DD)
@@ -122,13 +140,12 @@ export async function reserveSlot(
   slotId: string,
   date: string,
   address: Address,
-  storeId: string
+  storeId: string,
 ): Promise<ReserveSlotResult> {
-  
   const variables: ReserveTimeslotVariables = {
     id: slotId,
     date,
-    fulfillmentType: 'DELIVERY',
+    fulfillmentType: "DELIVERY",
     deliveryAddress: address,
     ignoreCartConflicts: false,
     storeId: parseInt(storeId, 10),
@@ -137,33 +154,35 @@ export async function reserveSlot(
 
   const response = await persistedQuery<{ reserveTimeslotV3: any }>(
     session,
-    'ReserveTimeslot',
-    variables as any
+    "ReserveTimeslot",
+    variables as any,
   );
-  
+
   if (response.errors) {
     throw new Error(`GraphQL error: ${JSON.stringify(response.errors)}`);
   }
-  
+
   const result = response.data?.reserveTimeslotV3;
   if (!result) {
-      throw new Error('No data returned from reserveTimeslotV3');
+    throw new Error("No data returned from reserveTimeslotV3");
   }
 
   // Extract expiry from the timeslot in the response
   const timeslot = result.timeslot;
   const expiresAt = timeslot?.expiry || timeslot?.expiryDateTime;
-  const expiresAtFormatted = expiresAt ? formatExpiryTime(expiresAt) : undefined;
-  const deadlineMessage = expiresAtFormatted 
-    ? `Place your order by ${expiresAtFormatted} to keep this time` 
+  const expiresAtFormatted = expiresAt
+    ? formatExpiryTime(expiresAt)
+    : undefined;
+  const deadlineMessage = expiresAtFormatted
+    ? `Place your order by ${expiresAtFormatted} to keep this time`
     : undefined;
 
   return {
     success: true,
-    orderId: result.id, 
+    orderId: result.id,
     expiresAt,
     expiresAtFormatted,
     deadlineMessage,
-    raw: result
+    raw: result,
   };
 }

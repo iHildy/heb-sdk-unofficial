@@ -8,6 +8,7 @@ import type { GraphQLResponse } from './api.js';
 import { persistedQuery } from './api.js';
 import { getShoppingMode, resolveShoppingContext } from './session.js';
 import type { HEBSession } from './types.js';
+import { formatSlotTime, formatSlotDate } from './utils.js';
 
 /**
  * Raw order object from order history list.
@@ -32,6 +33,9 @@ export interface RawHistoryOrder {
     endTime?: string;
     startDateTime?: string;
     endDateTime?: string;
+    formattedStartTime?: string;
+    formattedEndTime?: string;
+    formattedDate?: string;
     __typename?: string;
   };
   totalPrice?: {
@@ -89,6 +93,9 @@ export interface OrderDetailsPageOrder {
   orderTimeslot?: {
     startDateTime?: string;
     endDateTime?: string;
+    formattedStartTime?: string;
+    formattedEndTime?: string;
+    formattedDate?: string;
   };
   [key: string]: unknown;
 }
@@ -237,12 +244,24 @@ function normalizeHistoryOrder(order: any): RawHistoryOrder {
     order?.grandTotal?.formattedAmount ??
     order?.price?.total?.formattedAmount;
 
+  const orderTimeslot = order?.orderTimeslot ?? {};
+  const startTime = orderTimeslot?.startTime ?? orderTimeslot?.startDateTime;
+  const endTime = orderTimeslot?.endTime ?? orderTimeslot?.endDateTime;
+
   // Ensure totalPrice exists with the found amount
   return {
     ...order,
     totalPrice: {
       ...totalPrice,
       formattedAmount,
+    },
+    orderTimeslot: {
+      ...orderTimeslot,
+      startTime,
+      endTime,
+      formattedStartTime: startTime ? formatSlotTime(startTime) : undefined,
+      formattedEndTime: endTime ? formatSlotTime(endTime) : undefined,
+      formattedDate: startTime ? formatSlotDate(startTime) : undefined,
     }
   };
 }
@@ -257,6 +276,9 @@ function normalizeOrderDetails(order: any): OrderDetailsPageOrder {
   const rawItems = order?.orderItems ?? [];
   const items: OrderDetailsItem[] = rawItems.map(normalizeOrderItem);
 
+  const startTime = orderTimeslot?.startDateTime ?? orderTimeslot?.startTime;
+  const endTime = orderTimeslot?.endDateTime ?? orderTimeslot?.endTime;
+
   return {
     orderId: order?.orderId ?? '',
     status: order?.status ?? order?.orderStatusMessageShort ?? '',
@@ -264,8 +286,11 @@ function normalizeOrderDetails(order: any): OrderDetailsPageOrder {
     fulfillmentType: order?.fulfillmentType,
     orderPlacedOnDateTime: order?.orderPlacedOnDateTime ?? order?.orderPlacedOn,
     orderTimeslot: {
-      startDateTime: orderTimeslot?.startDateTime ?? orderTimeslot?.startTime,
-      endDateTime: orderTimeslot?.endDateTime ?? orderTimeslot?.endTime,
+      startDateTime: startTime,
+      endDateTime: endTime,
+      formattedStartTime: startTime ? formatSlotTime(startTime) : undefined,
+      formattedEndTime: endTime ? formatSlotTime(endTime) : undefined,
+      formattedDate: startTime ? formatSlotDate(startTime) : undefined,
     },
     priceDetails: {
       subtotal: priceDetails?.subtotal ?? totalPrice?.subtotal,

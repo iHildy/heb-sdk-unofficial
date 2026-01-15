@@ -23,7 +23,13 @@ type OrderHistoryResponse = {
     orders?: Array<{
       orderId: string;
       orderStatusMessageShort?: string;
-      orderTimeslot?: { startTime?: string; startDateTime?: string };
+      orderTimeslot?: {
+        startTime?: string;
+        startDateTime?: string;
+        formattedStartTime?: string;
+        formattedEndTime?: string;
+        formattedDate?: string;
+      };
       totalPrice?: { formattedAmount?: string };
     }>;
   };
@@ -44,6 +50,13 @@ type OrderDetailsResponse = {
           image?: string;
         }>;
         priceDetails?: { total?: { formattedAmount?: string } };
+        orderTimeslot?: {
+          startDateTime?: string;
+          endDateTime?: string;
+          formattedStartTime?: string;
+          formattedEndTime?: string;
+          formattedDate?: string;
+        };
       };
     };
   };
@@ -467,11 +480,12 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
         }
 
         const formatted = orders.map(order => {
-          const orderDate = order.orderTimeslot?.startTime ?? order.orderTimeslot?.startDateTime;
-          const dateText = orderDate ? new Date(orderDate).toLocaleDateString() : 'Unknown date';
+          const ts = order.orderTimeslot;
+          const timeRange = ts?.formattedStartTime ? ` (${ts.formattedStartTime} - ${ts.formattedEndTime})` : '';
+          const dateText = ts?.formattedDate ?? (ts?.startTime ? new Date(ts.startTime).toLocaleDateString() : 'Unknown date');
           const totalText = order.totalPrice?.formattedAmount ?? (order as any)?.priceDetails?.total?.formattedAmount ?? 'Unknown total';
           const statusText = order.orderStatusMessageShort ?? (order as any)?.status ?? 'Unknown status';
-          return `* Order ID: ${order.orderId} - Date: ${dateText} - Total: ${totalText} (${statusText})`;
+          return `* Order ID: ${order.orderId} - Date: ${dateText}${timeRange} - Total: ${totalText} (${statusText})`;
         }).join('\n');
 
         return {
@@ -515,10 +529,14 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
         const orderIdText = pageOrder?.orderId ?? order_id;
         const statusText = pageOrder?.status ?? 'Unknown status';
         const totalText = pageOrder?.priceDetails?.total?.formattedAmount ?? 'Unknown total';
+        
+        const ts = pageOrder?.orderTimeslot;
+        const timeText = ts?.formattedDate ? `${ts.formattedDate} (${ts.formattedStartTime} - ${ts.formattedEndTime})` : 'Unknown';
 
         const details = [
           `**Order ${orderIdText}**`,
           `Status: ${statusText}`,
+          `Date/Time: ${timeText}`,
           `Total: ${totalText}`,
           items ? `Items:\n${items}` : 'Items: No items found.'
         ].join('\n');
@@ -741,8 +759,9 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
 
         const formatted = slots.map((s: any) => {
           const status = s.isAvailable ? 'AVAILABLE' : 'FULL';
-          const fee = s.fee > 0 ? `$${s.fee.toFixed(2)}` : 'FREE';
-          return `- [${status}] ${s.date.toLocaleDateString()} ${s.startTime} - ${s.endTime} (${fee}) (ID: ${s.slotId})`;
+          const fee = s.fee > 0 ? `${s.fee.toFixed(2)}` : 'FREE';
+          const timeRange = `${s.formattedStartTime} - ${s.formattedEndTime}`;
+          return `- [${status}] ${s.formattedDate} (${s.localDate}) ${timeRange} (${fee}) (ID: ${s.slotId}) [UTC: ${s.startTime}]`;
         }).join('\n');
 
         return {
@@ -838,8 +857,9 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
 
         const formatted = slots.map((s: any) => {
           const status = s.isAvailable ? 'AVAILABLE' : 'FULL';
-          const fee = s.fee > 0 ? `$${s.fee.toFixed(2)}` : 'FREE';
-          return `- [${status}] ${s.date.toLocaleDateString()} ${s.startTime} - ${s.endTime} (${fee}) (ID: ${s.slotId})`;
+          const fee = s.fee > 0 ? `${s.fee.toFixed(2)}` : 'FREE';
+          const timeRange = `${s.formattedStartTime} - ${s.formattedEndTime}`;
+          return `- [${status}] ${s.formattedDate} (${s.localDate}) ${timeRange} (${fee}) (ID: ${s.slotId}) [UTC: ${s.startTime}]`;
         }).join('\n');
 
         return {
