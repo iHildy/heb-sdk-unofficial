@@ -1,7 +1,6 @@
 import { getAccountDetails, type AccountDetails } from './account.js';
 import { addToCart, getCart, quickAdd, removeFromCart, updateCartItem, type Cart, type CartResponse } from './cart.js';
-import { getCurbsideSlots, reserveCurbsideSlot, type CurbsideSlot, type GetCurbsideSlotsOptions, type ReserveCurbsideSlotResult } from './curbside.js';
-import { getDeliverySlots, reserveSlot, type DeliverySlot, type GetDeliverySlotsOptions, type ReserveSlotResult } from './delivery.js';
+import { getCurbsideSlots, getDeliverySlots, reserveSlot, type FulfillmentSlot, type ReserveSlotResult } from './fulfillment.js';
 import { getHomepage, type HomepageData } from './homepage.js';
 import { getOrder, getOrders, type GetOrdersOptions, type OrderDetailsResponse, type OrderHistoryResponse } from './orders.js';
 import { getProductDetails, getProductImageUrl, getProductSkuId, type Product, type GetProductOptions } from './product.js';
@@ -318,7 +317,7 @@ export class HEBClient {
   /**
    * Get available delivery slots.
    */
-  async getDeliverySlots(options: GetDeliverySlotsOptions = {}): Promise<DeliverySlot[]> {
+  async getDeliverySlots(options: { address: Address; days?: number }): Promise<FulfillmentSlot[]> {
     return getDeliverySlots(this.session, options);
   }
 
@@ -331,7 +330,13 @@ export class HEBClient {
     address: Address, 
     storeId: string
   ): Promise<ReserveSlotResult> {
-    return reserveSlot(this.session, slotId, date, address, storeId);
+    return reserveSlot(this.session, {
+      slotId,
+      date,
+      address,
+      storeId,
+      fulfillmentType: 'DELIVERY'
+    });
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -346,7 +351,7 @@ export class HEBClient {
    * const slots = await heb.getCurbsideSlots({ storeNumber: 790 });
    * slots.forEach(s => console.log(`${s.date.toLocaleDateString()} ${s.startTime}-${s.endTime}`));
    */
-  async getCurbsideSlots(options: GetCurbsideSlotsOptions): Promise<CurbsideSlot[]> {
+  async getCurbsideSlots(options: { storeNumber: number; days?: number }): Promise<FulfillmentSlot[]> {
     return getCurbsideSlots(this.session, options);
   }
 
@@ -361,8 +366,13 @@ export class HEBClient {
     slotId: string,
     date: string,
     storeId: string
-  ): Promise<ReserveCurbsideSlotResult> {
-    return reserveCurbsideSlot(this.session, slotId, date, storeId);
+  ): Promise<ReserveSlotResult> {
+    return reserveSlot(this.session, {
+      slotId,
+      date,
+      storeId,
+      fulfillmentType: 'PICKUP'
+    });
   }
 
   // ─────────────────────────────────────────────────────────────
