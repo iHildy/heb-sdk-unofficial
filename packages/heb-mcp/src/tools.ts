@@ -505,9 +505,9 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
         const pageOrder = order.page?.pageProps?.order;
 
         // Use normalized items from SDK (prices already in dollars, not cents)
-        const normalizedItems = (pageOrder as any)?.items ?? [];
+        const normalizedItems = pageOrder?.items ?? [];
         const items = normalizedItems.length > 0
-          ? normalizedItems.map((item: any) =>
+          ? normalizedItems.map((item) =>
               `- ${item.name} (Qty: ${item.quantity}, Price: ${item.price}) (ID: ${item.id})`
             ).join('\n')
           : '';
