@@ -718,7 +718,8 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           const status = s.isAvailable ? 'AVAILABLE' : 'FULL';
           const fee = s.fee > 0 ? `${s.fee.toFixed(2)}` : 'FREE';
           const timeRange = `${s.formattedStartTime} - ${s.formattedEndTime}`;
-          return `- [${status}] ${s.formattedDate} (${s.localDate}) ${timeRange} (${fee}) (ID: ${s.slotId}) [UTC: ${s.startTime}]`;
+          const utc = client.session.debug ? ` [UTC: ${s.startTime}]` : '';
+          return `- [${status}] ${s.formattedDate} (${s.localDate}) ${timeRange} (${fee}) (ID: ${s.slotId})${utc}`;
         }).join('\n');
 
         return {
@@ -816,7 +817,8 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           const status = s.isAvailable ? 'AVAILABLE' : 'FULL';
           const fee = s.fee > 0 ? `${s.fee.toFixed(2)}` : 'FREE';
           const timeRange = `${s.formattedStartTime} - ${s.formattedEndTime}`;
-          return `- [${status}] ${s.formattedDate} (${s.localDate}) ${timeRange} (${fee}) (ID: ${s.slotId}) [UTC: ${s.startTime}]`;
+          const utc = client.session.debug ? ` [UTC: ${s.startTime}]` : '';
+          return `- [${status}] ${s.formattedDate} (${s.localDate}) ${timeRange} (${fee}) (ID: ${s.slotId})${utc}`;
         }).join('\n');
 
         return {
