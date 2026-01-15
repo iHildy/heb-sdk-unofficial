@@ -599,12 +599,22 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
 
   server.tool(
     'get_homepage',
-    'Get the H-E-B homepage content including banners, promotions, deals, and featured products. Use options to filter/limit results.',
+    `Get the H-E-B homepage content including banners, promotions, deals, and featured products.
+
+⚠️ WARNING: This tool returns VERY LONG output by default (300+ products, 25+ sections with 30 items each).
+BEFORE calling this tool without filters, STOP and ask the user what they want to see. Suggest options like:
+- "Show me just the product carousels" (only_titled: true, include_types: "Carousel")
+- "What sections are available?" (items_per_section: 0)
+- "Show me deals/savings sections" (include_types: "off,FREE,$")
+- "Just show me 5 items per section" (items_per_section: 5)
+- "Show everything" (no filters - will be very long)
+
+Only call without filters if the user explicitly requests full/unfiltered homepage content.`,
     {
       max_sections: z.number().min(1).optional().describe('Maximum number of content sections to return'),
       items_per_section: z.number().min(0).optional().describe('Maximum items per section (0 = no items, just section headers)'),
-      include_types: z.string().optional().describe('Comma-separated section types to include (e.g., "carousel,banner"). Partial match.'),
-      exclude_types: z.string().optional().describe('Comma-separated section types to exclude (e.g., "legalText,NativeExm"). Partial match.'),
+      include_types: z.string().optional().describe('Comma-separated section types to include (e.g., "Carousel,banner"). Partial match.'),
+      exclude_types: z.string().optional().describe('Comma-separated section types to exclude (e.g., "legalText,NativeExm,Static"). Partial match.'),
       only_titled: z.boolean().optional().describe('Only include sections that have a title (default: false)'),
       hide_banners: z.boolean().optional().describe('Hide the top-level banners array (default: false)'),
       hide_promotions: z.boolean().optional().describe('Hide the top-level promotions array (default: false)'),
@@ -629,49 +639,39 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
 
         const parts: string[] = ['**H-E-B Homepage**'];
 
-        // Banners
+        // Banners - show all (already limited by SDK if items_per_section was set)
         if (homepage.banners.length > 0) {
           parts.push(`\n**Banners (${homepage.banners.length}):**`);
-          homepage.banners.slice(0, 5).forEach((b, i) => {
+          homepage.banners.forEach((b, i) => {
             parts.push(`${i + 1}. ${b.title ?? 'Untitled'}${b.linkUrl ? ` - ${b.linkUrl}` : ''}`);
           });
-          if (homepage.banners.length > 5) {
-            parts.push(`... and ${homepage.banners.length - 5} more`);
-          }
         }
 
-        // Promotions
+        // Promotions - show all
         if (homepage.promotions.length > 0) {
           parts.push(`\n**Promotions (${homepage.promotions.length}):**`);
-          homepage.promotions.slice(0, 5).forEach((p, i) => {
+          homepage.promotions.forEach((p, i) => {
             parts.push(`${i + 1}. ${p.title}${p.description ? ` - ${p.description}` : ''}`);
           });
-          if (homepage.promotions.length > 5) {
-            parts.push(`... and ${homepage.promotions.length - 5} more`);
-          }
         }
 
-        // Featured Products
+        // Featured Products - show all
         if (homepage.featuredProducts.length > 0) {
           parts.push(`\n**Featured Products (${homepage.featuredProducts.length}):**`);
-          homepage.featuredProducts.slice(0, 5).forEach((p, i) => {
+          homepage.featuredProducts.forEach((p, i) => {
             const price = p.priceFormatted ?? '';
             parts.push(`${i + 1}. ${p.name}${p.brand ? ` (${p.brand})` : ''} ${price} (ID: ${p.productId})`);
           });
-          if (homepage.featuredProducts.length > 5) {
-            parts.push(`... and ${homepage.featuredProducts.length - 5} more`);
-          }
         }
 
-        // Sections with content
+        // Sections with content - show all items (SDK already limits via items_per_section)
         if (homepage.sections.length > 0) {
           parts.push(`\n**Content Sections (${homepage.sections.length}):**`);
           homepage.sections.forEach((s, i) => {
             parts.push(`\n${i + 1}. **${s.title ?? s.type}** (${s.itemCount} items)`);
             
             if (s.items && s.items.length > 0) {
-              // Show up to 10 items per section
-              s.items.slice(0, 10).forEach(item => {
+              s.items.forEach(item => {
                 let itemText = '';
                 
                 // Check for product
@@ -688,18 +688,12 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
                 }
                 // Fallback
                 else {
-                   // item can be HomepageBanner (has title), HomepagePromotion (has title), 
-                   // HomepageFeaturedProduct (has name), or Generic (has name)
                    const anyItem = item as any;
                    itemText = anyItem.name ?? anyItem.title ?? anyItem.text ?? 'Unknown Item';
                 }
 
                 parts.push(`   - ${itemText}`);
               });
-
-              if (s.items.length > 10) {
-                parts.push(`   - ... and ${s.items.length - 10} more`);
-              }
             }
           });
         }
