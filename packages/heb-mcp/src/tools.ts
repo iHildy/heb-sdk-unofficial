@@ -35,23 +35,15 @@ type OrderDetailsResponse = {
       order?: {
         orderId?: string;
         status?: string;
+        items?: Array<{
+          id: string;
+          name: string;
+          quantity: number;
+          price: string;
+          unitPrice: number;
+          image?: string;
+        }>;
         priceDetails?: { total?: { formattedAmount?: string } };
-      };
-    };
-  };
-  graphql?: {
-    data?: {
-      orderDetailsRequest?: {
-        order?: {
-          orderId?: string;
-          status?: string;
-          priceDetails?: { total?: { formattedAmount?: string } };
-          orderItems?: Array<{
-            quantity: number;
-            product: { id: string; fullDisplayName: string };
-            totalUnitPrice?: { amount?: number };
-          }>;
-        };
       };
     };
   };
@@ -511,21 +503,18 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       try {
         const order = await client.getOrder(order_id) as OrderDetailsResponse;
         const pageOrder = order.page?.pageProps?.order;
-        const graphOrder = order.graphql?.data?.orderDetailsRequest?.order;
 
-        const items = (graphOrder?.orderItems ?? []).map(item => {
-          const price = typeof item.totalUnitPrice?.amount === 'number'
-            ? `$${(item.totalUnitPrice.amount / 100).toFixed(2)}`
-            : 'Unknown price';
-          const name = item.product.fullDisplayName ?? (item.product as any).displayName ?? (item.product as any).name ?? 'Unknown item';
-          return `- ${name} (Qty: ${item.quantity}, Price: ${price}) (ID: ${item.product.id})`;
-        }).join('\n');
+        // Use normalized items from SDK (prices already in dollars, not cents)
+        const normalizedItems = pageOrder?.items ?? [];
+        const items = normalizedItems.length > 0
+          ? normalizedItems.map((item) =>
+              `- ${item.name} (Qty: ${item.quantity}, Price: ${item.price}) (ID: ${item.id})`
+            ).join('\n')
+          : '';
 
-        const orderIdText = pageOrder?.orderId ?? graphOrder?.orderId ?? order_id;
-        const statusText = pageOrder?.status ?? graphOrder?.status ?? (graphOrder as any)?.orderStatusMessageShort ?? 'Unknown status';
-        const totalText = pageOrder?.priceDetails?.total?.formattedAmount
-          ?? graphOrder?.priceDetails?.total?.formattedAmount
-          ?? 'Unknown total';
+        const orderIdText = pageOrder?.orderId ?? order_id;
+        const statusText = pageOrder?.status ?? 'Unknown status';
+        const totalText = pageOrder?.priceDetails?.total?.formattedAmount ?? 'Unknown total';
 
         const details = [
           `**Order ${orderIdText}**`,

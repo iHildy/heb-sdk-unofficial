@@ -83,6 +83,7 @@ export {
     getOrders,
     type GetOrdersOptions,
     type OrderDetailsGraphqlResponse,
+    type OrderDetailsItem,
     type OrderDetailsPageOrder,
     type OrderDetailsPageResponse,
     type OrderDetailsResponse,
