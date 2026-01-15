@@ -228,3 +228,27 @@ export async function getAccountDetails(
     addresses: rawAddresses.map(parseAddress),
   };
 }
+
+/**
+ * Format account details for display.
+ */
+export function formatAccountDetails(account: AccountDetails): string {
+  const addressList = account.addresses.length > 0
+    ? account.addresses.map((a, i) => {
+        const defaultTag = a.isDefault ? ' (Default)' : '';
+        const nickname = a.nickname ? ` "${a.nickname}"` : '';
+        return `${i + 1}.${nickname}${defaultTag} ${a.address1}${a.address2 ? `, ${a.address2}` : ''}, ${a.city}, ${a.state} ${a.postalCode}`;
+      }).join('\n')
+    : 'No saved addresses';
+
+  return [
+    `**Account Profile**`,
+    `Name: ${account.firstName} ${account.lastName}`,
+    `Email: ${account.email}`,
+    account.phone ? `Phone: ${account.phone}` : null,
+    account.dateOfBirth ? `Date of Birth: ${account.dateOfBirth}` : null,
+    account.memberSince ? `Member Since: ${account.memberSince}` : null,
+    account.loyaltyNumber ? `Loyalty #: ${account.loyaltyNumber}` : null,
+    `\n**Saved Addresses:**\n${addressList}`,
+  ].filter(Boolean).join('\n');
+}

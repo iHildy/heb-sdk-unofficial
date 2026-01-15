@@ -296,3 +296,41 @@ export async function reserveSlot(
     raw: result,
   };
 }
+
+/**
+ * Format delivery slots for display.
+ */
+export function formatDeliverySlots(slots: FulfillmentSlot[], debug = false): string {
+  if (slots.length === 0) {
+    return 'No delivery slots found.';
+  }
+
+  const formatted = slots.map((s) => {
+    const status = s.isAvailable ? 'AVAILABLE' : 'FULL';
+    const fee = s.fee > 0 ? `${s.fee.toFixed(2)}` : 'FREE';
+    const timeRange = `${s.formattedStartTime} - ${s.formattedEndTime}`;
+    const utc = debug ? ` [UTC: ${s.startTime}]` : '';
+    return `- [${status}] ${s.formattedDate} (${s.localDate}) ${timeRange} (${fee}) (ID: ${s.slotId})${utc}`;
+  }).join('\n');
+
+  return `Found ${slots.length} slots:\n\n${formatted}`;
+}
+
+/**
+ * Format curbside slots for display.
+ */
+export function formatCurbsideSlots(slots: FulfillmentSlot[], debug = false): string {
+  if (slots.length === 0) {
+    return 'No curbside pickup slots found.';
+  }
+
+  const formatted = slots.map((s) => {
+    const status = s.isAvailable ? 'AVAILABLE' : 'FULL';
+    const fee = s.fee > 0 ? `${s.fee.toFixed(2)}` : 'FREE';
+    const timeRange = `${s.formattedStartTime} - ${s.formattedEndTime}`;
+    const utc = debug ? ` [UTC: ${s.startTime}]` : '';
+    return `- [${status}] ${s.formattedDate} (${s.localDate}) ${timeRange} (${fee}) (ID: ${s.slotId})${utc}`;
+  }).join('\n');
+
+  return `Found ${slots.length} curbside slots:\n\n${formatted}`;
+}

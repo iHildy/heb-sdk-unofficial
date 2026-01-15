@@ -396,3 +396,51 @@ export async function getOrder(
     graphql: result,
   };
 }
+
+/**
+ * Format order history list for display.
+ */
+export function formatOrderHistory(orders: RawHistoryOrder[]): string {
+  if (orders.length === 0) {
+    return 'No past orders found.';
+  }
+
+  const formatted = orders.map(order => {
+    const ts = order.orderTimeslot;
+    const timeRange = ts?.formattedStartTime ? ` (${ts.formattedStartTime} - ${ts.formattedEndTime})` : '';
+    const dateText = ts?.formattedDate ?? (ts?.startTime ? new Date(ts.startTime).toLocaleDateString() : 'Unknown date');
+    const totalText = order.totalPrice?.formattedAmount ?? (order as any)?.priceDetails?.total?.formattedAmount ?? 'Unknown total';
+    const statusText = order.orderStatusMessageShort ?? (order as any)?.status ?? 'Unknown status';
+    return `* Order ID: ${order.orderId} - Date: ${dateText}${timeRange} - Total: ${totalText} (${statusText})`;
+  }).join('\n');
+
+  return `Found ${orders.length} past orders:\n\n${formatted}\n\nUse get_order_details(order_id) to see specific items.`;
+}
+
+/**
+ * Format full order details for display.
+ */
+export function formatOrderDetails(order: OrderDetailsPageOrder): string {
+  // Use normalized items from SDK (prices already in dollars, not cents)
+  const normalizedItems = order.items ?? [];
+  const items = normalizedItems.length > 0
+    ? normalizedItems.map((item) =>
+        `- ${item.name} (Qty: ${item.quantity}, Price: ${item.price}) (ID: ${item.id})`
+      ).join('\n')
+    : '';
+
+  const orderIdText = order.orderId;
+  const statusText = order.status ?? 'Unknown status';
+  const totalText = order.priceDetails?.total?.formattedAmount ?? 'Unknown total';
+  
+  const ts = order.orderTimeslot;
+  const timeText = ts?.formattedDate ? `${ts.formattedDate} (${ts.formattedStartTime} - ${ts.formattedEndTime})` : 'Unknown';
+
+  return [
+    `**Order ${orderIdText}**`,
+    `Status: ${statusText}`,
+    `Date/Time: ${timeText}`,
+    `Total: ${totalText}`,
+    items ? `Items:\n${items}` : 'Items: No items found.'
+  ].join('\n');
+}

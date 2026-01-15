@@ -332,3 +332,37 @@ export async function getShoppingList(
     })),
   };
 }
+
+/**
+ * Format shopping lists for display.
+ */
+export function formatShoppingLists(lists: ShoppingList[]): string {
+  if (lists.length === 0) {
+    return 'No shopping lists found.';
+  }
+
+  const formatted = lists.map((list, i) => {
+    const itemCount = list.itemCount ?? 0;
+    const updated = list.updatedAt ? ` (updated ${list.updatedAt.toLocaleDateString()})` : '';
+    return `${i + 1}. ${list.name} - ${itemCount} items${updated} (ID: ${list.id})`;
+  }).join('\n');
+
+  return `Found ${lists.length} shopping lists:\n\n${formatted}\n\nUse get_shopping_list(list_id) to see items.`;
+}
+
+/**
+ * Format a single shopping list with items for display.
+ */
+export function formatShoppingList(list: ShoppingListDetails): string {
+  if (list.items.length === 0) {
+    return `Shopping list "${list.name}" is empty.`;
+  }
+
+  const itemsList = list.items.map((item, i) => {
+    const priceStr = item.price?.total ? ` - $${item.price.total.toFixed(2)}` : '';
+    const checked = item.checked ? ' [x]' : ' [ ]';
+    return `${i + 1}.${checked} ${item.name}${priceStr} (ID: ${item.productId})`;
+  }).join('\n');
+
+  return `**${list.name}** (${list.items.length} items)\n\n${itemsList}`;
+}

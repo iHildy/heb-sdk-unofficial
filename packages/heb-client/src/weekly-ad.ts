@@ -301,3 +301,42 @@ export async function getWeeklyAdProducts(
     cursor: nextCursor,
   };
 }
+
+/**
+ * Format weekly ad products for display.
+ */
+export function formatWeeklyAd(adResults: WeeklyAdResult): string {
+  if (adResults.products.length === 0) {
+    return 'No products found in the weekly ad matching your filters.';
+  }
+
+  const productsList = adResults.products.map((p, i) => {
+    const price = p.priceText ? ` - ${p.priceText}` : '';
+    const savings = p.saleStory ? ` (${p.saleStory})` : '';
+    return `${i + 1}. ${p.name}${price}${savings} (ID: ${p.id}, UPC: ${p.upc ?? 'N/A'})`;
+  }).join('\n');
+
+  return [
+    `**Weekly Ad (${adResults.storeCode})**`,
+    adResults.validFrom && adResults.validTo ? `Valid: ${adResults.validFrom} to ${adResults.validTo}` : null,
+    `Showing ${adResults.products.length} of ${adResults.totalCount} products.`,
+    adResults.cursor ? `Next Cursor: ${adResults.cursor}` : null,
+    `\n${productsList}`,
+  ].filter(Boolean).join('\n');
+}
+
+/**
+ * Format weekly ad categories for display.
+ */
+export function formatWeeklyAdCategories(adResults: WeeklyAdResult): string {
+  const categoriesList = adResults.categories.map(c => 
+    `- ${c.name} (ID: ${c.id}) - ${c.count} items`
+  ).join('\n');
+
+  return [
+    `**Weekly Ad Categories (${adResults.storeCode})**`,
+    adResults.validFrom && adResults.validTo ? `Valid: ${adResults.validFrom} to ${adResults.validTo}` : null,
+    `Total Products: ${adResults.totalCount}`,
+    `\n**Available Categories:**\n${categoriesList || 'None'}`,
+  ].filter(Boolean).join('\n');
+}

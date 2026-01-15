@@ -6,19 +6,11 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { HEBClient, HEBCookies, HEBSession, Product, OrderHistoryResponse, OrderDetailsResponse } from 'heb-client';
+import { type HEBClient, type HEBCookies, type HEBSession, formatter } from 'heb-client';
 import { z } from 'zod';
 import { getSessionStatus, saveSessionToFile } from './session.js';
 
 type ClientGetter = () => HEBClient | null;
-
-function formatProductListItem(p: Product, index: number): string {
-  const price = p.price?.formatted ? ` - ${p.price.formatted}` : '';
-  const size = p.size ? ` - ${p.size}` : '';
-  const brand = p.brand ? ` (${p.brand})` : '';
-  const stock = p.inStock ? '' : ' [OUT OF STOCK]';
-  return `${index + 1}. ${p.name}${brand}${size}${price}${stock} (ID: ${p.productId})`;
-}
 
 type ToolOptions = {
   saveCookies?: (cookies: HEBCookies) => Promise<void> | void;
@@ -130,7 +122,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
           };
         }
 
-        const formatted = products.map((p, i) => formatProductListItem(p, i)).join('\n');
+        const formatted = products.map((p, i) => formatter.productListItem(p, i)).join('\n');
 
         return {
           content: [{ 
@@ -169,7 +161,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
           };
         }
 
-        const formatted = products.map((p, i) => formatProductListItem(p, i)).join('\n');
+        const formatted = products.map((p, i) => formatter.productListItem(p, i)).join('\n');
 
         return {
           content: [{ 
@@ -203,16 +195,7 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
 
       try {
         const product = await client.getProduct(product_id);
-
-        const details = [
-          `**${product.name}**`,
-          product.brand ? `Brand: ${product.brand}` : null,
-          product.price ? `Price: ${product.price.formatted}` : null,
-          product.inStock !== undefined ? `In Stock: ${product.inStock ? 'Yes' : 'No'}` : null,
-          product.description ? `\nDescription: ${product.description}` : null,
-          product.nutrition?.calories ? `\nNutrition: ${product.nutrition.calories} cal` : null,
-          `\nSKU ID: ${product.skuId}`,
-        ].filter(Boolean).join('\n');
+        const details = formatter.productDetails(product);
 
         return {
           content: [{ type: 'text', text: details }],
@@ -361,43 +344,10 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
           };
         }
 
-        // Format cart items
-        const itemsList = cart.items.map((item, i) => {
-          const price = item.price?.formatted ?? 'N/A';
-          const brand = item.brand ? `(${item.brand})` : '';
-          return `${i + 1}. ${item.name ?? 'Unknown'} ${brand} x${item.quantity} - ${price}`;
-        }).join('\n');
-
-        // Format totals
-        const totals = [
-          `Subtotal: ${cart.subtotal.formatted}`,
-          cart.tax ? `Tax: ${cart.tax.formatted}` : null,
-          cart.savings ? `Savings: -${cart.savings.formatted}` : null,
-          `**Total: ${cart.total.formatted}**`,
-        ].filter(Boolean).join('\n');
-
-        // Format fees
-        let feesSection = '';
-        if (cart.fees.length > 0) {
-          const feesList = cart.fees.map(fee => 
-            `- ${fee.displayName}: ${fee.amount.formatted}`
-          ).join('\n');
-          feesSection = `\n\n**Fees:**\n${feesList}`;
-        }
-
-        // Format payment groups (if present)
-        let paymentSection = '';
-        if (cart.paymentGroups.length > 0) {
-          const payments = cart.paymentGroups.map(pg => 
-            `- ${pg.paymentMethod}${pg.paymentAlias ? ` (${pg.paymentAlias})` : ''}: ${pg.amount.formatted}`
-          ).join('\n');
-          paymentSection = `\n\n**Payment Methods:**\n${payments}`;
-        }
-
         return {
           content: [{ 
             type: 'text', 
-            text: `**Cart (${cart.itemCount} items)**\n\n${itemsList}\n\n${totals}${feesSection}${paymentSection}` 
+            text: formatter.cart(cart)
           }],
         };
       } catch (error) {
@@ -436,19 +386,10 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
           };
         }
 
-        const formatted = orders.map(order => {
-          const ts = order.orderTimeslot;
-          const timeRange = ts?.formattedStartTime ? ` (${ts.formattedStartTime} - ${ts.formattedEndTime})` : '';
-          const dateText = ts?.formattedDate ?? (ts?.startTime ? new Date(ts.startTime).toLocaleDateString() : 'Unknown date');
-          const totalText = order.totalPrice?.formattedAmount ?? (order as any)?.priceDetails?.total?.formattedAmount ?? 'Unknown total';
-          const statusText = order.orderStatusMessageShort ?? (order as any)?.status ?? 'Unknown status';
-          return `* Order ID: ${order.orderId} - Date: ${dateText}${timeRange} - Total: ${totalText} (${statusText})`;
-        }).join('\n');
-
         return {
           content: [{ 
             type: 'text', 
-            text: `Found ${orders.length} past orders:\n\n${formatted}\n\nUse get_order_details(order_id) to see specific items.` 
+            text: formatter.orderHistory(orders) 
           }],
         };
       } catch (error) {
@@ -475,31 +416,12 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
         const order = await client.getOrder(order_id);
         const pageOrder = order.page?.pageProps?.order;
 
-        // Use normalized items from SDK (prices already in dollars, not cents)
-        const normalizedItems = pageOrder?.items ?? [];
-        const items = normalizedItems.length > 0
-          ? normalizedItems.map((item) =>
-              `- ${item.name} (Qty: ${item.quantity}, Price: ${item.price}) (ID: ${item.id})`
-            ).join('\n')
-          : '';
-
-        const orderIdText = pageOrder?.orderId ?? order_id;
-        const statusText = pageOrder?.status ?? 'Unknown status';
-        const totalText = pageOrder?.priceDetails?.total?.formattedAmount ?? 'Unknown total';
-        
-        const ts = pageOrder?.orderTimeslot;
-        const timeText = ts?.formattedDate ? `${ts.formattedDate} (${ts.formattedStartTime} - ${ts.formattedEndTime})` : 'Unknown';
-
-        const details = [
-          `**Order ${orderIdText}**`,
-          `Status: ${statusText}`,
-          `Date/Time: ${timeText}`,
-          `Total: ${totalText}`,
-          items ? `Items:\n${items}` : 'Items: No items found.'
-        ].join('\n');
+        if (!pageOrder) {
+            throw new Error('Order details not found');
+        }
 
         return {
-          content: [{ type: 'text', text: details }],
+          content: [{ type: 'text', text: formatter.orderDetails(pageOrder) }],
         };
       } catch (error) {
         return {
@@ -526,27 +448,8 @@ export function registerTools(server: McpServer, getClient: ClientGetter, option
       try {
         const account = await client.getAccountDetails();
 
-        const addressList = account.addresses.length > 0
-          ? account.addresses.map((a: { isDefault?: boolean; nickname?: string; address1: string; address2?: string; city: string; state: string; postalCode: string }, i: number) => {
-              const defaultTag = a.isDefault ? ' (Default)' : '';
-              const nickname = a.nickname ? ` "${a.nickname}"` : '';
-              return `${i + 1}.${nickname}${defaultTag} ${a.address1}${a.address2 ? `, ${a.address2}` : ''}, ${a.city}, ${a.state} ${a.postalCode}`;
-            }).join('\n')
-          : 'No saved addresses';
-
-        const details = [
-          `**Account Profile**`,
-          `Name: ${account.firstName} ${account.lastName}`,
-          `Email: ${account.email}`,
-          account.phone ? `Phone: ${account.phone}` : null,
-          account.dateOfBirth ? `Date of Birth: ${account.dateOfBirth}` : null,
-          account.memberSince ? `Member Since: ${account.memberSince}` : null,
-          account.loyaltyNumber ? `Loyalty #: ${account.loyaltyNumber}` : null,
-          `\n**Saved Addresses:**\n${addressList}`,
-        ].filter(Boolean).join('\n');
-
         return {
-          content: [{ type: 'text', text: details }],
+          content: [{ type: 'text', text: formatter.account(account) }],
         };
       } catch (error) {
         return {
@@ -601,73 +504,8 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           includeFeaturedProducts: !hide_products,
         });
 
-        const parts: string[] = ['**H-E-B Homepage**'];
-
-        // Banners - show all (already limited by SDK if items_per_section was set)
-        if (homepage.banners.length > 0) {
-          parts.push(`\n**Banners (${homepage.banners.length}):**`);
-          homepage.banners.forEach((b, i) => {
-            parts.push(`${i + 1}. ${b.title ?? 'Untitled'}${b.linkUrl ? ` - ${b.linkUrl}` : ''}`);
-          });
-        }
-
-        // Promotions - show all
-        if (homepage.promotions.length > 0) {
-          parts.push(`\n**Promotions (${homepage.promotions.length}):**`);
-          homepage.promotions.forEach((p, i) => {
-            parts.push(`${i + 1}. ${p.title}${p.description ? ` - ${p.description}` : ''}`);
-          });
-        }
-
-        // Featured Products - show all
-        if (homepage.featuredProducts.length > 0) {
-          parts.push(`\n**Featured Products (${homepage.featuredProducts.length}):**`);
-          homepage.featuredProducts.forEach((p, i) => {
-            const price = p.priceFormatted ?? '';
-            parts.push(`${i + 1}. ${p.name}${p.brand ? ` (${p.brand})` : ''} ${price} (ID: ${p.productId})`);
-          });
-        }
-
-        // Sections with content - show all items (SDK already limits via items_per_section)
-        if (homepage.sections.length > 0) {
-          parts.push(`\n**Content Sections (${homepage.sections.length}):**`);
-          homepage.sections.forEach((s, i) => {
-            parts.push(`\n${i + 1}. **${s.title ?? s.type}** (${s.itemCount} items)`);
-            
-            if (s.items && s.items.length > 0) {
-              s.items.forEach(item => {
-                let itemText = '';
-                
-                // Check for product
-                if ('productId' in item) {
-                   const p = item as any;
-                   const price = p.priceFormatted ?? (p.price ? `$${p.price}` : '');
-                   itemText = `${p.name} ${price}`.trim();
-                } 
-                // Check for banner/promo
-                else if ('imageUrl' in item) {
-                   const b = item as any;
-                   itemText = b.title ?? b.name ?? 'Banner';
-                   if (b.subtitle || b.description) itemText += ` - ${b.subtitle ?? b.description}`;
-                }
-                // Fallback
-                else {
-                   const anyItem = item as any;
-                   itemText = anyItem.name ?? anyItem.title ?? anyItem.text ?? 'Unknown Item';
-                }
-
-                parts.push(`   - ${itemText}`);
-              });
-            }
-          });
-        }
-
-        if (parts.length === 1) {
-          parts.push('\nNo homepage content found.');
-        }
-
         return {
-          content: [{ type: 'text', text: parts.join('\n') }],
+          content: [{ type: 'text', text: formatter.homepage(homepage) }],
         };
       } catch (error) {
         return {
@@ -714,16 +552,8 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           };
         }
 
-        const formatted = slots.map((s: any) => {
-          const status = s.isAvailable ? 'AVAILABLE' : 'FULL';
-          const fee = s.fee > 0 ? `${s.fee.toFixed(2)}` : 'FREE';
-          const timeRange = `${s.formattedStartTime} - ${s.formattedEndTime}`;
-          const utc = client.session.debug ? ` [UTC: ${s.startTime}]` : '';
-          return `- [${status}] ${s.formattedDate} (${s.localDate}) ${timeRange} (${fee}) (ID: ${s.slotId})${utc}`;
-        }).join('\n');
-
         return {
-          content: [{ type: 'text', text: `Found ${slots.length} slots:\n\n${formatted}` }],
+          content: [{ type: 'text', text: formatter.deliverySlots(slots, client.session.debug) }],
         };
       } catch (error) {
         return {
@@ -813,16 +643,8 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           };
         }
 
-        const formatted = slots.map((s: any) => {
-          const status = s.isAvailable ? 'AVAILABLE' : 'FULL';
-          const fee = s.fee > 0 ? `${s.fee.toFixed(2)}` : 'FREE';
-          const timeRange = `${s.formattedStartTime} - ${s.formattedEndTime}`;
-          const utc = client.session.debug ? ` [UTC: ${s.startTime}]` : '';
-          return `- [${status}] ${s.formattedDate} (${s.localDate}) ${timeRange} (${fee}) (ID: ${s.slotId})${utc}`;
-        }).join('\n');
-
         return {
-          content: [{ type: 'text', text: `Found ${slots.length} curbside slots:\n\n${formatted}` }],
+          content: [{ type: 'text', text: formatter.curbsideSlots(slots, client.session.debug) }],
         };
       } catch (error) {
         return {
@@ -894,16 +716,10 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           };
         }
 
-        const formatted = lists.map((list: { id: string; name: string; itemCount: number; updatedAt?: Date }, i: number) => {
-          const itemCount = list.itemCount ?? 0;
-          const updated = list.updatedAt ? ` (updated ${list.updatedAt.toLocaleDateString()})` : '';
-          return `${i + 1}. ${list.name} - ${itemCount} items${updated} (ID: ${list.id})`;
-        }).join('\n');
-
         return {
           content: [{ 
             type: 'text', 
-            text: `Found ${lists.length} shopping lists:\n\n${formatted}\n\nUse get_shopping_list(list_id) to see items.` 
+            text: formatter.shoppingLists(lists)
           }],
         };
       } catch (error) {
@@ -935,16 +751,10 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           };
         }
 
-        const itemsList = list.items.map((item: { productId: string; name: string; checked: boolean; price: { total: number } }, i: number) => {
-          const priceStr = item.price?.total ? ` - $${item.price.total.toFixed(2)}` : '';
-          const checked = item.checked ? ' [x]' : ' [ ]';
-          return `${i + 1}.${checked} ${item.name}${priceStr} (ID: ${item.productId})`;
-        }).join('\n');
-
         return {
           content: [{ 
             type: 'text', 
-            text: `**${list.name}** (${list.items.length} items)\n\n${itemsList}` 
+            text: formatter.shoppingList(list)
           }],
         };
       } catch (error) {
@@ -981,12 +791,8 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           };
         }
 
-        const formatted = stores.map((s: any) => 
-          `- [${s.storeNumber}] ${s.name} (${s.address.city}, ${s.address.zip}) - ${s.distanceMiles?.toFixed(1) ?? '?'} miles`
-        ).join('\n');
-
         return {
-          content: [{ type: 'text', text: `Found ${stores.length} stores:\n\n${formatted}\n\nUse set_store(storeId) to select one.` }],
+          content: [{ type: 'text', text: formatter.storeSearch(stores, query) }],
         };
       } catch (error) {
         return {
@@ -1029,22 +835,8 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           };
         }
 
-        const productsList = adResults.products.map((p, i) => {
-          const price = p.priceText ? ` - ${p.priceText}` : '';
-          const savings = p.saleStory ? ` (${p.saleStory})` : '';
-          return `${i + 1}. ${p.name}${price}${savings} (ID: ${p.id}, UPC: ${p.upc ?? 'N/A'})`;
-        }).join('\n');
-
-        const summary = [
-          `**Weekly Ad (${adResults.storeCode})**`,
-          adResults.validFrom && adResults.validTo ? `Valid: ${adResults.validFrom} to ${adResults.validTo}` : null,
-          `Showing ${adResults.products.length} of ${adResults.totalCount} products.`,
-          adResults.cursor ? `Next Cursor: ${adResults.cursor}` : null,
-          `\n${productsList}`,
-        ].filter(Boolean).join('\n');
-
         return {
-          content: [{ type: 'text', text: summary }],
+          content: [{ type: 'text', text: formatter.weeklyAd(adResults) }],
         };
       } catch (error) {
         return {
@@ -1072,19 +864,8 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           limit: 0, // Just fetch metadata
         });
 
-        const categoriesList = adResults.categories.map(c => 
-          `- ${c.name} (ID: ${c.id}) - ${c.count} items`
-        ).join('\n');
-
-        const info = [
-          `**Weekly Ad Categories (${adResults.storeCode})**`,
-          adResults.validFrom && adResults.validTo ? `Valid: ${adResults.validFrom} to ${adResults.validTo}` : null,
-          `Total Products: ${adResults.totalCount}`,
-          `\n**Available Categories:**\n${categoriesList || 'None'}`,
-        ].filter(Boolean).join('\n');
-
         return {
-          content: [{ type: 'text', text: info }],
+          content: [{ type: 'text', text: formatter.weeklyAdCategories(adResults) }],
         };
       } catch (error) {
         return {

@@ -553,3 +553,75 @@ function extractCategories(payload?: Record<string, unknown>): RawComponent[] {
   }
   return [];
 }
+
+/**
+ * Format homepage data for display.
+ */
+export function formatHomepageData(homepage: HomepageData): string {
+  const parts: string[] = ['**H-E-B Homepage**'];
+
+  // Banners
+  if (homepage.banners.length > 0) {
+    parts.push(`\n**Banners (${homepage.banners.length}):**`);
+    homepage.banners.forEach((b, i) => {
+      parts.push(`${i + 1}. ${b.title ?? 'Untitled'}${b.linkUrl ? ` - ${b.linkUrl}` : ''}`);
+    });
+  }
+
+  // Promotions
+  if (homepage.promotions.length > 0) {
+    parts.push(`\n**Promotions (${homepage.promotions.length}):**`);
+    homepage.promotions.forEach((p, i) => {
+      parts.push(`${i + 1}. ${p.title}${p.description ? ` - ${p.description}` : ''}`);
+    });
+  }
+
+  // Featured Products
+  if (homepage.featuredProducts.length > 0) {
+    parts.push(`\n**Featured Products (${homepage.featuredProducts.length}):**`);
+    homepage.featuredProducts.forEach((p, i) => {
+      const price = p.priceFormatted ?? '';
+      parts.push(`${i + 1}. ${p.name}${p.brand ? ` (${p.brand})` : ''} ${price} (ID: ${p.productId})`);
+    });
+  }
+
+  // Content Sections
+  if (homepage.sections.length > 0) {
+    parts.push(`\n**Content Sections (${homepage.sections.length}):**`);
+    homepage.sections.forEach((s, i) => {
+      parts.push(`\n${i + 1}. **${s.title ?? s.type}** (${s.itemCount} items)`);
+      
+      if (s.items && s.items.length > 0) {
+        s.items.forEach(item => {
+          let itemText = '';
+          
+          // Check for product
+          if ('productId' in item) {
+             const p = item as any;
+             const price = p.priceFormatted ?? (p.price ? `$${p.price}` : '');
+             itemText = `${p.name} ${price}`.trim();
+          } 
+          // Check for banner/promo
+          else if ('imageUrl' in item) {
+             const b = item as any;
+             itemText = b.title ?? b.name ?? 'Banner';
+             if (b.subtitle || b.description) itemText += ` - ${b.subtitle ?? b.description}`;
+          }
+          // Fallback
+          else {
+             const anyItem = item as any;
+             itemText = anyItem.name ?? anyItem.title ?? anyItem.text ?? 'Unknown Item';
+          }
+
+          parts.push(`   - ${itemText}`);
+        });
+      }
+    });
+  }
+
+  if (parts.length === 1) {
+    parts.push('\nNo homepage content found.');
+  }
+
+  return parts.join('\n');
+}

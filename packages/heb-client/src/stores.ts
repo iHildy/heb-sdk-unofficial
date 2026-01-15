@@ -106,3 +106,18 @@ export async function setStore(
     console.warn('Set store server request failed, but cookie was updated:', error);
   }
 }
+
+/**
+ * Format store search results for display.
+ */
+export function formatStoreSearch(stores: Store[], query: string): string {
+  if (stores.length === 0) {
+    return `No stores found for "${query}"`;
+  }
+
+  const formatted = stores.map((s) => 
+    `- [${s.storeNumber}] ${s.name} (${s.address.city}, ${s.address.zip}) - ${s.distanceMiles?.toFixed(1) ?? '?'} miles`
+  ).join('\n');
+
+  return `Found ${stores.length} stores:\n\n${formatted}\n\nUse set_store(storeId) to select one.`;
+}
