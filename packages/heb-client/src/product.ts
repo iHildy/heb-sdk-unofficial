@@ -262,6 +262,7 @@ async function getProductDetailsMobile(session: HEBSession, productId: string): 
   const unitSource = priceContext?.unitSalePrice ?? priceContext?.unitListPrice;
 
   const images = product.carouselImageUrls?.length ? product.carouselImageUrls : undefined;
+  const cleanedDescription = cleanHtml(product.productDescription);
 
   return {
     productId: product.productId ?? productId,
@@ -269,8 +270,8 @@ async function getProductDetailsMobile(session: HEBSession, productId: string): 
     name: product.displayName ?? '',
     brand: product.brand?.name,
     isOwnBrand: product.brand?.isOwnBrand,
-    description: cleanHtml(product.productDescription),
-    longDescription: cleanHtml(product.productDescription),
+    description: cleanedDescription,
+    longDescription: cleanedDescription,
     rawDescription: product.productDescription,
     imageUrl: images?.[0],
     images,
