@@ -1164,9 +1164,9 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
 
   server.tool(
     'set_shopping_context',
-    'Set the active shopping context for the session (e.g. Curbside, Delivery, In-Store)',
+    'Set the active shopping context for the session (Curbside Pickup, Curbside Delivery, or In-Store)',
     {
-      context: z.enum(['CURBSIDE_PICKUP', 'DELIVERY', 'IN_STORE']).describe('Shopping context to set'),
+      context: z.enum(['CURBSIDE_PICKUP', 'CURBSIDE_DELIVERY', 'EXPLORE_MY_STORE']).describe('Shopping context: CURBSIDE_PICKUP (store pickup), CURBSIDE_DELIVERY (home delivery), or EXPLORE_MY_STORE (in-store browsing)'),
     },
     async ({ context }) => {
       const result = requireClient(getClient);

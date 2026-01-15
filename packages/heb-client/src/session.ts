@@ -1,4 +1,4 @@
-import type { HEBAuthTokens, HEBCookies, HEBEndpoints, HEBHeaders, HEBSession } from './types.js';
+import type { HEBAuthTokens, HEBCookies, HEBEndpoints, HEBHeaders, HEBSession, ShoppingContext } from './types.js';
 import { ENDPOINTS } from './types.js';
 
 const CLIENT_NAME = 'WebPlatform-Solar (Production)';
@@ -190,7 +190,7 @@ export function resolveEndpoint(session: HEBSession, key: keyof HEBEndpoints): s
  * Resolve the shopping context for the current session.
  * Defaults to 'CURBSIDE_PICKUP' if not set.
  */
-export function resolveShoppingContext(session: HEBSession): string {
+export function resolveShoppingContext(session: HEBSession): ShoppingContext {
   return session.shoppingContext ?? session.cookies?.shoppingContext ?? 'CURBSIDE_PICKUP';
 }
 

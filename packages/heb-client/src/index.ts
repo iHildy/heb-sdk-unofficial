@@ -17,6 +17,7 @@ export {
     isSessionValid,
     parseJwtExpiry,
     resolveEndpoint,
+    resolveShoppingContext,
     updateTokenSession
 } from './session.js';
 
@@ -173,11 +174,13 @@ export {
 // Types
 // ─────────────────────────────────────────────────────────────
 export type {
+    FulfillmentType,
     HEBAuthMode,
     HEBAuthTokens, HEBCookies,
     HEBCredentials, HEBEndpoints, HEBHeaders,
     HEBSession,
-    LoginOptions
+    LoginOptions,
+    ShoppingContext
 } from './types.js';
 
 // ─────────────────────────────────────────────────────────────
@@ -192,4 +195,4 @@ export {
     HEBSessionError
 } from './errors.js';
 
-export { ENDPOINTS, GRAPHQL_HASHES, MOBILE_GRAPHQL_HASHES } from './types.js';
+export { ENDPOINTS, GRAPHQL_HASHES, MOBILE_GRAPHQL_HASHES, SHOPPING_CONTEXT_TO_CATEGORIES } from './types.js';
