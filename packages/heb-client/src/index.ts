@@ -125,24 +125,15 @@ export {
 } from './homepage.js';
 
 // ─────────────────────────────────────────────────────────────
-// Delivery
-// ─────────────────────────────────────────────────────────────
-export {
-    getDeliverySlots,
-    reserveSlot,
-    type DeliverySlot,
-    type GetDeliverySlotsOptions
-} from './delivery.js';
-
-// ─────────────────────────────────────────────────────────────
-// Curbside Pickup
+// Fulfillment (Delivery & Curbside)
 // ─────────────────────────────────────────────────────────────
 export {
     getCurbsideSlots,
-    reserveCurbsideSlot,
-    type CurbsideSlot,
-    type GetCurbsideSlotsOptions
-} from './curbside.js';
+    getDeliverySlots,
+    reserveSlot,
+    type FulfillmentSlot,
+    type ReserveSlotResult
+} from './fulfillment.js';
 
 // ─────────────────────────────────────────────────────────────
 // Stores

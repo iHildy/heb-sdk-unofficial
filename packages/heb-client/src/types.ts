@@ -135,7 +135,7 @@ export interface Address {
  * Variables for ReserveTimeslot mutation
  */
 export interface ReserveTimeslotVariables {
-  id: string; // The slot ID (e.g. from getDeliverySlots 'id' or 'timeslotId')
+  id: string; // The slot ID (e.g. from getDeliverySlots/getCurbsideSlots)
   date: string; // YYYY-MM-DD
   fulfillmentType: FulfillmentType;
   pickupStoreId?: string; // e.g. "790", if pickup
