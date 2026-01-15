@@ -102,6 +102,7 @@ async function getProductDetailsMobile(
 
   return mapMobileProduct(product, shoppingContext, {
     includeImages: options.includeImages,
+    fallbackProductId: productId,
   });
 }
 

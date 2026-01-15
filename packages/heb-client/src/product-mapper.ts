@@ -193,7 +193,7 @@ export function mapMobileFulfillment(
 export function mapMobileProduct(
   product: MobileProduct,
   shoppingContext: string,
-  options: { includeImages?: boolean } = {},
+  options: { includeImages?: boolean; fallbackProductId?: string } = {},
 ): Product {
   const sku =
     product.skus?.find(
@@ -222,8 +222,8 @@ export function mapMobileProduct(
     : undefined;
 
   return {
-    productId: product.productId ?? "",
-    skuId: sku?.id ?? product.productId ?? "",
+    productId: product.productId ?? options.fallbackProductId ?? "",
+    skuId: sku?.id ?? product.productId ?? options.fallbackProductId ?? "",
     name: product.displayName ?? "",
     brand: product.brand?.name,
     isOwnBrand: product.brand?.isOwnBrand,
