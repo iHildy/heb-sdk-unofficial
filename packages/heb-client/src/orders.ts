@@ -54,11 +54,31 @@ export interface OrderHistoryResponse {
 }
 
 /**
- * Raw order details payload (normalized from mobile GraphQL).
+ * Normalized order item (from orderItems array).
+ */
+export interface OrderDetailsItem {
+  /** Product ID */
+  id: string;
+  /** Product display name */
+  name: string;
+  /** Quantity ordered */
+  quantity: number;
+  /** Formatted price string (e.g., "$26.44") */
+  price: string;
+  /** Unit price as a number (in dollars, NOT cents) */
+  unitPrice: number;
+  /** Thumbnail image URL */
+  image?: string;
+}
+
+/**
+ * Normalized order details payload (from mobile GraphQL).
  */
 export interface OrderDetailsPageOrder {
   orderId: string;
   status: string;
+  /** Normalized order items */
+  items: OrderDetailsItem[];
   priceDetails?: {
     subtotal?: { formattedAmount?: string };
     total?: { formattedAmount?: string };
@@ -177,15 +197,43 @@ function extractOrders(payload?: OrderHistoryGraphqlResponse): RawHistoryOrder[]
   return Array.isArray(orders) ? (orders as RawHistoryOrder[]) : [];
 }
 
+/**
+ * Normalize a single order item from raw GraphQL data.
+ * Uses formattedAmount when available; otherwise uses raw amount (already in dollars).
+ */
+function normalizeOrderItem(item: any): OrderDetailsItem {
+  const product = item?.product ?? {};
+  const priceObj = item?.totalUnitPrice ?? item?.unitPrice ?? {};
+  
+  // API returns amount in dollars (e.g., 26.44), NOT cents
+  const amount = typeof priceObj?.amount === 'number' ? priceObj.amount : 0;
+  // Prefer formattedAmount from API; fallback to formatting ourselves
+  const formattedPrice = priceObj?.formattedAmount ?? `$${amount.toFixed(2)}`;
+
+  return {
+    id: product?.id ?? '',
+    name: product?.fullDisplayName ?? product?.displayName ?? product?.name ?? '',
+    quantity: item?.quantity ?? 0,
+    price: formattedPrice,
+    unitPrice: amount,
+    image: product?.thumbnailImageUrls?.[0]?.url ?? product?.image,
+  };
+}
+
 function normalizeOrderDetails(order: any): OrderDetailsPageOrder {
   const orderTimeslot = order?.orderTimeslot ?? order?.timeslot ?? order?.orderTimeSlot ?? {};
   const priceDetails = order?.priceDetails ?? order?.priceSummary ?? {};
   const totalPrice = order?.totalPrice ?? order?.total ?? {};
   const formattedTotal = priceDetails?.total?.formattedAmount ?? totalPrice?.formattedAmount;
 
+  // Normalize all order items
+  const rawItems = order?.orderItems ?? [];
+  const items: OrderDetailsItem[] = rawItems.map(normalizeOrderItem);
+
   return {
     orderId: order?.orderId ?? '',
     status: order?.status ?? order?.orderStatusMessageShort ?? '',
+    items,
     fulfillmentType: order?.fulfillmentType,
     orderPlacedOnDateTime: order?.orderPlacedOnDateTime ?? order?.orderPlacedOn,
     orderTimeslot: {
