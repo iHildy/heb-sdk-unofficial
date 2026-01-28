@@ -1,0 +1,15 @@
+{
+  "name": "HEB SDK (Unofficial) Docs",
+  "short_name": "HEB SDK Docs",
+  "start_url": "/docs/",
+  "display": "standalone",
+  "background_color": "#f2efe9",
+  "theme_color": "#151515",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "96x96",
+      "type": "image/svg+xml"
+    }
+  ]
+}

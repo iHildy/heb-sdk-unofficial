@@ -1,0 +1,39 @@
+---
+title: MCP Server
+description: Expose HEB SDK tools over MCP.
+---
+
+## Run the server
+
+```bash
+node packages/heb-mcp/dist/server.js
+```
+
+## Example config
+
+```json
+{
+  "server": {
+    "port": 8787,
+    "sessionStore": "./sessions"
+  },
+  "tools": {
+    "catalog.search": true,
+    "cart.addItem": true
+  }
+}
+```
+
+## Tool call example
+
+```json
+{
+  "tool": "catalog.search",
+  "input": {
+    "query": "coffee",
+    "limit": 5
+  }
+}
+```
+
+Use this page for MCP tool docs and payload schemas.

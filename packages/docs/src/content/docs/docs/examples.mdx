@@ -1,0 +1,34 @@
+---
+title: Examples
+description: Sample workflows built with the SDK.
+---
+
+## Build a weekly ad widget
+
+```ts
+const ad = await client.ads.getWeekly({ storeId: "123" })
+const promos = ad.categories.slice(0, 3)
+```
+
+## Reserve a delivery slot
+
+```ts
+const slots = await client.slots.list({
+  storeId: "123",
+  fulfillment: "delivery",
+})
+
+await client.slots.reserve({ slotId: slots[0].id })
+```
+
+## Sync a shopping list
+
+```ts
+const list = await client.lists.get({ id: "list-1" })
+await client.lists.addItems({
+  id: list.id,
+  items: [{ itemId: "sku-456", quantity: 1 }],
+})
+```
+
+Add real examples and edge cases as the SDK matures.

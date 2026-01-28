@@ -1,0 +1,50 @@
+---
+title: SDK Guide
+description: Core client patterns with typed responses.
+---
+
+## Client setup
+
+```ts
+import { createClient } from "@heb-sdk-unofficial/client"
+
+const client = createClient({
+  session: {
+    cookie: "example-cookie",
+    userAgent: "heb-sdk-template",
+  },
+  store: {
+    id: "123",
+    zip: "78701",
+  },
+})
+```
+
+## Catalog search
+
+```ts
+const response = await client.catalog.search({
+  query: "eggs",
+  limit: 12,
+})
+
+response.items.forEach((item) => {
+  console.log(item.id, item.name, item.price)
+})
+```
+
+## Cart updates
+
+```ts
+await client.cart.addItem({
+  itemId: "sku-123",
+  quantity: 2,
+})
+
+const summary = await client.cart.getSummary()
+console.log(summary.total)
+```
+
+## Notes
+
+Use this page for method-level docs and response shapes once you fill in the SDK.

@@ -1,0 +1,37 @@
+---
+title: Quickstart
+description: Install the client and run a first request.
+---
+
+## Install
+
+```bash
+npm install @heb-sdk-unofficial/client
+```
+
+## Create a client
+
+```ts
+import { createClient } from "@heb-sdk-unofficial/client"
+
+const client = createClient({
+  session: { cookie: "example-cookie" },
+  store: { id: "123" },
+})
+```
+
+## Run a call
+
+```ts
+const { items } = await client.catalog.search({
+  query: "coffee",
+  limit: 10,
+})
+
+console.log(items.map((item) => item.name))
+```
+
+## Next
+
+- See the SDK guide for typed requests.
+- Review auth options if you need OAuth or token linking.

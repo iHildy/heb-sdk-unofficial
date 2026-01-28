@@ -1,0 +1,38 @@
+---
+title: Configuration
+description: Example configuration shapes and defaults.
+---
+
+## Client config
+
+```ts
+export const clientConfig = {
+  session: {
+    cookie: "example-cookie",
+    userAgent: "heb-sdk-template",
+  },
+  store: {
+    id: "123",
+    zip: "78701",
+  },
+  retries: 2,
+  timeoutMs: 8000,
+}
+```
+
+## MCP config
+
+```json
+{
+  "server": {
+    "port": 8787,
+    "sessionStore": "./sessions"
+  },
+  "tools": {
+    "catalog.search": true,
+    "cart.updateItem": true
+  }
+}
+```
+
+Document real config fields here when ready.

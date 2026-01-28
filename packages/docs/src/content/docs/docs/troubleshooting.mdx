@@ -1,0 +1,23 @@
+---
+title: Troubleshooting
+description: Common issues and how to resolve them.
+---
+
+## Requests time out
+
+- Confirm the session cookie is still valid.
+- Retry with a smaller payload or lower page size.
+- Check if the store context is missing.
+
+## Auth refresh fails
+
+- Verify refresh tokens were stored.
+- Ensure your clock is synced for token expiry.
+- Re-run the OAuth flow if tokens were revoked.
+
+## MCP tool not found
+
+- Confirm the tool is enabled in the MCP config.
+- Restart the server after config changes.
+
+Add real diagnostics once the SDK is wired up.

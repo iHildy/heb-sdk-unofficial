@@ -1,0 +1,28 @@
+---
+title: Errors
+description: Example error codes and handling patterns.
+---
+
+## Example error payload
+
+```json
+{
+  "code": "SESSION_EXPIRED",
+  "message": "Session cookie expired",
+  "retryable": true
+}
+```
+
+## Handling pattern
+
+```ts
+try {
+  await client.cart.getSummary()
+} catch (error) {
+  if (error.code === "SESSION_EXPIRED") {
+    await session.refresh()
+  }
+}
+```
+
+Add real error codes once the API surface is finalized.
