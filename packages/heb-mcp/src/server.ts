@@ -261,6 +261,10 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
         return;
       }
       const deviceCode = parsed.data.device_code ?? parsed.data.deviceCode;
+      if (!deviceCode) {
+        res.status(400).json({ error: 'Missing device_code' });
+        return;
+      }
       const result = await pollClerkDeviceToken(deviceCode);
       res.status(result.status).json(result.body);
     } catch (error) {
