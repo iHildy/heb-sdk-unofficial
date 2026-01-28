@@ -141,3 +141,29 @@ export async function getProductSkuId(
 export function getProductImageUrl(productId: string, size = 360): string {
   return `https://images.heb.com/is/image/HEBGrocery/${productId}?hei=${size}&wid=${size}`;
 }
+
+/**
+ * Format a product for list display (e.g. search results).
+ */
+export function formatProductListItem(p: Product, index: number): string {
+  const price = p.price?.formatted ? ` - ${p.price.formatted}` : '';
+  const size = p.size ? ` - ${p.size}` : '';
+  const brand = p.brand ? ` (${p.brand})` : '';
+  const stock = p.inStock ? '' : ' [OUT OF STOCK]';
+  return `${index + 1}. ${p.name}${brand}${size}${price}${stock} (ID: ${p.productId})`;
+}
+
+/**
+ * Format full product details.
+ */
+export function formatProductDetails(product: Product): string {
+  return [
+    `**${product.name}**`,
+    product.brand ? `Brand: ${product.brand}` : null,
+    product.price ? `Price: ${product.price.formatted}` : null,
+    product.inStock !== undefined ? `In Stock: ${product.inStock ? 'Yes' : 'No'}` : null,
+    product.description ? `\nDescription: ${product.description}` : null,
+    product.nutrition?.calories ? `\nNutrition: ${product.nutrition.calories} cal` : null,
+    `\nSKU ID: ${product.skuId}`,
+  ].filter(Boolean).join('\n');
+}

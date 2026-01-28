@@ -28,6 +28,8 @@ export {
     getProductDetails,
     getProductImageUrl,
     getProductSkuId,
+    formatProductListItem,
+    formatProductDetails,
     type FulfillmentInfo,
     type NutritionInfo,
     type Product,
@@ -51,6 +53,8 @@ export {
 // ─────────────────────────────────────────────────────────────
 export {
     getWeeklyAdProducts,
+    formatWeeklyAd,
+    formatWeeklyAdCategories,
     type WeeklyAdOptions,
     type WeeklyAdProduct,
     type WeeklyAdResult
@@ -65,6 +69,7 @@ export {
     quickAdd,
     removeFromCart,
     updateCartItem,
+    formatCart,
     type Cart,
     type CartFee,
     type CartItem,
@@ -79,6 +84,8 @@ export {
 export {
     getOrder,
     getOrders,
+    formatOrderHistory,
+    formatOrderDetails,
     type GetOrdersOptions,
     type OrderDetailsGraphqlResponse,
     type OrderDetailsItem,
@@ -95,6 +102,8 @@ export {
 export {
     getShoppingList,
     getShoppingLists,
+    formatShoppingList,
+    formatShoppingLists,
     type GetShoppingListOptions,
     type ShoppingList,
     type ShoppingListDetails,
@@ -106,6 +115,7 @@ export {
 // ─────────────────────────────────────────────────────────────
 export {
     getAccountDetails,
+    formatAccountDetails,
     type AccountAddress,
     type AccountDetails
 } from './account.js';
@@ -115,6 +125,7 @@ export {
 // ─────────────────────────────────────────────────────────────
 export {
     getHomepage,
+    formatHomepageData,
     type HomepageBanner,
     type HomepageData,
     type HomepageFeaturedProduct,
@@ -131,6 +142,8 @@ export {
     getCurbsideSlots,
     getDeliverySlots,
     reserveSlot,
+    formatDeliverySlots,
+    formatCurbsideSlots,
     type FulfillmentSlot,
     type ReserveSlotResult
 } from './fulfillment.js';
@@ -141,6 +154,7 @@ export {
 export {
     searchStores,
     setStore,
+    formatStoreSearch,
     type Store,
     type StoreSearchResult
 } from './stores.js';
@@ -186,3 +200,30 @@ export {
 } from './errors.js';
 
 export { ENDPOINTS, GRAPHQL_HASHES, MOBILE_GRAPHQL_HASHES, SHOPPING_CONTEXT_TO_CATEGORIES } from './types.js';
+
+import { formatAccountDetails } from './account.js';
+import { formatCart } from './cart.js';
+import { formatDeliverySlots, formatCurbsideSlots } from './fulfillment.js';
+import { formatHomepageData } from './homepage.js';
+import { formatOrderHistory, formatOrderDetails } from './orders.js';
+import { formatProductListItem, formatProductDetails } from './product.js';
+import { formatShoppingLists, formatShoppingList } from './shopping-list.js';
+import { formatStoreSearch } from './stores.js';
+import { formatWeeklyAd, formatWeeklyAdCategories } from './weekly-ad.js';
+
+export const formatter = {
+  account: formatAccountDetails,
+  cart: formatCart,
+  curbsideSlots: formatCurbsideSlots,
+  deliverySlots: formatDeliverySlots,
+  homepage: formatHomepageData,
+  orderDetails: formatOrderDetails,
+  orderHistory: formatOrderHistory,
+  productDetails: formatProductDetails,
+  productListItem: formatProductListItem,
+  shoppingList: formatShoppingList,
+  shoppingLists: formatShoppingLists,
+  storeSearch: formatStoreSearch,
+  weeklyAd: formatWeeklyAd,
+  weeklyAdCategories: formatWeeklyAdCategories,
+};

@@ -16,6 +16,7 @@ import { formatSlotTime, formatSlotDate } from './utils.js';
 export interface RawHistoryOrder {
   orderId: string;
   orderStatusMessageShort?: string;
+  status?: string; // Add status
   orderChangesOverview?: {
     reviewChangesEligible?: boolean;
     unfulfilledCount?: number;
@@ -41,6 +42,9 @@ export interface RawHistoryOrder {
   totalPrice?: {
     formattedAmount?: string;
     __typename?: string;
+  };
+  priceDetails?: {
+    total?: { formattedAmount?: string };
   };
   productCount?: number;
   __typename?: string;
@@ -395,4 +399,53 @@ export async function getOrder(
     page: { pageProps: { order: pageOrder } },
     graphql: result,
   };
+}
+
+/**
+ * Format order history list for display.
+ */
+export function formatOrderHistory(orders: RawHistoryOrder[]): string {
+  if (orders.length === 0) {
+    return 'No past orders found.';
+  }
+
+  const formatted = orders.map(order => {
+    const ts = order.orderTimeslot;
+    const timeRange = ts?.formattedStartTime ? ` (${ts.formattedStartTime} - ${ts.formattedEndTime})` : '';
+    // Use formatSlotDate if available, otherwise default to local string (but formatSlotDate is safer)
+    const dateText = ts?.formattedDate ?? (ts?.startTime ? formatSlotDate(ts.startTime) : 'Unknown date');
+    const totalText = order.totalPrice?.formattedAmount ?? order.priceDetails?.total?.formattedAmount ?? 'Unknown total';
+    const statusText = order.orderStatusMessageShort ?? order.status ?? 'Unknown status';
+    return `* Order ID: ${order.orderId} - Date: ${dateText}${timeRange} - Total: ${totalText} (${statusText})`;
+  }).join('\n');
+
+  return `Found ${orders.length} past orders:\n\n${formatted}\n\nUse get_order_details(order_id) to see specific items.`;
+}
+
+/**
+ * Format full order details for display.
+ */
+export function formatOrderDetails(order: OrderDetailsPageOrder): string {
+  // Use normalized items from SDK (prices already in dollars, not cents)
+  const normalizedItems = order.items ?? [];
+  const items = normalizedItems.length > 0
+    ? normalizedItems.map((item) =>
+        `- ${item.name} (Qty: ${item.quantity}, Price: ${item.price}) (ID: ${item.id})`
+      ).join('\n')
+    : '';
+
+  const orderIdText = order.orderId;
+  const statusText = order.status ?? 'Unknown status';
+  const totalText = order.priceDetails?.total?.formattedAmount ?? 'Unknown total';
+  
+  const ts = order.orderTimeslot;
+  const timeText = ts?.formattedDate ? `${ts.formattedDate} (${ts.formattedStartTime} - ${ts.formattedEndTime})` : 'Unknown';
+
+  return [
+    `**Order ${orderIdText}**`,
+    `Status: ${statusText}`,
+    `Date/Time: ${timeText}`,
+    `Total: ${totalText}`,
+    items ? `Items:\n${items}` : 'Items: No items found.'
+  ].join('\n');
 }

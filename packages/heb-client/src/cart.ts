@@ -636,3 +636,47 @@ export async function quickAdd(
   // This function sets quantity to 1 for simplicity.
   return addToCart(session, productId, skuId, 1);
 }
+
+/**
+ * Format cart for display.
+ */
+export function formatCart(cart: Cart): string {
+  if (cart.items.length === 0) {
+    return 'Your cart is empty.';
+  }
+
+  // Format cart items
+  const itemsList = cart.items.map((item, i) => {
+    const price = item.price?.formatted ?? 'N/A';
+    const brand = item.brand ? `(${item.brand})` : '';
+    return `${i + 1}. ${item.name ?? 'Unknown'} ${brand} x${item.quantity} - ${price}`;
+  }).join('\n');
+
+  // Format totals
+  const totals = [
+    `Subtotal: ${cart.subtotal.formatted}`,
+    cart.tax ? `Tax: ${cart.tax.formatted}` : null,
+    cart.savings ? `Savings: -${cart.savings.formatted}` : null,
+    `**Total: ${cart.total.formatted}**`,
+  ].filter(Boolean).join('\n');
+
+  // Format fees
+  let feesSection = '';
+  if (cart.fees.length > 0) {
+    const feesList = cart.fees.map(fee => 
+      `- ${fee.displayName}: ${fee.amount.formatted}`
+    ).join('\n');
+    feesSection = `\n\n**Fees:**\n${feesList}`;
+  }
+
+  // Format payment groups (if present)
+  let paymentSection = '';
+  if (cart.paymentGroups.length > 0) {
+    const payments = cart.paymentGroups.map(pg => 
+      `- ${pg.paymentMethod}${pg.paymentAlias ? ` (${pg.paymentAlias})` : ''}: ${pg.amount.formatted}`
+    ).join('\n');
+    paymentSection = `\n\n**Payment Methods:**\n${payments}`;
+  }
+
+  return `**Cart (${cart.itemCount} items)**\n\n${itemsList}\n\n${totals}${feesSection}${paymentSection}`;
+}
