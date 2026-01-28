@@ -28,6 +28,8 @@ export interface SearchResult {
   totalCount: number;
   page: number;
   hasNextPage: boolean;
+  nextCursor?: string;
+  searchContextToken?: string;
   facets?: Array<{
     key: string;
     label: string;
@@ -184,6 +186,8 @@ async function searchProductsMobile(
     totalCount,
     page: 1,
     hasNextPage: Boolean(grid?.nextCursor) || totalCount > products.length,
+    nextCursor: grid?.nextCursor,
+    searchContextToken: grid?.searchContextToken,
     facets: mapMobileFacets(grid),
   };
 }
