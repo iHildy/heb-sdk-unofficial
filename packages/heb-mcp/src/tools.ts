@@ -572,9 +572,11 @@ export function registerTools(
 
       try {
         const cart = await client.getCart();
+        const { items, ...cartDetails } = cart;
         const data = {
-          cart,
-          count: cart.items.length,
+          ...cartDetails,
+          items,
+          count: items.length,
           total_count: cart.itemCount,
           has_more: cart.isTruncated,
         };
@@ -1263,19 +1265,20 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           sort,
           sortDirection: sort_direction,
         });
-        const pageInfo = list.pageInfo;
-        const currentPage = pageInfo?.page ?? (page ?? 0);
-        const pageSize = pageInfo?.size ?? (size ?? 500);
+        const { items, pageInfo: listPageInfo, ...listDetails } = list;
+        const currentPage = listPageInfo?.page ?? (page ?? 0);
+        const pageSize = listPageInfo?.size ?? (size ?? 500);
         const data = {
-          list,
+          ...listDetails,
+          items,
           page: currentPage,
           page_size: pageSize,
-          total_count: pageInfo?.totalCount ?? null,
-          has_more: pageInfo?.hasMore ?? null,
-          count: list.items.length,
+          total_count: listPageInfo?.totalCount ?? null,
+          has_more: listPageInfo?.hasMore ?? null,
+          count: items.length,
         };
 
-        if (list.items.length === 0) {
+        if (items.length === 0) {
           return buildToolResponse(
             `Shopping list "${list.name}" is empty.`,
             data,
