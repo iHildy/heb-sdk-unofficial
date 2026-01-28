@@ -7,6 +7,7 @@
 import { persistedQuery } from './api.js';
 import { resolveShoppingContext } from './session.js';
 import type { HEBSession } from './types.js';
+import { formatCurrency } from './utils.js';
 
 // ─────────────────────────────────────────────────────────────
 // Raw API Response Types (internal)
@@ -597,7 +598,8 @@ export function formatHomepageData(homepage: HomepageData): string {
           
           // Check for product
           if ('productId' in item) {
-             const price = item.priceFormatted ?? (item.price ? `$${item.price}` : '');
+             const priceValue = 'price' in item && typeof item.price === 'number' ? item.price : undefined;
+             const price = item.priceFormatted ?? (priceValue ? formatCurrency(priceValue) : '');
              itemText = `${item.name} ${price}`.trim();
           } 
           // Check for banner/promo
