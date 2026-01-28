@@ -5,6 +5,7 @@ import {
   createSession,
   createTokenSession,
   HEBClient,
+  isSessionValid,
   updateTokenSession,
   type HEBAuthTokens,
   type HEBCookies,
@@ -13,6 +14,27 @@ import {
 import { refreshHebTokens, resolveHebOAuthConfig } from './heb-oauth.js';
 
 const DEFAULT_STORE_DIR = path.join(process.cwd(), 'data', 'sessions');
+const DEFAULT_SESSION_CACHE_TTL_MS = 15000;
+
+function resolveSessionCacheTtlMs(): number {
+  const raw = process.env.HEB_SESSION_CACHE_TTL_MS;
+  if (!raw) return DEFAULT_SESSION_CACHE_TTL_MS;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return DEFAULT_SESSION_CACHE_TTL_MS;
+  return parsed;
+}
+
+function areCookiesEqual(a?: HEBCookies, b?: HEBCookies): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const key of keysA) {
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+}
 
 type StoredSessionRecord = {
   cookies?: HEBCookies;
@@ -144,12 +166,25 @@ export class SessionStore {
 export class MultiTenantSessionManager {
   private store: SessionStore;
   private cache = new Map<string, { session: HEBSession; client: HEBClient; updatedAt: number }>();
+  private cacheTtlMs: number;
 
-  constructor(store: SessionStore) {
+  constructor(store: SessionStore, options?: { cacheTtlMs?: number }) {
     this.store = store;
+    this.cacheTtlMs = options?.cacheTtlMs ?? resolveSessionCacheTtlMs();
+  }
+
+  private isCacheFresh(entry: { session: HEBSession; updatedAt: number }): boolean {
+    if (this.cacheTtlMs <= 0) return false;
+    const ageMs = Date.now() - entry.updatedAt;
+    if (ageMs > this.cacheTtlMs) return false;
+    return isSessionValid(entry.session);
   }
 
   async loadUser(userId: string): Promise<void> {
+    const cached = this.cache.get(userId);
+    if (cached && this.isCacheFresh(cached)) {
+      return;
+    }
     const record = await this.store.load(userId);
     if (!record) {
       this.cache.delete(userId);
@@ -187,6 +222,11 @@ export class MultiTenantSessionManager {
   }
 
   async saveCookies(userId: string, cookies: HEBCookies): Promise<void> {
+    const cached = this.cache.get(userId);
+    if (cached?.session.authMode === 'cookie' && areCookiesEqual(cached.session.cookies, cookies)) {
+      cached.updatedAt = Date.now();
+      return;
+    }
     const session = createSession(cookies);
     const client = new HEBClient(session);
     this.cache.set(userId, { session, client, updatedAt: Date.now() });

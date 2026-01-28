@@ -5,7 +5,7 @@
  * Exposes H-E-B grocery API functionality as MCP tools for AI assistants.
  *
  * Transport modes:
- * - SSE (default): Remote, multi-tenant deployments (OAuth for MCP + Clerk for cookie ingestion)
+ * - Streamable HTTP (default): Remote, multi-tenant deployments (OAuth for MCP + Clerk for cookie ingestion)
  * - STDIO: Local testing (set MCP_MODE=local or MCP_TRANSPORT=stdio)
  *
  * Cookie ingestion:
@@ -55,7 +55,7 @@ const SERVER_VERSION = '0.1.0';
 
 const transportOverride = process.env.MCP_TRANSPORT?.toLowerCase();
 const mode = (process.env.MCP_MODE ?? 'remote').toLowerCase();
-const transport = transportOverride ?? (mode === 'local' ? 'stdio' : 'sse');
+const transport = transportOverride ?? (mode === 'local' ? 'stdio' : 'streamable_http');
 const isLocal = transport === 'stdio';
 
 async function main(): Promise<void> {
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Remote mode: SSE + Clerk auth + multi-tenant session store
+  // Remote mode: Streamable HTTP + Clerk auth + multi-tenant session store
   const sessionStore = createSessionStoreFromEnv({ requireEncryption: true });
   const multiTenantManager = new MultiTenantSessionManager(sessionStore);
   await startRemoteServer(multiTenantManager);
@@ -159,7 +159,7 @@ async function startSTDIOServer(server: McpServer): Promise<void> {
 }
 
 async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager): Promise<void> {
-  const { SSEServerTransport } = await import('@modelcontextprotocol/sdk/server/sse.js');
+  const { StreamableHTTPServerTransport } = await import('@modelcontextprotocol/sdk/server/streamableHttp.js');
 
   const port = parseInt(process.env.PORT ?? '3000', 10);
   const publicUrl = resolvePublicUrl(port);
@@ -359,9 +359,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     });
   });
 
-  const transports = new Map<string, { transport: InstanceType<typeof SSEServerTransport>; server: McpServer; userId: string }>();
-
-  app.get('/sse', requireOAuth, async (req, res) => {
+  app.post('/mcp', requireOAuth, async (req, res) => {
     const authInfo = (req as { auth?: AuthInfo }).auth;
     const userId = typeof authInfo?.extra?.userId === 'string' ? authInfo.extra.userId : null;
     if (!userId) {
@@ -371,9 +369,6 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
 
     try {
       await sessionManagerRemote.loadUser(userId);
-
-      const transportInstance = new SSEServerTransport('/messages', res);
-      const sessionId = transportInstance.sessionId;
 
       const server = createMcpServer(
         () => sessionManagerRemote.getClient(userId),
@@ -387,46 +382,16 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
         'Remote Session Store'
       );
 
-      transports.set(sessionId, { transport: transportInstance, server, userId });
-
-      transportInstance.onclose = () => {
-        transports.delete(sessionId);
-      };
+      const transportInstance = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+        enableJsonResponse: true,
+      });
+      res.on('close', () => transportInstance.close());
 
       await server.connect(transportInstance);
-      console.error(`[heb-mcp] SSE client connected (${sessionId}) for user ${userId}`);
+      await transportInstance.handleRequest(req, res, req.body);
     } catch (error) {
-      console.error('[heb-mcp] Error establishing SSE connection:', error);
-      if (!res.headersSent) {
-        res.status(500).send('Error establishing SSE stream');
-      }
-    }
-  });
-
-  app.post('/messages', requireOAuth, async (req, res) => {
-    const sessionId = req.query.sessionId;
-    if (!sessionId || typeof sessionId !== 'string') {
-      res.status(400).json({ error: 'Missing sessionId parameter' });
-      return;
-    }
-
-    const entry = transports.get(sessionId);
-    if (!entry) {
-      res.status(404).json({ error: 'Session not found' });
-      return;
-    }
-
-    const authInfo = (req as { auth?: AuthInfo }).auth;
-    const userId = typeof authInfo?.extra?.userId === 'string' ? authInfo.extra.userId : null;
-    if (!userId || userId !== entry.userId) {
-      res.status(401).json({ error: 'Unauthorized session' });
-      return;
-    }
-
-    try {
-      await entry.transport.handlePostMessage(req, res, req.body);
-    } catch (error) {
-      console.error('[heb-mcp] Error handling MCP message:', error);
+      console.error('[heb-mcp] Error handling MCP request:', error);
       if (!res.headersSent) {
         res.status(500).send('Error handling request');
       }
@@ -434,8 +399,8 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
   });
 
   app.listen(port, () => {
-    console.error(`[heb-mcp] SSE server listening on http://localhost:${port}`);
-    console.error(`[heb-mcp] SSE endpoint: http://localhost:${port}/sse`);
+    console.error(`[heb-mcp] Streamable HTTP server listening on http://localhost:${port}`);
+    console.error(`[heb-mcp] MCP endpoint: http://localhost:${port}/mcp`);
   });
 }
 
