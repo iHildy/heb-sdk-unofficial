@@ -13,14 +13,12 @@
  * - Local: POST http://localhost:4321/api/cookies
  */
 
-import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
-import { getOAuthProtectedResourceMetadataUrl, mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
-import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import express from 'express';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { z } from 'zod';
 
 import type { HEBClient, HEBCookies, HEBSession } from 'heb-client';
 import { requireAuth, requireClerkAuth } from './auth.js';
@@ -31,13 +29,8 @@ import {
   resolveHebOAuthConfig,
 } from './heb-oauth.js';
 import { createSessionStoreFromEnv, MultiTenantSessionManager } from './multi-tenant.js';
-import {
-  ClerkOAuthProvider,
-  createAuthorizeContextMiddleware,
-  resolveIssuerUrl,
-  resolveOAuthScopes,
-  resolvePublicUrl
-} from './oauth.js';
+import { startClerkDeviceFlow, pollClerkDeviceToken } from './clerk-device.js';
+import { createAuthorizeContextMiddleware, resolvePublicUrl } from './oauth.js';
 import { LOCAL_COOKIE_FILE, saveSessionToFile, sessionManager } from './session.js';
 import { registerTools } from './tools.js';
 import { renderPage } from './utils.js';
@@ -163,9 +156,20 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
 
   const port = parseInt(process.env.PORT ?? '3000', 10);
   const publicUrl = resolvePublicUrl(port);
-  const issuerUrl = resolveIssuerUrl(publicUrl);
-  const oauthScopes = resolveOAuthScopes();
   const app = express();
+
+  const deviceStartSchema = z.object({
+    scope: z.string().optional(),
+    scopes: z.union([z.string(), z.array(z.string())]).optional(),
+  });
+
+  const devicePollSchema = z.object({
+    device_code: z.string().optional(),
+    deviceCode: z.string().optional(),
+  }).refine((data) => Boolean(data.device_code || data.deviceCode), {
+    message: 'Missing device_code',
+    path: ['device_code'],
+  });
 
   app.use(express.json({ limit: '250kb' }));
   app.set('trust proxy', 1); 
@@ -174,28 +178,10 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     res.sendFile(join(__dirname, '..', 'favicon.ico'));
   });
 
-  const oauthProvider = new ClerkOAuthProvider({ publicUrl, supportedScopes: oauthScopes });
-  app.use('/authorize', createAuthorizeContextMiddleware({
-    publicUrl,
-    signInUrl: process.env.CLERK_SIGN_IN_URL,
-  }));
   app.use('/connect', createAuthorizeContextMiddleware({
     publicUrl,
     signInUrl: process.env.CLERK_SIGN_IN_URL,
   }));
-  app.use(mcpAuthRouter({
-    provider: oauthProvider,
-    issuerUrl,
-    resourceServerUrl: publicUrl,
-    scopesSupported: oauthScopes,
-    resourceName: 'heb-mcp',
-  }));
-
-  const requireOAuth = requireBearerAuth({
-    verifier: oauthProvider,
-    requiredScopes: oauthScopes,
-    resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(publicUrl),
-  });
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', server: SERVER_NAME, version: SERVER_VERSION });
@@ -248,6 +234,38 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     } catch (err) {
       console.error('[heb-mcp] Error rendering success page:', err);
       res.status(500).send('Internal server error');
+    }
+  });
+
+  app.post('/oauth/device/start', async (req, res) => {
+    try {
+      const parsed = deviceStartSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid request body', issues: parsed.error.flatten() });
+        return;
+      }
+      const scopeInput = parsed.data.scope ?? parsed.data.scopes;
+      const result = await startClerkDeviceFlow(scopeInput);
+      res.status(result.status).json(result.body);
+    } catch (error) {
+      console.error('[heb-mcp] Device flow start failed:', error);
+      res.status(500).json({ error: 'device_flow_start_failed' });
+    }
+  });
+
+  app.post('/oauth/device/poll', async (req, res) => {
+    try {
+      const parsed = devicePollSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid request body', issues: parsed.error.flatten() });
+        return;
+      }
+      const deviceCode = parsed.data.device_code ?? parsed.data.deviceCode;
+      const result = await pollClerkDeviceToken(deviceCode);
+      res.status(result.status).json(result.body);
+    } catch (error) {
+      console.error('[heb-mcp] Device flow poll failed:', error);
+      res.status(500).json({ error: 'device_flow_poll_failed' });
     }
   });
 
@@ -359,13 +377,10 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     });
   });
 
-  app.post('/mcp', requireOAuth, async (req, res) => {
-    const authInfo = (req as { auth?: AuthInfo }).auth;
-    const userId = typeof authInfo?.extra?.userId === 'string' ? authInfo.extra.userId : null;
-    if (!userId) {
-      res.status(401).json({ error: 'Missing user identity' });
-      return;
-    }
+  app.post('/mcp', async (req, res) => {
+    const auth = await requireAuth(req, res);
+    if (!auth) return;
+    const userId = auth.userId;
 
     try {
       await sessionManagerRemote.loadUser(userId);
