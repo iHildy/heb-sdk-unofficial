@@ -7,7 +7,7 @@ Unofficial TypeScript monorepo for integrating with H‑E‑B grocery experience
 - `packages/heb-auth` PKCE + OAuth utilities used to link H‑E‑B mobile bearer tokens.
 - `packages/heb-mcp` MCP server exposing H‑E‑B tools over MCP (remote streamable HTTP + OAuth/Clerk, or local STDIO).
 - `packages/heb-mcp/web` Minimal web UI used for OAuth linking and connect flows.
-- `packages/cookie-bridge-extension` Chrome/Firefox extension that syncs authenticated H‑E‑B cookies to the MCP server. Only used if not using the heb-auth package.
+- `packages/cookie-bridge-extension` Chrome/Firefox extension that syncs authenticated H‑E‑B cookies to the MCP server, enabling cookie-based sessions.
 
 **Capabilities (via `heb-client` and MCP tools)**
 - Product search, typeahead, and product detail retrieval.
