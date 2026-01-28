@@ -13,9 +13,6 @@
  * - Local: POST http://localhost:4321/api/cookies
  */
 
-import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
-import { getOAuthProtectedResourceMetadataUrl, mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
-import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import express from 'express';
@@ -31,13 +28,8 @@ import {
   resolveHebOAuthConfig,
 } from './heb-oauth.js';
 import { createSessionStoreFromEnv, MultiTenantSessionManager } from './multi-tenant.js';
-import {
-  ClerkOAuthProvider,
-  createAuthorizeContextMiddleware,
-  resolveIssuerUrl,
-  resolveOAuthScopes,
-  resolvePublicUrl
-} from './oauth.js';
+import { startClerkDeviceFlow, pollClerkDeviceToken } from './clerk-device.js';
+import { createAuthorizeContextMiddleware, resolvePublicUrl } from './oauth.js';
 import { LOCAL_COOKIE_FILE, saveSessionToFile, sessionManager } from './session.js';
 import { registerTools } from './tools.js';
 import { renderPage } from './utils.js';
@@ -163,8 +155,6 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
 
   const port = parseInt(process.env.PORT ?? '3000', 10);
   const publicUrl = resolvePublicUrl(port);
-  const issuerUrl = resolveIssuerUrl(publicUrl);
-  const oauthScopes = resolveOAuthScopes();
   const app = express();
 
   app.use(express.json({ limit: '250kb' }));
@@ -174,28 +164,10 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     res.sendFile(join(__dirname, '..', 'favicon.ico'));
   });
 
-  const oauthProvider = new ClerkOAuthProvider({ publicUrl, supportedScopes: oauthScopes });
-  app.use('/authorize', createAuthorizeContextMiddleware({
-    publicUrl,
-    signInUrl: process.env.CLERK_SIGN_IN_URL,
-  }));
   app.use('/connect', createAuthorizeContextMiddleware({
     publicUrl,
     signInUrl: process.env.CLERK_SIGN_IN_URL,
   }));
-  app.use(mcpAuthRouter({
-    provider: oauthProvider,
-    issuerUrl,
-    resourceServerUrl: publicUrl,
-    scopesSupported: oauthScopes,
-    resourceName: 'heb-mcp',
-  }));
-
-  const requireOAuth = requireBearerAuth({
-    verifier: oauthProvider,
-    requiredScopes: oauthScopes,
-    resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(publicUrl),
-  });
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', server: SERVER_NAME, version: SERVER_VERSION });
@@ -248,6 +220,34 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     } catch (err) {
       console.error('[heb-mcp] Error rendering success page:', err);
       res.status(500).send('Internal server error');
+    }
+  });
+
+  app.post('/oauth/device/start', async (req, res) => {
+    try {
+      const scopeInput = (req.body as { scope?: string; scopes?: string[] | string } | undefined)?.scope
+        ?? (req.body as { scope?: string; scopes?: string[] | string } | undefined)?.scopes;
+      const result = await startClerkDeviceFlow(scopeInput);
+      res.status(result.status).json(result.body);
+    } catch (error) {
+      console.error('[heb-mcp] Device flow start failed:', error);
+      res.status(500).json({ error: 'device_flow_start_failed' });
+    }
+  });
+
+  app.post('/oauth/device/poll', async (req, res) => {
+    try {
+      const { device_code: deviceCodeRaw, deviceCode: deviceCodeAlt } = req.body ?? {};
+      const deviceCode = deviceCodeRaw ?? deviceCodeAlt;
+      if (!deviceCode || typeof deviceCode !== 'string') {
+        res.status(400).json({ error: 'Missing device_code' });
+        return;
+      }
+      const result = await pollClerkDeviceToken(deviceCode);
+      res.status(result.status).json(result.body);
+    } catch (error) {
+      console.error('[heb-mcp] Device flow poll failed:', error);
+      res.status(500).json({ error: 'device_flow_poll_failed' });
     }
   });
 
@@ -359,13 +359,10 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     });
   });
 
-  app.post('/mcp', requireOAuth, async (req, res) => {
-    const authInfo = (req as { auth?: AuthInfo }).auth;
-    const userId = typeof authInfo?.extra?.userId === 'string' ? authInfo.extra.userId : null;
-    if (!userId) {
-      res.status(401).json({ error: 'Missing user identity' });
-      return;
-    }
+  app.post('/mcp', async (req, res) => {
+    const auth = await requireAuth(req, res);
+    if (!auth) return;
+    const userId = auth.userId;
 
     try {
       await sessionManagerRemote.loadUser(userId);
