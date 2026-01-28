@@ -18,6 +18,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import express from 'express';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { z } from 'zod';
 
 import type { HEBClient, HEBCookies, HEBSession } from 'heb-client';
 import { requireAuth, requireClerkAuth } from './auth.js';
@@ -157,6 +158,19 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
   const publicUrl = resolvePublicUrl(port);
   const app = express();
 
+  const deviceStartSchema = z.object({
+    scope: z.string().optional(),
+    scopes: z.union([z.string(), z.array(z.string())]).optional(),
+  });
+
+  const devicePollSchema = z.object({
+    device_code: z.string().optional(),
+    deviceCode: z.string().optional(),
+  }).refine((data) => Boolean(data.device_code || data.deviceCode), {
+    message: 'Missing device_code',
+    path: ['device_code'],
+  });
+
   app.use(express.json({ limit: '250kb' }));
   app.set('trust proxy', 1); 
 
@@ -225,8 +239,12 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
 
   app.post('/oauth/device/start', async (req, res) => {
     try {
-      const scopeInput = (req.body as { scope?: string; scopes?: string[] | string } | undefined)?.scope
-        ?? (req.body as { scope?: string; scopes?: string[] | string } | undefined)?.scopes;
+      const parsed = deviceStartSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid request body', issues: parsed.error.flatten() });
+        return;
+      }
+      const scopeInput = parsed.data.scope ?? parsed.data.scopes;
       const result = await startClerkDeviceFlow(scopeInput);
       res.status(result.status).json(result.body);
     } catch (error) {
@@ -237,12 +255,12 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
 
   app.post('/oauth/device/poll', async (req, res) => {
     try {
-      const { device_code: deviceCodeRaw, deviceCode: deviceCodeAlt } = req.body ?? {};
-      const deviceCode = deviceCodeRaw ?? deviceCodeAlt;
-      if (!deviceCode || typeof deviceCode !== 'string') {
-        res.status(400).json({ error: 'Missing device_code' });
+      const parsed = devicePollSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid request body', issues: parsed.error.flatten() });
         return;
       }
+      const deviceCode = parsed.data.device_code ?? parsed.data.deviceCode;
       const result = await pollClerkDeviceToken(deviceCode);
       res.status(result.status).json(result.body);
     } catch (error) {

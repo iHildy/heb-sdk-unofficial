@@ -9,7 +9,7 @@ type DeviceFlowResult = {
 };
 
 const DEFAULT_SCOPES = ['openid', 'profile', 'email', 'offline_access'];
-const DISCOVERY_TTL_MS = 5 * 60 * 1000;
+const DISCOVERY_CACHE_TTL_MS = 5 * 60 * 1000;
 
 let discoveryCache: { value: ClerkDiscovery | null; fetchedAt: number } = {
   value: null,
@@ -44,7 +44,7 @@ function normalizeScopes(input?: string | string[]): string {
 
 async function loadDiscovery(): Promise<ClerkDiscovery> {
   const now = Date.now();
-  if (discoveryCache.value && now - discoveryCache.fetchedAt < DISCOVERY_TTL_MS) {
+  if (discoveryCache.value && now - discoveryCache.fetchedAt < DISCOVERY_CACHE_TTL_MS) {
     return discoveryCache.value;
   }
 
@@ -52,7 +52,13 @@ async function loadDiscovery(): Promise<ClerkDiscovery> {
   const res = await fetch(discoveryUrl, { method: 'GET' });
   const payload = await parseJsonResponse(res);
   if (!res.ok) {
-    throw new Error(`Clerk discovery failed with status ${res.status}`);
+    const detail = typeof payload === 'object'
+      && payload !== null
+      && 'error_description' in payload
+      && typeof (payload as { error_description?: unknown }).error_description === 'string'
+      ? `: ${(payload as { error_description: string }).error_description}`
+      : '';
+    throw new Error(`Clerk discovery failed with status ${res.status}${detail}`);
   }
   const discovery = payload as ClerkDiscovery;
   discoveryCache = { value: discovery, fetchedAt: now };
