@@ -55,8 +55,8 @@ export function registerTools(
   // Session & Context
   // ─────────────────────────────────────────────────────────────
 
-  server.resource(
-    "session_status",
+  server.registerResource(
+    "heb_session_status",
     "session://status",
     {
       description:
@@ -89,10 +89,20 @@ export function registerTools(
     },
   );
 
-  server.tool(
-    "get_session_info",
-    "Get information about the current H-E-B session, including the active store.",
-    {},
+  server.registerTool(
+    "heb_get_session_info",
+    {
+      title: "Get Session Info",
+      description:
+        "Get information about the current H-E-B session, including the active store.",
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
     async () => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
@@ -122,19 +132,28 @@ export function registerTools(
   // Search
   // ─────────────────────────────────────────────────────────────
 
-  server.tool(
-    "search_products",
-    "Search for products in the H-E-B catalog",
+  server.registerTool(
+    "heb_search_products",
     {
-      query: z
-        .string()
-        .describe('Search query (e.g., "cinnamon rolls", "milk")'),
-      limit: z
-        .number()
-        .min(1)
-        .max(20)
-        .optional()
-        .describe("Max results to return (default: 20)"),
+      title: "Search Products",
+      description: "Search for products in the H-E-B catalog",
+      inputSchema: {
+        query: z
+          .string()
+          .describe('Search query (e.g., "cinnamon rolls", "milk")'),
+        limit: z
+          .number()
+          .min(1)
+          .max(20)
+          .optional()
+          .describe("Max results to return (default: 20)"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ query, limit }) => {
       const result = requireClient(getClient);
@@ -178,16 +197,26 @@ export function registerTools(
     },
   );
 
-  server.tool(
-    "get_buy_it_again",
-    'Get previously purchased products ("Buy It Again"). Use this instead of searching shopping lists for recently bought items. This tool returns the specific "Buy It Again" products from the user history, not a shopping list.',
+  server.registerTool(
+    "heb_get_buy_it_again",
     {
-      limit: z
-        .number()
-        .min(1)
-        .max(20)
-        .optional()
-        .describe("Max results to return (default: 20)"),
+      title: "Get Buy It Again",
+      description:
+        'Get previously purchased products ("Buy It Again"). Use this instead of searching shopping lists for recently bought items. This tool returns the specific "Buy It Again" products from the user history, not a shopping list.',
+      inputSchema: {
+        limit: z
+          .number()
+          .min(1)
+          .max(20)
+          .optional()
+          .describe("Max results to return (default: 20)"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ limit }) => {
       const result = requireClient(getClient);
@@ -235,11 +264,20 @@ export function registerTools(
   // Product Details
   // ─────────────────────────────────────────────────────────────
 
-  server.tool(
-    "get_product",
-    "Get detailed information about a specific product",
+  server.registerTool(
+    "heb_get_product",
     {
-      product_id: z.string().describe("Product ID from search results"),
+      title: "Get Product",
+      description: "Get detailed information about a specific product",
+      inputSchema: {
+        product_id: z.string().describe("Product ID from search results"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ product_id }) => {
       const result = requireClient(getClient);
@@ -271,16 +309,25 @@ export function registerTools(
   // Cart Operations
   // ─────────────────────────────────────────────────────────────
 
-  server.tool(
-    "add_to_cart",
-    "Add a product to the cart or update its quantity",
+  server.registerTool(
+    "heb_add_to_cart",
     {
-      product_id: z.string().describe("Product ID"),
-      quantity: z.number().min(1).max(99).describe("Quantity to set"),
-      sku_id: z
-        .string()
-        .optional()
-        .describe("SKU ID (auto-fetched if not provided)"),
+      title: "Add To Cart",
+      description: "Add a product to the cart or update its quantity",
+      inputSchema: {
+        product_id: z.string().describe("Product ID"),
+        quantity: z.number().min(1).max(99).describe("Quantity to set"),
+        sku_id: z
+          .string()
+          .optional()
+          .describe("SKU ID (auto-fetched if not provided)"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async ({ product_id, quantity, sku_id }) => {
       const result = requireClient(getClient);
@@ -324,20 +371,29 @@ export function registerTools(
     },
   );
 
-  server.tool(
-    "update_cart_item",
-    "Update the quantity of an item already in the cart",
+  server.registerTool(
+    "heb_update_cart_item",
     {
-      product_id: z.string().describe("Product ID"),
-      sku_id: z
-        .string()
-        .optional()
-        .describe("SKU ID (auto-fetched if not provided)"),
-      quantity: z
-        .number()
-        .min(0)
-        .max(99)
-        .describe("New quantity (0 to remove)"),
+      title: "Update Cart Item",
+      description: "Update the quantity of an item already in the cart",
+      inputSchema: {
+        product_id: z.string().describe("Product ID"),
+        sku_id: z
+          .string()
+          .optional()
+          .describe("SKU ID (auto-fetched if not provided)"),
+        quantity: z
+          .number()
+          .min(0)
+          .max(99)
+          .describe("New quantity (0 to remove)"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ product_id, sku_id, quantity }) => {
       const result = requireClient(getClient);
@@ -385,12 +441,21 @@ export function registerTools(
     },
   );
 
-  server.tool(
-    "remove_from_cart",
-    "Remove an item from the cart",
+  server.registerTool(
+    "heb_remove_from_cart",
     {
-      product_id: z.string().describe("Product ID"),
-      sku_id: z.string().describe("SKU ID"),
+      title: "Remove From Cart",
+      description: "Remove an item from the cart",
+      inputSchema: {
+        product_id: z.string().describe("Product ID"),
+        sku_id: z.string().describe("SKU ID"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async ({ product_id, sku_id }) => {
       const result = requireClient(getClient);
@@ -434,10 +499,19 @@ export function registerTools(
     },
   );
 
-  server.tool(
-    "get_cart",
-    "Get the current cart contents with items, prices, and totals",
-    {},
+  server.registerTool(
+    "heb_get_cart",
+    {
+      title: "Get Cart",
+      description: "Get the current cart contents with items, prices, and totals",
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
     async () => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
@@ -476,11 +550,20 @@ export function registerTools(
   // Orders
   // ─────────────────────────────────────────────────────────────
 
-  server.tool(
-    "get_order_history",
-    "Get past order history to see what the user has bought before.",
+  server.registerTool(
+    "heb_get_order_history",
     {
-      page: z.number().min(1).optional().describe("Page number (default: 1)"),
+      title: "Get Order History",
+      description: "Get past order history to see what the user has bought before.",
+      inputSchema: {
+        page: z.number().min(1).optional().describe("Page number (default: 1)"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ page }) => {
       const result = requireClient(getClient);
@@ -517,11 +600,20 @@ export function registerTools(
     },
   );
 
-  server.tool(
-    "get_order_details",
-    "Get specific items and details for a past order.",
+  server.registerTool(
+    "heb_get_order_details",
     {
-      order_id: z.string().describe("Order ID from order history"),
+      title: "Get Order Details",
+      description: "Get specific items and details for a past order.",
+      inputSchema: {
+        order_id: z.string().describe("Order ID from order history"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ order_id }) => {
       const result = requireClient(getClient);
@@ -557,10 +649,20 @@ export function registerTools(
   // Account
   // ─────────────────────────────────────────────────────────────
 
-  server.tool(
-    "get_account_details",
-    "Get the current user's account profile details including name, email, phone, and saved addresses.",
-    {},
+  server.registerTool(
+    "heb_get_account_details",
+    {
+      title: "Get Account Details",
+      description:
+        "Get the current user's account profile details including name, email, phone, and saved addresses.",
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
     async () => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
@@ -590,9 +692,11 @@ export function registerTools(
   // Homepage
   // ─────────────────────────────────────────────────────────────
 
-  server.tool(
-    "get_homepage",
-    `Get the H-E-B homepage content including banners, promotions, deals, and featured products.
+  server.registerTool(
+    "heb_get_homepage",
+    {
+      title: "Get Homepage",
+      description: `Get the H-E-B homepage content including banners, promotions, deals, and featured products.
 
 ⚠️ WARNING: This tool returns VERY LONG output by default (300+ products, 25+ sections with 30 items each).
 BEFORE calling this tool without filters, STOP and ask the user what they want to see. Suggest options like:
@@ -603,49 +707,56 @@ BEFORE calling this tool without filters, STOP and ask the user what they want t
 - "Show everything" (no filters - will be very long)
 
 Only call without filters if the user explicitly requests full/unfiltered homepage content.`,
-    {
-      max_sections: z
-        .number()
-        .min(1)
-        .optional()
-        .describe("Maximum number of content sections to return"),
-      items_per_section: z
-        .number()
-        .min(0)
-        .optional()
-        .describe(
-          "Maximum items per section (0 = no items, just section headers)",
-        ),
-      include_types: z
-        .string()
-        .optional()
-        .describe(
-          'Comma-separated section types to include (e.g., "Carousel,banner"). Partial match.',
-        ),
-      exclude_types: z
-        .string()
-        .optional()
-        .describe(
-          'Comma-separated section types to exclude (e.g., "legalText,NativeExm,Static"). Partial match.',
-        ),
-      only_titled: z
-        .boolean()
-        .optional()
-        .describe("Only include sections that have a title (default: false)"),
-      hide_banners: z
-        .boolean()
-        .optional()
-        .describe("Hide the top-level banners array (default: false)"),
-      hide_promotions: z
-        .boolean()
-        .optional()
-        .describe("Hide the top-level promotions array (default: false)"),
-      hide_products: z
-        .boolean()
-        .optional()
-        .describe(
-          "Hide the top-level featured products array (default: false)",
-        ),
+      inputSchema: {
+        max_sections: z
+          .number()
+          .min(1)
+          .optional()
+          .describe("Maximum number of content sections to return"),
+        items_per_section: z
+          .number()
+          .min(0)
+          .optional()
+          .describe(
+            "Maximum items per section (0 = no items, just section headers)",
+          ),
+        include_types: z
+          .string()
+          .optional()
+          .describe(
+            'Comma-separated section types to include (e.g., "Carousel,banner"). Partial match.',
+          ),
+        exclude_types: z
+          .string()
+          .optional()
+          .describe(
+            'Comma-separated section types to exclude (e.g., "legalText,NativeExm,Static"). Partial match.',
+          ),
+        only_titled: z
+          .boolean()
+          .optional()
+          .describe("Only include sections that have a title (default: false)"),
+        hide_banners: z
+          .boolean()
+          .optional()
+          .describe("Hide the top-level banners array (default: false)"),
+        hide_promotions: z
+          .boolean()
+          .optional()
+          .describe("Hide the top-level promotions array (default: false)"),
+        hide_products: z
+          .boolean()
+          .optional()
+          .describe(
+            "Hide the top-level featured products array (default: false)",
+          ),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({
       max_sections,
@@ -698,18 +809,28 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
   // Delivery Slots
   // ─────────────────────────────────────────────────────────────
 
-  server.tool(
-    "get_delivery_slots",
-    "Get available delivery time slots. NOTE: This tool requires a valid address to fetch slots.",
+  server.registerTool(
+    "heb_get_delivery_slots",
     {
-      street: z.string().describe('Street address (e.g. "123 Main St")'),
-      city: z.string().describe("City"),
-      state: z.string().length(2).describe('State code (e.g. "TX")'),
-      zip: z.string().describe("Zip code"),
-      days: z
-        .number()
-        .optional()
-        .describe("Number of days to fetch (default: 14)"),
+      title: "Get Delivery Slots",
+      description:
+        "Get available delivery time slots. NOTE: This tool requires a valid address to fetch slots.",
+      inputSchema: {
+        street: z.string().describe('Street address (e.g. "123 Main St")'),
+        city: z.string().describe("City"),
+        state: z.string().length(2).describe('State code (e.g. "TX")'),
+        zip: z.string().describe("Zip code"),
+        days: z
+          .number()
+          .optional()
+          .describe("Number of days to fetch (default: 14)"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ street, city, state, zip, days }) => {
       const result = requireClient(getClient);
@@ -750,21 +871,30 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
     },
   );
 
-  server.tool(
-    "reserve_slot",
-    "Reserve a specific delivery time slot",
+  server.registerTool(
+    "heb_reserve_slot",
     {
-      slot_id: z.string().describe("Slot ID from get_delivery_slots"),
-      day: z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/)
-        .describe("Date of the slot (YYYY-MM-DD)"),
-      store_id: z.string().describe("Store ID"),
-      street: z.string().describe("Delivery Street Address"),
-      city: z.string().describe("Delivery City"),
-      state: z.string().length(2).describe("Delivery State (TX)"),
-      zip: z.string().describe("Delivery Zip Code"),
-      nickname: z.string().optional().describe("Address Nickname (optional)"),
+      title: "Reserve Delivery Slot",
+      description: "Reserve a specific delivery time slot",
+      inputSchema: {
+        slot_id: z.string().describe("Slot ID from heb_get_delivery_slots"),
+        day: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .describe("Date of the slot (YYYY-MM-DD)"),
+        store_id: z.string().describe("Store ID"),
+        street: z.string().describe("Delivery Street Address"),
+        city: z.string().describe("Delivery City"),
+        state: z.string().length(2).describe("Delivery State (TX)"),
+        zip: z.string().describe("Delivery Zip Code"),
+        nickname: z.string().optional().describe("Address Nickname (optional)"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async ({ slot_id, day, store_id, street, city, state, zip, nickname }) => {
       const result = requireClient(getClient);
@@ -815,15 +945,24 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
   // Curbside Pickup Slots
   // ─────────────────────────────────────────────────────────────
 
-  server.tool(
-    "get_curbside_slots",
-    "Get available curbside pickup time slots for a store",
+  server.registerTool(
+    "heb_get_curbside_slots",
     {
-      store_id: z.string().describe('Store ID (e.g. "790" for Plano)'),
-      days: z
-        .number()
-        .optional()
-        .describe("Number of days to fetch (default: 14)"),
+      title: "Get Curbside Slots",
+      description: "Get available curbside pickup time slots for a store",
+      inputSchema: {
+        store_id: z.string().describe('Store ID (e.g. "790" for Plano)'),
+        days: z
+          .number()
+          .optional()
+          .describe("Number of days to fetch (default: 14)"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ store_id, days }) => {
       const result = requireClient(getClient);
@@ -861,16 +1000,25 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
     },
   );
 
-  server.tool(
-    "reserve_curbside_slot",
-    "Reserve a curbside pickup time slot",
+  server.registerTool(
+    "heb_reserve_curbside_slot",
     {
-      slot_id: z.string().describe("Slot ID from get_curbside_slots"),
-      date: z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/)
-        .describe("Date of the slot (YYYY-MM-DD)"),
-      store_id: z.string().describe("Store ID"),
+      title: "Reserve Curbside Slot",
+      description: "Reserve a curbside pickup time slot",
+      inputSchema: {
+        slot_id: z.string().describe("Slot ID from heb_get_curbside_slots"),
+        date: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .describe("Date of the slot (YYYY-MM-DD)"),
+        store_id: z.string().describe("Store ID"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async ({ slot_id, date, store_id }) => {
       const result = requireClient(getClient);
@@ -910,10 +1058,20 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
   // Shopping Lists
   // ─────────────────────────────────────────────────────────────
 
-  server.tool(
-    "get_shopping_lists",
-    'Get all shopping lists for the current user. Note: This does NOT include "Buy It Again" items; use get_buy_it_again for previously purchased products.',
-    {},
+  server.registerTool(
+    "heb_get_shopping_lists",
+    {
+      title: "Get Shopping Lists",
+      description:
+        'Get all shopping lists for the current user. Note: This does NOT include "Buy It Again" items; use heb_get_buy_it_again for previously purchased products.',
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
     async () => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
@@ -948,11 +1106,20 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
     },
   );
 
-  server.tool(
-    "get_shopping_list",
-    "Get items in a specific shopping list",
+  server.registerTool(
+    "heb_get_shopping_list",
     {
-      list_id: z.string().describe("Shopping list ID from get_shopping_lists"),
+      title: "Get Shopping List",
+      description: "Get items in a specific shopping list",
+      inputSchema: {
+        list_id: z.string().describe("Shopping list ID from heb_get_shopping_lists"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ list_id }) => {
       const result = requireClient(getClient);
@@ -994,13 +1161,22 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
   // Store Selection
   // ─────────────────────────────────────────────────────────────
 
-  server.tool(
-    "search_stores",
-    "Search for H-E-B stores by name, city, or zip code",
+  server.registerTool(
+    "heb_search_stores",
     {
-      query: z
-        .string()
-        .describe('Search query (e.g. "Allen", "75002", "Austin")'),
+      title: "Search Stores",
+      description: "Search for H-E-B stores by name, city, or zip code",
+      inputSchema: {
+        query: z
+          .string()
+          .describe('Search query (e.g. "Allen", "75002", "Austin")'),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ query }) => {
       const result = requireClient(getClient);
@@ -1038,27 +1214,36 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
   // Weekly Ad
   // ─────────────────────────────────────────────────────────────
 
-  server.tool(
-    "get_weekly_ad",
-    "Get products from the current store's weekly ad flyer.",
+  server.registerTool(
+    "heb_get_weekly_ad",
     {
-      limit: z
-        .number()
-        .min(1)
-        .max(100)
-        .optional()
-        .describe("Max results to return (default: 20)"),
-      category_id: z
-        .string()
-        .optional()
-        .describe(
-          'Filter by category ID (e.g. "490020"). Use get_weekly_ad_categories to find IDs.',
-        ),
-      store_id: z
-        .string()
-        .optional()
-        .describe('Override the current store ID (e.g. "796")'),
-      page_cursor: z.string().optional().describe("Cursor for pagination"),
+      title: "Get Weekly Ad",
+      description: "Get products from the current store's weekly ad flyer.",
+      inputSchema: {
+        limit: z
+          .number()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Max results to return (default: 20)"),
+        category_id: z
+          .string()
+          .optional()
+          .describe(
+            'Filter by category ID (e.g. "490020"). Use heb_get_weekly_ad_categories to find IDs.',
+          ),
+        store_id: z
+          .string()
+          .optional()
+          .describe('Override the current store ID (e.g. "796")'),
+        page_cursor: z.string().optional().describe("Cursor for pagination"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ limit, category_id, store_id, page_cursor }) => {
       const result = requireClient(getClient);
@@ -1101,14 +1286,23 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
     },
   );
 
-  server.tool(
-    "get_weekly_ad_categories",
-    "Get available categories for the weekly ad to use as filters.",
+  server.registerTool(
+    "heb_get_weekly_ad_categories",
     {
-      store_id: z
-        .string()
-        .optional()
-        .describe('Override the current store ID (e.g. "796")'),
+      title: "Get Weekly Ad Categories",
+      description: "Get available categories for the weekly ad to use as filters.",
+      inputSchema: {
+        store_id: z
+          .string()
+          .optional()
+          .describe('Override the current store ID (e.g. "796")'),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ store_id }) => {
       const result = requireClient(getClient);
@@ -1138,11 +1332,20 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
     },
   );
 
-  server.tool(
-    "set_store",
-    "Set the active store for the session",
+  server.registerTool(
+    "heb_set_store",
     {
-      store_id: z.string().describe('Store ID (e.g. "796")'),
+      title: "Set Store",
+      description: "Set the active store for the session",
+      inputSchema: {
+        store_id: z.string().describe('Store ID (e.g. "796")'),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ store_id }) => {
       const result = requireClient(getClient);
@@ -1183,22 +1386,32 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
     },
   );
 
-  server.tool(
-    "set_shopping_context",
-    "Set the active shopping context for the session (Curbside Pickup, Curbside Delivery, or In-Store)",
+  server.registerTool(
+    "heb_set_shopping_context",
     {
-      context: z
-        .enum([
-          "CURBSIDE_PICKUP",
-          "PICKUP",
-          "CURBSIDE_DELIVERY",
-          "DELIVERY",
-          "EXPLORE_MY_STORE",
-          "IN_STORE",
-        ])
-        .describe(
-          "Shopping context. Supported values:\n- DELIVERY (Home Delivery)\n- PICKUP (Curbside Pickup)\n- IN_STORE (Browse In-Store)",
-        ),
+      title: "Set Shopping Context",
+      description:
+        "Set the active shopping context for the session (Curbside Pickup, Curbside Delivery, or In-Store)",
+      inputSchema: {
+        context: z
+          .enum([
+            "CURBSIDE_PICKUP",
+            "PICKUP",
+            "CURBSIDE_DELIVERY",
+            "DELIVERY",
+            "EXPLORE_MY_STORE",
+            "IN_STORE",
+          ])
+          .describe(
+            "Shopping context. Supported values:\n- DELIVERY (Home Delivery)\n- PICKUP (Curbside Pickup)\n- IN_STORE (Browse In-Store)",
+          ),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ context }) => {
       const result = requireClient(getClient);
