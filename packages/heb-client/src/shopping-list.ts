@@ -101,6 +101,9 @@ interface RawShoppingListResponse {
           }>;
         };
       }>;
+      page?: number;
+      size?: number;
+      totalCount?: number;
     };
   };
 }
@@ -128,6 +131,34 @@ export interface ShoppingList {
   createdAt: Date;
   /** When the list was last updated */
   updatedAt: Date;
+}
+
+/**
+ * Pagination details for shopping lists.
+ */
+export interface ShoppingListsPageInfo {
+  /** Current page number (API uses 0-indexed pages). */
+  page: number;
+  /** Page size. */
+  size: number;
+  /** Total number of shopping lists. */
+  totalCount: number;
+  /** Sort field used by the API. */
+  sort: string;
+  /** Sort direction used by the API. */
+  sortDirection: string;
+  /** Whether more pages are available. */
+  hasMore: boolean;
+  /** Next page number, if available. */
+  nextPage?: number;
+}
+
+/**
+ * Shopping list collection with pagination info.
+ */
+export interface ShoppingListsResult {
+  lists: ShoppingList[];
+  pageInfo: ShoppingListsPageInfo;
 }
 
 /**
@@ -194,6 +225,13 @@ export interface ShoppingListDetails {
   updatedAt: Date;
   /** Items in the list */
   items: ShoppingListItem[];
+  /** Pagination info for list items */
+  pageInfo?: {
+    page: number;
+    size: number;
+    totalCount?: number;
+    hasMore?: boolean;
+  };
 }
 
 /**
@@ -225,7 +263,7 @@ export interface GetShoppingListOptions {
  * console.log(`You have ${lists.length} shopping lists`);
  * lists.forEach(list => console.log(`- ${list.name} (${list.itemCount} items)`));
  */
-export async function getShoppingLists(session: HEBSession): Promise<ShoppingList[]> {
+export async function getShoppingLists(session: HEBSession): Promise<ShoppingListsResult> {
   const response = await persistedQuery<RawShoppingListsResponse>(
     session,
     'getShoppingListsV2',
@@ -237,7 +275,7 @@ export async function getShoppingLists(session: HEBSession): Promise<ShoppingLis
     throw new Error('Failed to fetch shopping lists');
   }
 
-  return data.lists.map(list => ({
+  const lists = data.lists.map(list => ({
     id: list.id,
     name: list.name,
     itemCount: list.totalItemCount,
@@ -248,6 +286,18 @@ export async function getShoppingLists(session: HEBSession): Promise<ShoppingLis
     createdAt: new Date(list.created),
     updatedAt: new Date(list.updated),
   }));
+
+  const pageInfo: ShoppingListsPageInfo = {
+    page: data.thisPage.page,
+    size: data.thisPage.size,
+    totalCount: data.thisPage.totalCount,
+    sort: data.thisPage.sort,
+    sortDirection: data.thisPage.sortDirection,
+    hasMore: Boolean(data.nextPage),
+    nextPage: data.nextPage?.page ?? undefined,
+  };
+
+  return { lists, pageInfo };
 }
 
 /**
@@ -299,6 +349,14 @@ export async function getShoppingList(
     throw new Error(`Shopping list ${listId} not found`);
   }
 
+  const pageInfoSource = data.itemPage;
+  const pageValue = pageInfoSource.page ?? page;
+  const sizeValue = pageInfoSource.size ?? size;
+  const totalCount = pageInfoSource.totalCount;
+  const hasMore = typeof totalCount === 'number'
+    ? (pageValue + 1) * sizeValue < totalCount
+    : undefined;
+
   return {
     id: data.id,
     name: data.name,
@@ -331,6 +389,12 @@ export async function getShoppingList(
       imageUrl: item.product.productImageUrls.find(img => img.size === 'SMALL')?.url
         ?? item.product.productImageUrls[0]?.url,
     })),
+    pageInfo: {
+      page: pageValue,
+      size: sizeValue,
+      totalCount,
+      hasMore,
+    },
   };
 }
 

@@ -107,6 +107,8 @@ export {
     type GetShoppingListOptions,
     type ShoppingList,
     type ShoppingListDetails,
+    type ShoppingListsPageInfo,
+    type ShoppingListsResult,
     type ShoppingListItem
 } from './shopping-list.js';
 

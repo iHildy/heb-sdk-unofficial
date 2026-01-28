@@ -6,7 +6,7 @@ import { getOrder, getOrders, type GetOrdersOptions, type OrderDetailsResponse, 
 import { getProductDetails, getProductImageUrl, getProductSkuId, type Product, type GetProductOptions } from './product.js';
 import { getBuyItAgain, searchProducts, typeahead, type SearchOptions, type SearchResult, type TypeaheadResult } from './search.js';
 import { getSessionInfo, isSessionValid } from './session.js';
-import { getShoppingList, getShoppingLists, type GetShoppingListOptions, type ShoppingList, type ShoppingListDetails } from './shopping-list.js';
+import { getShoppingList, getShoppingLists, type GetShoppingListOptions, type ShoppingListDetails, type ShoppingListsResult } from './shopping-list.js';
 import { searchStores, setStore, type Store } from './stores.js';
 import type { Address, HEBSession, ShoppingContext } from './types.js';
 import { getWeeklyAdProducts, type WeeklyAdOptions, type WeeklyAdResult } from './weekly-ad.js';
@@ -299,7 +299,7 @@ export class HEBClient {
   /**
    * Get all shopping lists for the current user.
    */
-  async getShoppingLists(): Promise<ShoppingList[]> {
+  async getShoppingLists(): Promise<ShoppingListsResult> {
     return getShoppingLists(this.session);
   }
 

@@ -58,6 +58,14 @@ export interface OrderHistoryResponse {
     orders?: RawHistoryOrder[];
     [key: string]: unknown;
   };
+  pagination?: {
+    page: number;
+    size: number;
+    hasMore: boolean;
+    nextPage?: number;
+    activeCount: number;
+    completedCount: number;
+  };
   [key: string]: unknown;
 }
 
@@ -177,6 +185,7 @@ export interface OrderDetailsResponse {
  */
 export interface GetOrdersOptions {
   page?: number;
+  size?: number;
 }
 
 interface OrderHistoryGraphqlResponse {
@@ -318,7 +327,7 @@ export async function getOrders(
   assertBearer(session);
 
   const page = options.page ?? 1;
-  const size = DEFAULT_ORDER_PAGE_SIZE;
+  const size = Math.max(1, Math.floor(options.size ?? DEFAULT_ORDER_PAGE_SIZE));
   const offset = Math.max(0, (page - 1) * size);
 
   const context = resolveShoppingContext(session);
@@ -346,7 +355,9 @@ export async function getOrders(
     throw new Error(`Order history fetch failed: ${errors.map(e => e.message).join(', ')}`);
   }
 
-  const combined = [...extractOrders(active.data), ...extractOrders(completed.data)];
+  const activeOrders = extractOrders(active.data);
+  const completedOrders = extractOrders(completed.data);
+  const combined = [...activeOrders, ...completedOrders];
   const uniqueOrders = new Map<string, RawHistoryOrder>();
   for (const rawOrder of combined) {
     if (rawOrder?.orderId && !uniqueOrders.has(rawOrder.orderId)) {
@@ -354,9 +365,19 @@ export async function getOrders(
     }
   }
 
+  const hasMore = activeOrders.length >= size || completedOrders.length >= size;
+
   return {
     pageProps: {
       orders: Array.from(uniqueOrders.values()),
+    },
+    pagination: {
+      page,
+      size,
+      hasMore,
+      nextPage: hasMore ? page + 1 : undefined,
+      activeCount: activeOrders.length,
+      completedCount: completedOrders.length,
     },
   };
 }
