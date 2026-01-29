@@ -66,7 +66,7 @@ export default defineConfig({
           items: ["docs/api-reference", "docs/data-models", "docs/configuration", "docs/errors"],
         },
         {
-          label: "MCP server",
+          label: "MCP Server",
           items: [
             "docs/mcp",
             "docs/mcp/client-guide",
