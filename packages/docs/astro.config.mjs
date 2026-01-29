@@ -60,9 +60,10 @@ export default defineConfig({
         "docs/sessions",
         "docs/sdk",
         "docs/examples",
+        "docs/faq",
         {
           label: "SDK Reference",
-          items: ["docs/api-reference", "docs/data-models", "docs/configuration", "docs/errors", "docs/faq"],
+          items: ["docs/api-reference", "docs/data-models", "docs/configuration", "docs/errors"],
         },
         {
           label: "MCP server",
