@@ -1,63 +1,61 @@
 ---
-title: Client Guide
-description: Add heb-mcp to Claude.ai or ChatGPT
+title: Hosted setup
+description: Connect H‑E‑B tools to your chat app
 ---
 
-Connect heb-mcp to an AI chat client that supports MCP.
-You’ll need Developer mode enabled first.
-
----
-
-## Enable developer mode
-
-Open settings in Claude.ai or ChatGPT and turn on Developer mode.
-After it reloads, you should see MCP server settings.
+Add the hosted H‑E‑B MCP server to your favorite AI chat.
+You can connect once and reuse it across apps.
 
 ---
 
-## Add a hosted endpoint
+## Server URL
 
-Use this path when you are running the remote HTTP service.
-The client should discover OAuth from the server metadata.
+Use this hosted endpoint for every client.
+Authentication is handled automatically.
 
-- Server URL: `https://your-domain.example/mcp`
-- Complete the OAuth sign-in flow when prompted
-- Approve the requested scope, usually `mcp:tools`
-
----
-
-## Add a local command
-
-Use this if your client can launch local MCP processes.
-The command must run in STDIO mode and keep running.
-
-```json
-{
-  "command": "node",
-  "args": ["/path/to/heb-mcp/dist/server.js"],
-  "env": {
-    "MCP_MODE": "local",
-    "HEB_SAT": "your_sat_cookie",
-    "HEB_REESE84": "your_reese84_cookie"
-  }
-}
-```
-
-If you prefer the cookie bridge, omit the cookie env vars and post cookies to http://localhost:4321/api/cookies.
-The cookie bridge extension is no longer maintained; use `heb-auth` instead.
+- Server URL: `https://heb-mcp.hildy.io/mcp`
+- Transport: `streamableHttp`
 
 ---
 
-## Confirm access
+## Add in ChatGPT
 
-Run `heb_get_session_info` and check that the session is valid and a store is set.
-If you see a missing-session message, link a session first.
+Open [Settings>Apps>Advanced](https://chatgpt.com/apps#settings/Connectors/Advanced), enable Developer mode, then press the new "Create app" button. 
+Name it `HEB_MCP`, paste the MCP Server URL, accept the risk, and press Create. Ignore authentication settings.
 
 ---
 
-## Link your account
+## Add in Claude
 
-Hosted mode: open `https://your-domain.example/connect` and sign in with Clerk.
-Finish the H‑E‑B OAuth flow in the new tab and paste the code when asked.
+Open [Settings>Connectors](https://claude.ai/settings/connectors), then press Add Custom Connector.
+Name it `HEB_MCP` and paste the server URL and press Add. Ignore advanced settings.
 
-Local mode: set `HEB_SAT` and `HEB_REESE84` or send cookies to `http://localhost:4321/api/cookies`.
+---
+
+## Add in Cursor
+
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=heb-mcp&config=eyJ1cmwiOiJucHgiLCJ0cmFuc3BvcnQiOiJodHRwczovL2hlYi1tY3AuaGlsZHkuaW8vbWNwIn0%3D)
+
+---
+
+## Sign in
+
+You will be prompted to authenticate with Clerk when you add the server or after your first tool call.
+Create an account with any username and password.
+
+---
+
+## Link your H‑E‑B account
+
+After Clerk sign-in, go to `https://heb-mcp.hildy.io/connect` (if not already there) and click the H‑E‑B login link.
+Open browser DevTools to the Network tab before you press Allow on the H‑E‑B site.
+
+After logging in, when you click Allow, find the recent failed request and copy the `token` from it.
+Paste the token into the `/connect` page and submit.
+
+---
+
+## Try it
+
+Ask your assistant to run `heb_get_session_info` and confirm you see your account.
+If it says missing session, revisit `/connect` and submit a new token.
