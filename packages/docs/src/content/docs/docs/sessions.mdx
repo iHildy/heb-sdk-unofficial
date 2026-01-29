@@ -4,15 +4,15 @@ description: Auth choices, refresh hooks, and context tips.
 ---
 
 Sessions bundle cookies, headers, and token state.
-heb-auth is the recommended path because tokens can be refreshed on the server and don't require an active browser.
 Build one for cookie or bearer auth before calling the client.
 
 ---
 
 ## Pick auth
 
-Cookie auth targets the web GraphQL host and suits cart, typeahead, store search, and shopping lists.
+heb-auth is the recommended path because tokens can be refreshed on the server and don't require an active browser.
 Bearer auth targets the mobile GraphQL host and is required for search, buy-it-again, product details, homepage, orders, account, and weekly ad.
+Cookie auth targets the web GraphQL host and suits cart, typeahead, store search, and shopping lists.
 
 ---
 
