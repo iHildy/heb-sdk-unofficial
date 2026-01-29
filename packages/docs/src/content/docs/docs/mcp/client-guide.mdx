@@ -1,0 +1,61 @@
+---
+title: Hosted setup
+description: Connect H‑E‑B tools to your chat app
+---
+
+Add the hosted H‑E‑B MCP server to your favorite AI chat.
+You can connect once and reuse it across apps.
+
+---
+
+## Server URL
+
+Use this hosted endpoint for every client.
+Authentication is handled automatically.
+
+- Server URL: `https://heb-mcp.hildy.io/mcp`
+- Transport: `streamableHttp`
+
+---
+
+## Add in ChatGPT
+
+Open [Settings>Apps>Advanced](https://chatgpt.com/apps#settings/Connectors/Advanced), enable Developer mode, then press the new "Create app" button. 
+Name it `HEB_MCP`, paste the MCP Server URL, accept the risk, and press Create. Ignore authentication settings.
+
+---
+
+## Add in Claude
+
+Open [Settings>Connectors](https://claude.ai/settings/connectors), then press Add Custom Connector.
+Name it `HEB_MCP` and paste the server URL and press Add. Ignore advanced settings.
+
+---
+
+## Add in Cursor
+
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=heb-mcp&config=eyJ1cmwiOiJucHgiLCJ0cmFuc3BvcnQiOiJodHRwczovL2hlYi1tY3AuaGlsZHkuaW8vbWNwIn0%3D)
+
+---
+
+## Sign in
+
+You will be prompted to authenticate with Clerk when you add the server or after your first tool call.
+Create an account with any username and password.
+
+---
+
+## Link your H‑E‑B account
+
+After Clerk sign-in, go to `https://heb-mcp.hildy.io/connect` (if not already there) and click the H‑E‑B login link.
+Open browser DevTools to the Network tab before you press Allow on the H‑E‑B site.
+
+After logging in, when you click Allow, find the recent failed request and copy the `token` from it.
+Paste the token into the `/connect` page and submit.
+
+---
+
+## Try it
+
+Ask your assistant to run `heb_get_session_info` and confirm you see your account.
+If it says missing session, revisit `/connect` and submit a new token.

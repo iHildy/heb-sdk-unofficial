@@ -1,0 +1,138 @@
+---
+title: Data Models
+description: Shapes for responses, inputs, and errors.
+---
+
+These types are exported from `heb-client` for strong typing.
+Use them to model inputs and normalize responses.
+
+## Review sessions
+
+- `HEBCookies`: `sat`, `reese84`, `incap_ses`, optional `CURR_SESSION_STORE`, optional `shoppingContext`, plus extra keys
+- `HEBHeaders`: base GraphQL headers plus optional `cookie` and `authorization`
+- `HEBAuthTokens`: `accessToken` plus optional `refreshToken`, `idToken`, `tokenType`, `scope`, `expiresIn`, `expiresAt`
+- `HEBAuthMode`: `cookie` or `bearer`
+- `HEBEndpoints`: `graphql` and `home`
+- `HEBSession`: cookies, headers, auth mode, tokens, expiry, optional `endpoints`, optional `refresh`, optional `debug`
+- `ShoppingContext`: `CURBSIDE_PICKUP`, `CURBSIDE_DELIVERY`, or `EXPLORE_MY_STORE`
+- `FulfillmentType`: `DELIVERY` or `PICKUP`
+- `HEBCredentials`: `email` and `password`
+- `LoginOptions`: `headless`, `timeout`, `storeId`, `userDataDir`
+
+---
+
+## Review search results
+
+- `SearchOptions`: `limit`, `storeId`, `shoppingContext`, `searchMode`, `includeImages`
+- `SearchResult`: `products`, `totalCount`, `page`, `hasNextPage`, optional `nextCursor`, optional `searchContextToken`, optional `facets`
+- `TypeaheadSuggestion`: `term` plus `type` (`recent`, `trending`, `keyword`)
+- `TypeaheadResult`: `recentSearches`, `trendingSearches`, `allTerms`
+
+---
+
+## Review products
+
+- `Product`: ids, name, brand, descriptions, images, pricing, nutrition, fulfillment, availability, size, category
+- `ProductPrice`: `amount`, `formatted`, optional `wasPrice`, optional `unitPrice`
+- `NutritionInfo`: serving data plus calories, fat, carbs, protein, sodium, and sugar fields
+- `FulfillmentInfo`: `curbside`, `delivery`, `inStore`, optional `aisleLocation`
+
+---
+
+## Review cart
+
+- `DisplayPrice`: `amount` and `formatted`
+- `CartItem`: `productId`, `skuId`, `quantity`, optional display and stock fields
+- `PaymentGroup`: payment method, amount, and optional alias
+- `CartFee`: fee metadata and amount
+- `Cart`: items, totals, savings, payment groups, and `isTruncated` flag
+- `CartResponse`: `success`, optional `cart`, optional `errors`
+
+---
+
+## Review orders
+
+- `GetOrdersOptions`: `page` and `size`
+- `RawHistoryOrder`: order id, status fields, timeslot details, totals, and store info
+- `OrderHistoryResponse`: `pageProps.orders` with pagination metadata
+- `OrderDetailsItem`: item id, name, quantity, price, and optional image
+- `OrderDetailsPageOrder`: order status, items, price details, fulfillment type, and timeslot
+- `OrderDetailsPageResponse`: `pageProps.order` container
+- `OrderDetailsGraphqlResponse`: raw GraphQL payload for order details
+- `OrderDetailsResponse`: normalized page plus raw `graphql` response
+
+---
+
+## Review shopping lists
+
+- `GetShoppingListOptions`: `page`, `size`, `sort`, `sortDirection`
+- `ShoppingList`: list metadata with store info and timestamps
+- `ShoppingListsPageInfo`: paging metadata with `hasMore` and `nextPage`
+- `ShoppingListsResult`: `lists` and `pageInfo`
+- `ShoppingListItem`: item fields plus price, stock, and image data
+- `ShoppingListDetails`: list metadata plus items and optional page info
+
+---
+
+## Review fulfillment
+
+- `FulfillmentSlot`: id, time range, local date, fee, and availability
+- `ReserveSlotResult`: `success` plus reservation and expiry details
+
+---
+
+## Review homepage
+
+- `HomepageOptions`: limits and section filters
+- `HomepageData`: `banners`, `promotions`, `featuredProducts`, `sections`
+- `HomepageSection`: section id, type, title, and items
+- `HomepageBanner`: banner metadata with image and link
+- `HomepagePromotion`: promo metadata with image and link
+- `HomepageFeaturedProduct`: product id, name, optional brand and price
+- `HomepageItem`: union of banner, promotion, product, or generic item
+
+---
+
+## Review weekly ad
+
+- `WeeklyAdOptions`: `storeCode`, `category`, `limit`, `cursor`
+- `WeeklyAdProduct`: ids, name, price text, sale story, image, optional UPC, optional `skuId`, optional `storeLocation`
+- `WeeklyAdCategory`: category id, name, and count
+- `WeeklyAdResult`: products, total count, store code, categories, and cursor
+
+---
+
+## Review stores
+
+- `Store`: store number, name, address, and optional distance
+- `StoreSearchResult`: `stores` array
+
+---
+
+## Review account
+
+- `AccountDetails`: name, email, phone, loyalty info, and addresses
+- `AccountAddress`: address fields plus nickname and default flag
+
+---
+
+## Review graphql helpers
+
+- `GraphQLPayload`: `operationName`, `variables`, and optional persisted query hash
+- `GraphQLResponse<T>`: optional `data` and `errors`
+- `HEBAPIError`: `message` plus optional error metadata
+
+---
+
+## Review errors
+
+- `HEBError`: base class with optional `code`
+- `HEBAuthError`, `HEBSessionError`, `HEBCartError`, `HEBProductError`, `HEBSearchError`: specialized subclasses
+
+---
+
+## Review constants
+
+- `ENDPOINTS`: default GraphQL and home URLs
+- `GRAPHQL_HASHES` and `MOBILE_GRAPHQL_HASHES`: persisted query hashes
+- `SHOPPING_CONTEXT_TO_CATEGORIES`: shopping context to categories mapping

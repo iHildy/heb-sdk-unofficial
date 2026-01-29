@@ -1,0 +1,47 @@
+---
+title: Tools
+description: Available actions and output formats
+---
+
+heb-mcp exposes a focused set of shopping tools for H‑E‑B.
+Use tool names exactly as shown.
+
+---
+
+## Browse catalog
+
+- Session and context: `heb_get_session_info`, `heb_set_store`, `heb_set_shopping_context`, resource `session://status`
+- Search and detail: `heb_search_products`, `heb_get_product`, `heb_get_homepage`
+- Cart: `heb_get_cart`, `heb_add_to_cart`, `heb_update_cart_item`, `heb_remove_from_cart`
+- Account: `heb_get_account_details`
+- Orders: `heb_get_order_history`, `heb_get_order_details`
+- Lists and history: `heb_get_shopping_lists`, `heb_get_shopping_list`, `heb_get_buy_it_again`
+- Fulfillment: `heb_get_delivery_slots`, `heb_reserve_slot`, `heb_get_curbside_slots`, `heb_reserve_curbside_slot`
+- Stores and ads: `heb_search_stores`, `heb_get_weekly_ad`, `heb_get_weekly_ad_categories`
+
+---
+
+## Request JSON
+
+All tools return markdown by default.
+Add `response_format: "json"` to include structured JSON in `structuredContent`.
+
+```json
+{
+  "response_format": "json"
+}
+```
+
+---
+
+## Be cautious
+
+These tools change state: `heb_add_to_cart`, `heb_update_cart_item`, `heb_remove_from_cart`, `heb_reserve_slot`, `heb_reserve_curbside_slot`, `heb_set_store`, `heb_set_shopping_context`.
+Ask for confirmation before calling them in automation.
+
+---
+
+## Limit output
+
+`heb_get_homepage` can return hundreds of items.
+Use filters like `items_per_section` or `include_types` to keep responses small.

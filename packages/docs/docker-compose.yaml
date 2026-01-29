@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  docs:
+    build:
+      context: ../..
+      dockerfile: packages/docs/Dockerfile
+    ports:
+      - "3001:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s

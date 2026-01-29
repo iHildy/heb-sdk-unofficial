@@ -1,0 +1,61 @@
+---
+title: Hosting
+description: Deploy a multi-tenant heb-mcp service safely
+---
+
+Remote mode runs as a Streamable HTTP service with MCP OAuth and Clerk auth.
+Plan for persistent storage and a private encryption key.
+
+---
+
+## Prepare environment
+
+Set `HEB_SESSION_ENCRYPTION_KEY` to a 32-byte base64 value, because hosted sessions are encrypted.
+Configure Clerk (`CLERK_FRONTEND_URL`, `CLERK_JWKS_URL`, `CLERK_SIGN_IN_URL`, `CLERK_PUBLISHABLE_KEY`) and set `MCP_SERVER_URL` to your public base URL.
+
+```bash
+openssl rand -base64 32
+```
+
+Override H‑E‑B OAuth settings with `HEB_OAUTH_CLIENT_ID`, `HEB_OAUTH_REDIRECT_URI`, and `HEB_OAUTH_SCOPE` when needed.
+
+Use `PORT` to change the listening port.
+
+---
+
+## Persist storage
+
+Sessions are stored in `data/sessions` and OAuth clients/tokens in `data/oauth` by default.
+Put these paths on durable storage in production.
+
+- `HEB_SESSION_STORE_DIR` to move per-user sessions
+- `MCP_OAUTH_CLIENTS_FILE` for registered OAuth clients
+- `MCP_OAUTH_TOKENS_FILE` for access and refresh tokens
+- `HEB_SESSION_CACHE_TTL_MS` to tune session cache freshness
+
+---
+
+## Run the service
+
+Build the package once and run the compiled server.
+
+```bash
+pnpm --filter heb-mcp build
+node packages/heb-mcp/dist/server.js
+```
+
+Remote mode is the default, so no extra flags are required.
+
+---
+
+## Verify access
+
+Open `/health` to confirm status and version.
+Visit `/connect` to link H‑E‑B OAuth, then connect your client to `/mcp`.
+
+---
+
+## Lock down access
+
+Serve the site over HTTPS and keep the encryption key secret.
+Trim `MCP_OAUTH_SCOPES` from the default `mcp:tools` if you need stricter scopes.

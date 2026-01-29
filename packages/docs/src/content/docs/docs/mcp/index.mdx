@@ -1,0 +1,42 @@
+---
+title: MCP server
+description: H‑E‑B tools for assistant workflows
+---
+
+Connect H‑E‑B shopping tools to AI assistants through MCP.
+Run locally over STDIO or host the Streamable HTTP endpoint.
+
+---
+
+## Pick a mode
+
+Remote mode is the default and serves Streamable HTTP at `/mcp` with OAuth and Clerk in front.
+Local mode switches to STDIO and starts the cookie bridge on http://localhost:4321.
+The bridge is unmaintained; `heb-auth` is the recommended replacement.
+
+Set `MCP_MODE=local` or `MCP_TRANSPORT=stdio` when you want local.
+
+---
+
+## Choose sessions
+
+heb-mcp supports cookie sessions and bearer-token sessions.
+Cookie sessions come from logged-in browser cookies, while bearer sessions come from H‑E‑B OAuth.
+
+- Hosted: visit `/connect` to link H‑E‑B OAuth, or post cookies to `/api/cookies` with a Clerk bearer token
+- Local: set `HEB_SAT` and `HEB_REESE84`, or post cookies to http://localhost:4321/api/cookies
+
+Use `heb_get_session_info` or `session://status` to confirm you are linked.
+
+---
+
+## Go deeper
+
+Need setup or hosting details?
+Jump to these pages.
+
+- [Client setup](/docs/mcp/client-setup)
+- [Architecture](/docs/mcp/architecture)
+- [Hosting](/docs/mcp/hosting)
+- [Tools](/docs/mcp/tools)
+- [Examples](/docs/mcp/examples)

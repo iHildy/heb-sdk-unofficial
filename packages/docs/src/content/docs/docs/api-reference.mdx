@@ -1,0 +1,150 @@
+---
+title: API Reference
+description: Methods and inputs for each client domain.
+---
+
+This page summarizes the `HEBClient` surface and key helpers.
+Use it as a quick map before diving into type definitions.
+
+## Use the client
+
+Create a client with a `HEBSession` and reuse it across calls.
+Use `setDebug`, `isValid`, and `getSessionInfo` for runtime checks.
+
+```ts
+import { HEBClient } from "heb-client"
+
+const heb = new HEBClient(session)
+heb.setDebug(true)
+
+console.log(heb.isValid())
+console.log(heb.getSessionInfo())
+```
+
+---
+
+## Search products
+
+Search and buy-it-again require bearer auth and a store ID.
+Typeahead works with either auth mode.
+
+- `search(query, options)` uses `SearchOptions` like `limit`, `storeId`, `shoppingContext`, and `includeImages`
+- `getBuyItAgain(options)` uses the same options with `searchMode` set to `BIA_SEARCH`
+- `typeahead(query)` returns recent and trending terms
+
+---
+
+## Fetch product details
+
+Product details require bearer auth and a store ID.
+`getImageUrl` is local and needs no session.
+
+- `getProduct(productId, { includeImages })` returns a `Product`
+- `getSkuId(productId)` looks up the SKU for cart operations
+- `getImageUrl(productId, size)` builds an image URL
+
+---
+
+## Manage cart
+
+Cart reads work with cookie or bearer sessions.
+Mutations set quantities rather than incrementing.
+
+- `getCart()` returns the full `Cart`
+- `addToCart(productId, skuId, quantity)` sets the quantity and accepts a missing `skuId`
+- `updateCartItem(productId, skuId, quantity)` is an alias of `addToCart`
+- `removeFromCart(productId, skuId)` sets quantity to `0`
+- `quickAdd(productId, skuId)` sets quantity to `1`
+- `addToCartById(productId, quantity)` auto-resolves the SKU
+
+---
+
+## Track orders
+
+Orders require bearer auth.
+Results include normalized fields plus the raw GraphQL payloads.
+
+- `getOrders({ page, size })` returns `OrderHistoryResponse`
+- `getOrder(orderId)` returns `OrderDetailsResponse`
+
+---
+
+## Work with lists
+
+Shopping list queries use web persisted queries and expect an authenticated session.
+Cookie sessions are the safest default if mobile queries change.
+
+- `getShoppingLists()` returns `ShoppingListsResult`
+- `getShoppingList(listId, { page, size, sort, sortDirection })` returns `ShoppingListDetails`
+
+---
+
+## Handle fulfillment
+
+Slots are available for delivery or curbside.
+Reservations require a logged-in session.
+
+- `getDeliverySlots({ address, days })` returns `FulfillmentSlot[]`
+- `getCurbsideSlots({ storeNumber, days })` returns `FulfillmentSlot[]`
+- `reserveSlot(slotId, date, address, storeId)` reserves delivery slots
+- `reserveCurbsideSlot(slotId, date, storeId)` reserves pickup slots
+
+---
+
+## Find stores
+
+Store search uses the web GraphQL endpoint.
+`setStore` updates the session cookie and server context for cookie auth.
+
+- `searchStores(query)` returns matching store locations
+- `setStore(storeId)` sets `CURR_SESSION_STORE`
+- `setShoppingContext(context)` sets the browse mode
+
+---
+
+## Load homepage
+
+Homepage content requires bearer auth and a store ID.
+Filters in `HomepageOptions` let you include or exclude sections.
+
+- `getHomepage(options)` returns `HomepageData`
+
+---
+
+## Read weekly ad
+
+Weekly ad calls require bearer auth and a store ID.
+Use `category` and `cursor` to paginate.
+
+- `getWeeklyAdProducts({ storeCode, category, limit, cursor })` returns `WeeklyAdResult`
+
+---
+
+## Access account
+
+Account profile calls require bearer auth.
+Results include profile fields and saved addresses.
+
+- `getAccountDetails()` returns `AccountDetails`
+
+---
+
+## Call graphql
+
+Use helpers when the SDK lacks an endpoint.
+Operation names must match the persisted query hashes.
+
+- `persistedQuery(session, operationName, variables)`
+- `graphqlRequest(session, payload)`
+- `ERROR_CODES`, `hasErrorCode`, and `getErrorMessages` for error inspection
+
+---
+
+## Format output
+
+Formatters build display-friendly strings for UI or logs.
+Use `formatter` or the `formatX` functions.
+
+- `formatter.cart`, `formatter.productDetails`, `formatter.orderHistory`, `formatter.orderDetails`
+- `formatter.shoppingLists`, `formatter.shoppingList`, `formatter.weeklyAd`, `formatter.weeklyAdCategories`
+- `formatter.homepage`, `formatter.storeSearch`, `formatter.deliverySlots`, `formatter.curbsideSlots`

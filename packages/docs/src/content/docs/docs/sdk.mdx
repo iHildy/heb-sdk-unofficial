@@ -1,0 +1,85 @@
+---
+title: Client Guide
+description: Core methods and data shapes for the SDK.
+---
+
+This guide maps the main API surfaces in `heb-client`.
+It also notes which calls require a bearer session and store context.
+
+## Pick a session
+
+Cookie sessions use web GraphQL and are good for cart, typeahead, store search, and shopping lists.
+Bearer sessions use the mobile API and are required for the items below.
+
+- Search and buy-it-again
+- Product details and images
+- Homepage content
+- Account profile and addresses
+- Orders and order details
+- Weekly ad products
+
+---
+
+## Call core methods
+
+The `HEBClient` class wraps all calls with a single session.
+Set a store before calls that need pricing or availability.
+
+- Search: `search`, `typeahead`, `getBuyItAgain`
+- Products: `getProduct`, `getSkuId`, `getImageUrl`
+- Cart: `getCart`, `addToCart`, `updateCartItem`, `removeFromCart`, `quickAdd`, `addToCartById`
+- Orders: `getOrders`, `getOrder`
+- Shopping lists: `getShoppingLists`, `getShoppingList`
+- Stores and context: `searchStores`, `setStore`, `setShoppingContext`
+- Fulfillment: `getDeliverySlots`, `getCurbsideSlots`, `reserveSlot`, `reserveCurbsideSlot`
+- Homepage: `getHomepage`
+- Weekly ad: `getWeeklyAdProducts`
+- Account: `getAccountDetails`
+
+```ts
+const results = await heb.search("salsa", { limit: 5 })
+const product = results.products[0]
+
+if (product) {
+  await heb.addToCartById(product.productId, 1)
+}
+```
+
+---
+
+## Use formatters
+
+Formatting helpers return quick, display-ready strings.
+Use the `formatter` object or the exported `formatX` functions.
+
+```ts
+import { formatter } from "heb-client"
+
+const cart = await heb.getCart()
+console.log(formatter.cart(cart))
+```
+
+---
+
+## Work with types
+
+Types are exported for all response shapes and inputs.
+Common ones include `Product`, `Cart`, `ShoppingListDetails`, `FulfillmentSlot`, and `WeeklyAdResult`.
+
+```ts
+import type { Cart, Product } from "heb-client"
+```
+
+---
+
+## Use low-level GraphQL
+
+Reach for `graphqlRequest` or `persistedQuery` when you need an unsupported operation.
+Operation names must exist in the persisted query hash list.
+
+```ts
+import { persistedQuery } from "heb-client"
+
+const response = await persistedQuery(session, "typeaheadContent", { query: "milk" })
+console.log(response.data)
+```

@@ -1,0 +1,66 @@
+---
+title: HEB SDK (Unofficial)
+description: Unofficial TypeScript monorepo for integrating with H-E-B grocery experiences.
+hero:
+  title: HEB SDK (Unofficial)
+  tagline: Unofficial TypeScript toolkit for H-E-B.
+  image:
+    light: ../../assets/heb-icon-black-on-white.svg
+    dark: ../../assets/heb-icon-white-on-black.svg
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+Unofficial TypeScript monorepo for integrating with H‑E‑B grocery experiences. It combines a full client SDK, an MCP server for AI assistants, OAuth helpers, and a cookie‑bridge browser extension.
+
+## Packages
+
+<CardGrid>
+  <Card title="heb-client" icon="pwa">
+    TypeScript SDK that wraps H‑E‑B web + mobile endpoints with typed models, formatters, and session helpers.
+  </Card>
+  <Card title="heb-auth" icon="setting">
+    PKCE + OAuth utilities used to link H‑E‑B mobile bearer tokens.
+  </Card>
+  <Card title="heb-mcp" icon="puzzle">
+    MCP server exposing H‑E‑B tools over MCP (remote streamable HTTP + OAuth/Clerk, or local STDIO).
+  </Card>
+  <Card title="cookie-bridge" icon="external">
+    Chrome/Firefox extension that syncs authenticated H‑E‑B cookies to the MCP server.
+  </Card>
+</CardGrid>
+
+## Capabilities
+
+Direct access to the H‑E‑B catalog, cart, and account features:
+
+- **Product search**, typeahead, and detail retrieval.
+- **Cart operations** (add/update/remove) and summaries.
+- **Order history** + detailed order status.
+- **Shopping lists** and "Buy It Again" items.
+- **Store search** + session context management.
+- **Slot discovery** for delivery and curbside reservation.
+- **Weekly ads** with category filters.
+- **Homepage feeds**, banners, and promotions.
+
+## How it fits together
+
+- The **cookie‑bridge extension** captures authenticated H‑E‑B cookies from a logged‑in browser.
+- **heb-mcp** stores sessions and exposes MCP tools backed by **heb-client**.
+- **heb-auth** provides OAuth/PKCE helpers for linking mobile bearer tokens when needed.
+
+## Example
+
+```ts
+import { createClient } from "@heb-sdk-unofficial/client"
+
+const client = createClient({
+  session: { cookie: "..." },
+  store: { id: "..." },
+})
+
+const results = await client.catalog.search({ query: "milk" })
+console.log(results.items)
+```
+
+Ready to build? [Start with the Quickstart](/docs/quickstart).

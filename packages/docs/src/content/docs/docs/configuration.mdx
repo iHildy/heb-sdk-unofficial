@@ -1,0 +1,123 @@
+---
+title: Configuration
+description: Session shapes, overrides, and context defaults.
+---
+
+Configuration centers on the `HEBSession` object.
+Create one and pass it to `HEBClient`.
+
+## Choose auth mode
+
+Cookie sessions use `sat`, `reese84`, and `incap_ses` from a logged-in browser.
+Bearer sessions use OAuth tokens and unlock mobile-only features.
+
+Bearer-only features include:
+
+- Search and buy-it-again
+- Product details and images
+- Homepage content
+- Account profile and addresses
+- Orders and order details
+- Weekly ad products
+
+```ts
+import { createSessionFromCookies } from "heb-client"
+
+const session = createSessionFromCookies(process.env.HEB_COOKIES ?? "")
+```
+
+```ts
+import { createTokenSession } from "heb-client"
+
+const session = createTokenSession({
+  accessToken: process.env.HEB_ACCESS_TOKEN ?? "",
+  refreshToken: process.env.HEB_REFRESH_TOKEN,
+  idToken: process.env.HEB_ID_TOKEN,
+  expiresIn: 1800
+})
+```
+
+---
+
+## Set store context
+
+Many calls read `CURR_SESSION_STORE` from cookies.
+Use `setStore` or set the cookie directly before search, product, homepage, and weekly ad calls.
+
+```ts
+await heb.setStore("790")
+```
+
+```ts
+const results = await heb.search("milk", { storeId: 790 })
+```
+
+---
+
+## Set shopping context
+
+Shopping context controls curbside, delivery, or in-store views.
+Valid values are `CURBSIDE_PICKUP`, `CURBSIDE_DELIVERY`, and `EXPLORE_MY_STORE`.
+
+```ts
+heb.setShoppingContext("CURBSIDE_DELIVERY")
+```
+
+---
+
+## Check session state
+
+Use `isSessionValid` for expiry checks and `getSessionInfo` for store snapshots.
+This is handy before running scheduled jobs.
+
+```ts
+import { getSessionInfo, isSessionValid } from "heb-client"
+
+if (!isSessionValid(session)) {
+  throw new Error("Session expired")
+}
+
+console.log(getSessionInfo(session))
+```
+
+---
+
+## Enable refresh
+
+Bearer sessions can auto-refresh when `session.refresh` is set.
+`graphqlRequest` and `persistedQuery` call it when tokens are near expiry.
+
+```ts
+import { updateTokenSession } from "heb-client"
+
+session.refresh = async () => {
+  const tokens = await refreshTokens()
+  updateTokenSession(session, tokens)
+}
+```
+
+---
+
+## Override endpoints
+
+Endpoints default to the web GraphQL host for cookie sessions and the mobile host for bearer sessions.
+Override `session.endpoints` when routing through a proxy or mock.
+
+```ts
+const session = createTokenSession(tokens, {
+  endpoints: {
+    graphql: "https://proxy.example.com/graphql"
+  }
+})
+```
+
+---
+
+## Turn on debug
+
+Enable debug to log GraphQL payloads and responses.
+Use it to verify store IDs and query names.
+
+```ts
+heb.setDebug(true)
+```

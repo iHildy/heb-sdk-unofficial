@@ -1,5 +1,8 @@
 # HEB Cookie Bridge Extension
 
+> [!CAUTION]
+> This extension is functional but no longer maintained. We recommend using the `heb-auth` package instead.
+
 This Chrome/Firefox extension securely hands off your H‑E‑B session cookies to your `heb-mcp` server. In remote mode, it uses Clerk authentication so cookies are only stored for the signed‑in user. In local mode, it can still push cookies to `http://localhost:4321` for testing.
 
 ## Installation
