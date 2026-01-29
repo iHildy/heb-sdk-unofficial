@@ -10,8 +10,8 @@ Build one for cookie or bearer auth before calling the client.
 
 ## Pick auth
 
-heb-auth is the recommended path because tokens can be refreshed on the server and don't require an active browser.
-Bearer auth targets the mobile GraphQL host and is required for search, buy-it-again, product details, homepage, orders, account, and weekly ad.
+heb-auth is the recommended path because tokens can be refreshed on the server and don't require an active browser like the cookie bridge.
+Bearer auth targets the mobile app GraphQL host and is required for search, buy-it-again, product details, homepage, orders, account, and weekly ad.
 Cookie auth targets the web GraphQL host and suits cart, typeahead, store search, and shopping lists.
 
 ---
@@ -52,6 +52,10 @@ if (tokens.id_token) {
 ---
 
 ## Use cookie bridge
+
+:::caution
+The cookie bridge extension is functional but no longer maintained. Use the `heb-auth` package for the best experience.
+:::
 
 Install the cookie bridge extension and connect it to your MCP server.
 Log in to heb.com and keep a logged-in tab open so `sat` and `reese84` stay fresh.
