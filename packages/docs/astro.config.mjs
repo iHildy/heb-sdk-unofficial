@@ -70,6 +70,7 @@ export default defineConfig({
           items: [
             "docs/mcp",
             "docs/mcp/client-guide",
+            "docs/mcp/examples",
             "docs/mcp/tools",
             "docs/mcp/architecture",
             "docs/mcp/hosting",

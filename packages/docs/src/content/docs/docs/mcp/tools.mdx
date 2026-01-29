@@ -23,7 +23,7 @@ Use tool names exactly as shown.
 
 ## Request JSON
 
-All tools return markdown in `content`.
+All tools return markdown by default.
 Add `response_format: "json"` to include structured JSON in `structuredContent`.
 
 ```json
@@ -34,7 +34,7 @@ Add `response_format: "json"` to include structured JSON in `structuredContent`.
 
 ---
 
-## Plan side effects
+## Be cautious
 
 These tools change state: `heb_add_to_cart`, `heb_update_cart_item`, `heb_remove_from_cart`, `heb_reserve_slot`, `heb_reserve_curbside_slot`, `heb_set_store`, `heb_set_shopping_context`.
 Ask for confirmation before calling them in automation.
