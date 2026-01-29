@@ -1,23 +1,44 @@
 ---
 title: Troubleshooting
-description: Common issues and how to resolve them.
+description: Common fixes for session and context issues.
 ---
 
-## Requests time out
+Most issues come from stale sessions or missing store context.
+Use the checks below to narrow it down.
 
-- Confirm the session cookie is still valid.
-- Retry with a smaller payload or lower page size.
-- Check if the store context is missing.
+## Refresh sessions
 
-## Auth refresh fails
+401/403 responses or `UNAUTHORIZED` mean the session expired.
+Refresh bearer tokens or re-extract `sat`, `reese84`, and `incap_ses`.
 
-- Verify refresh tokens were stored.
-- Ensure your clock is synced for token expiry.
-- Re-run the OAuth flow if tokens were revoked.
+---
 
-## MCP tool not found
+## Set a store
 
-- Confirm the tool is enabled in the MCP config.
-- Restart the server after config changes.
+Errors like `No store selected` or `INVALID_PRODUCT_STORE` point to a missing store ID.
+Call `setStore` or set `CURR_SESSION_STORE` before search, product, cart, homepage, and weekly ad calls.
 
-Add real diagnostics once the SDK is wired up.
+---
+
+## Use bearer tokens
+
+Search, product details, homepage, account, orders, weekly ad, and buy-it-again require a bearer session.
+If you are using cookies, switch to `createTokenSession` and try again.
+
+---
+
+## Check shopping context
+
+If availability looks wrong, confirm the `shoppingContext` value.
+Use `CURBSIDE_PICKUP`, `CURBSIDE_DELIVERY`, or `EXPLORE_MY_STORE`.
+
+---
+
+## Enable debug
+
+Debug logging shows operation names and payloads.
+Turn it on to confirm store IDs and query names.
+
+```ts
+heb.setDebug(true)
+```

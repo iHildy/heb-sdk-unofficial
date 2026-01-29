@@ -1,0 +1,57 @@
+---
+title: MCP server
+description: H‑E‑B tools for assistant workflows
+---
+
+Connect H‑E‑B shopping tools to AI assistants through MCP.
+Run locally over STDIO or host the Streamable HTTP endpoint.
+
+---
+
+## Pick a mode
+
+Remote mode is the default and serves Streamable HTTP at `/mcp` with OAuth and Clerk in front.
+Local mode switches to STDIO and starts the cookie bridge on http://localhost:4321.
+
+Set `MCP_MODE=local` or `MCP_TRANSPORT=stdio` when you want local.
+
+---
+
+## Choose sessions
+
+heb-mcp supports cookie sessions and bearer-token sessions.
+Cookie sessions come from logged-in browser cookies, while bearer sessions come from H‑E‑B OAuth.
+
+- Local: set `HEB_SAT` and `HEB_REESE84`, or post cookies to http://localhost:4321/api/cookies
+- Hosted: visit `/connect` to link H‑E‑B OAuth, or post cookies to `/api/cookies` with a Clerk bearer token
+
+Use `heb_get_session_info` or `session://status` to confirm you are linked.
+
+---
+
+## Scan capabilities
+
+The tools cover search, carts, orders, lists, store context, delivery, weekly ads, and the homepage feed.
+
+- Session and context: `heb_get_session_info`, `heb_set_store`, `heb_set_shopping_context`, resource `session://status`
+- Search and detail: `heb_search_products`, `heb_get_product`, `heb_get_homepage`
+- Cart: `heb_get_cart`, `heb_add_to_cart`, `heb_update_cart_item`, `heb_remove_from_cart`
+- Account: `heb_get_account_details`
+- Orders and lists: `heb_get_order_history`, `heb_get_order_details`, `heb_get_shopping_lists`, `heb_get_shopping_list`, `heb_get_buy_it_again`
+- Fulfillment: `heb_get_delivery_slots`, `heb_reserve_slot`, `heb_get_curbside_slots`, `heb_reserve_curbside_slot`
+- Stores and ads: `heb_search_stores`, `heb_get_weekly_ad`, `heb_get_weekly_ad_categories`
+
+Pass `response_format: "json"` to include structured output alongside markdown.
+Use filters on `heb_get_homepage` unless you want a huge payload.
+
+---
+
+## Go deeper
+
+Need setup or hosting details?
+Jump to these pages.
+
+- [Client setup](/docs/mcp/client-setup)
+- [Architecture](/docs/mcp/architecture)
+- [Hosting](/docs/mcp/hosting)
+- [Tools](/docs/mcp/tools)

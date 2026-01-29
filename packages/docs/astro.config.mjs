@@ -57,19 +57,25 @@ export default defineConfig({
       },
       sidebar: [
         "docs/quickstart",
+        "docs/sessions",
         "docs/sdk",
-        "docs/auth",
-        "docs/mcp",
         "docs/examples",
+        "docs/auth",
+        {
+          label: "SDK Reference",
+          items: ["docs/api-reference", "docs/data-models", "docs/configuration", "docs/errors", "docs/faq"],
+        },
+        {
+          label: "MCP server",
+          items: [
+            "docs/mcp",
+            "docs/mcp/client-setup",
+            "docs/mcp/tools",
+            "docs/mcp/architecture",
+            "docs/mcp/hosting",
+          ],
+        },
         "docs/troubleshooting",
-        {
-          label: "Reference",
-          items: ["docs/configuration", "docs/errors", "docs/faq"],
-        },
-        {
-          label: "Project",
-          items: ["docs/roadmap", "docs/contributing"],
-        },
       ],
       components: {
         Hero: "./src/components/Hero.astro",

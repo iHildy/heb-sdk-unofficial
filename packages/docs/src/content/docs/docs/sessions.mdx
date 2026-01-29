@@ -1,0 +1,126 @@
+---
+title: Sessions
+description: Auth choices, refresh hooks, and context tips.
+---
+
+Sessions bundle cookies, headers, and token state.
+Build one for cookie or bearer auth before calling the client.
+
+---
+
+## Pick auth
+
+Cookie auth targets the web GraphQL host and suits cart, typeahead, store search, and shopping lists.
+Bearer auth targets the mobile GraphQL host and is required for search, buy-it-again, product details, homepage, orders, account, and weekly ad.
+
+---
+
+## Use heb-auth
+
+Create a PKCE context and build the auth URL.
+Keep the context so you can verify `state` and reuse `codeVerifier` later.
+
+```ts
+import { buildAuthUrl, createOAuthContext } from "heb-auth"
+
+const context = createOAuthContext()
+const authUrl = buildAuthUrl(context)
+
+console.log(authUrl.toString())
+```
+
+Open the URL, sign in, and capture the `code` from the redirect.
+Exchange it for tokens and optionally upsert the mobile profile.
+
+```ts
+import { exchangeCode, upsertUser } from "heb-auth"
+
+const tokens = await exchangeCode({
+  code,
+  codeVerifier: context.codeVerifier
+})
+
+if (tokens.id_token) {
+  await upsertUser({
+    accessToken: tokens.access_token,
+    idToken: tokens.id_token
+  })
+}
+```
+
+---
+
+## Use cookie bridge
+
+Install the cookie bridge extension and connect it to your MCP server.
+Log in to heb.com and keep a logged-in tab open so `sat` and `reese84` stay fresh.
+
+- Set the Server URL to your MCP host or `http://localhost:4321`
+- Sign in with Clerk in remote mode
+- Wait for the badge to show `ON`
+
+Local testing skips Clerk and posts cookies to `http://localhost:4321`.
+Remote mode stores cookies per user after Clerk sign-in.
+
+---
+
+## Initialize sessions
+
+Use `createSessionFromCookies` for a Cookie header or a DevTools JSON export.
+Bearer sessions use OAuth tokens and a mobile user agent by default.
+
+```ts
+import { createSessionFromCookies, createTokenSession } from "heb-client"
+
+const cookies = createSessionFromCookies(process.env.HEB_COOKIES ?? "")
+
+const tokens = createTokenSession({
+  accessToken: process.env.HEB_ACCESS_TOKEN ?? "",
+  refreshToken: process.env.HEB_REFRESH_TOKEN,
+  idToken: process.env.HEB_ID_TOKEN,
+  expiresIn: 1800
+})
+```
+
+---
+
+## Refresh tokens
+
+Set `session.refresh` so SDK calls can refresh near expiry.
+Update the session with `updateTokenSession` after you fetch new tokens.
+
+```ts
+import { updateTokenSession } from "heb-client"
+
+session.refresh = async () => {
+  const tokens = await refreshTokens()
+  updateTokenSession(session, tokens)
+}
+```
+
+---
+
+## Set context
+
+Store context comes from `CURR_SESSION_STORE` and drives pricing and availability.
+Set `shoppingContext` to `CURBSIDE_PICKUP`, `CURBSIDE_DELIVERY`, or `EXPLORE_MY_STORE`.
+
+```ts
+await heb.setStore("790")
+heb.setShoppingContext("CURBSIDE_PICKUP")
+```
+
+---
+
+## Inspect state
+
+Use `isSessionValid` to check expiry and `getSessionInfo` for a snapshot.
+`isSessionAuthenticated` is a fast check for missing cookies or tokens.
+
+```ts
+import { getSessionInfo, isSessionAuthenticated, isSessionValid } from "heb-client"
+
+console.log(isSessionAuthenticated(session))
+console.log(isSessionValid(session))
+console.log(getSessionInfo(session))
+```

@@ -1,37 +1,85 @@
 ---
 title: Quickstart
-description: Install the client and run a first request.
+description: Get a session and make first call.
 ---
+
+Start here to run your first SDK call.
+Pick a session type before you code.
 
 ## Install
 
 ```bash
-npm install @heb-sdk-unofficial/client
+npm install heb-client
+# or
+pnpm add heb-client
 ```
 
-## Create a client
+---
+
+## Create a session
+
+Cookie sessions use logged-in browser cookies.
+Bearer sessions use OAuth tokens and unlock mobile-only features.
+
+**Cookie session**
 
 ```ts
-import { createClient } from "@heb-sdk-unofficial/client"
+import { createSessionFromCookies, HEBClient } from "heb-client"
 
-const client = createClient({
-  session: { cookie: "example-cookie" },
-  store: { id: "123" },
-})
+const session = createSessionFromCookies(process.env.HEB_COOKIES ?? "")
+const heb = new HEBClient(session)
 ```
+
+**Bearer session**
+
+```ts
+import { createTokenSession, HEBClient } from "heb-client"
+
+const session = createTokenSession({
+  accessToken: process.env.HEB_ACCESS_TOKEN ?? "",
+  refreshToken: process.env.HEB_REFRESH_TOKEN,
+  idToken: process.env.HEB_ID_TOKEN,
+  expiresIn: 1800
+})
+
+const heb = new HEBClient(session)
+```
+
+Cookie input can be a Cookie header string or DevTools JSON.
+Use a bearer session for search, product details, homepage, orders, account, and weekly ad.
+
+---
+
+## Set a store
+
+Store context drives pricing and availability.
+Set it before search, product details, homepage, and weekly ad calls.
+
+```ts
+await heb.setStore("790")
+```
+
+---
 
 ## Run a call
 
-```ts
-const { items } = await client.catalog.search({
-  query: "coffee",
-  limit: 10,
-})
+Search uses the mobile API and needs bearer tokens.
+Cart reads work with either auth mode.
 
-console.log(items.map((item) => item.name))
+```ts
+const results = await heb.search("coffee", { limit: 10 })
+const names = results.products.map((product) => product.name)
+console.log(names)
 ```
 
-## Next
+```ts
+const cart = await heb.getCart()
+console.log(cart.itemCount, cart.total.formatted)
+```
 
-- See the SDK guide for typed requests.
-- Review auth options if you need OAuth or token linking.
+---
+
+## Explore next steps
+
+Read the configuration guide for session options.
+Review the SDK guide and error handling pages.

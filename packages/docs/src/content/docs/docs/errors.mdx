@@ -1,28 +1,67 @@
 ---
 title: Errors
-description: Example error codes and handling patterns.
+description: Spot failures and recover with confidence.
 ---
 
-## Example error payload
+SDK calls either throw or return a failure payload, depending on the method.
+Start with `try/catch` and then inspect response details.
 
-```json
-{
-  "code": "SESSION_EXPIRED",
-  "message": "Session cookie expired",
-  "retryable": true
-}
-```
+## Catch failures
 
-## Handling pattern
+Most read operations throw `Error` with the GraphQL message.
+Handle them with `try/catch` and surface the message.
 
 ```ts
 try {
-  await client.cart.getSummary()
-} catch (error) {
-  if (error.code === "SESSION_EXPIRED") {
-    await session.refresh()
-  }
+  const orders = await heb.getOrders()
+  console.log(orders.pageProps?.orders?.length)
+} catch (err) {
+  console.error((err as Error).message)
 }
 ```
 
-Add real error codes once the API surface is finalized.
+---
+
+## Handle cart responses
+
+Cart mutations return `CartResponse` with `success` and `errors`.
+Common failures include missing store context and expired sessions.
+
+```ts
+const result = await heb.addToCart(productId, skuId, 2)
+
+if (!result.success) {
+  console.log(result.errors)
+}
+```
+
+---
+
+## Inspect GraphQL responses
+
+Low-level helpers expose GraphQL error codes and messages.
+Use `hasErrorCode`, `getErrorMessages`, and `ERROR_CODES` when calling `persistedQuery` directly.
+
+```ts
+import { ERROR_CODES, hasErrorCode, persistedQuery } from "heb-client"
+
+const response = await persistedQuery(session, "cartEstimated", { userIsLoggedIn: true })
+
+if (hasErrorCode(response, ERROR_CODES.UNAUTHORIZED)) {
+  await session.refresh?.()
+}
+```
+
+---
+
+## Use typed classes
+
+The SDK exports `HEBError` and specific subclasses for app-level normalization.
+Core calls currently throw plain `Error`, so treat the classes as optional helpers.
+
+---
+
+## Retry safely
+
+Bearer sessions can auto-refresh via `session.refresh`.
+For cookie sessions, re-extract cookies when you see 401/403 or `UNAUTHORIZED`.
