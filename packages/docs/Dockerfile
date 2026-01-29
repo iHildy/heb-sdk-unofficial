@@ -21,6 +21,9 @@ RUN pnpm install --frozen-lockfile --filter @heb-sdk-unofficial/docs --reporter=
 # Copy source files
 COPY packages/docs/ ./packages/docs/
 
+# Remove API route that requires SSR (not compatible with static build)
+RUN rm -f ./packages/docs/src/pages/\[...slug\].md.ts
+
 # Build the static site using Docker-specific config (no Cloudflare adapter)
 WORKDIR /app/packages/docs
 RUN pnpm astro build --config astro.config.docker.mjs

@@ -6,12 +6,16 @@ import theme from "toolbeam-docs-theme"
 import config from "./config.mjs"
 import { rehypeHeadingIds } from "@astrojs/markdown-remark"
 import rehypeAutolinkHeadings from "rehype-autolink-headings"
+import { passthroughImageService } from "astro/config"
 
 // https://astro.build/config
 export default defineConfig({
   site: config.url,
   base: "/",
   output: "static",
+  image: {
+    service: passthroughImageService(),
+  },
   devToolbar: {
     enabled: false,
   },
@@ -54,19 +58,26 @@ export default defineConfig({
       },
       sidebar: [
         "docs/quickstart",
+        "docs/sessions",
         "docs/sdk",
-        "docs/auth",
-        "docs/mcp",
         "docs/examples",
+        "docs/faq",
+        {
+          label: "SDK Reference",
+          items: ["docs/api-reference", "docs/data-models", "docs/configuration", "docs/errors"],
+        },
+        {
+          label: "MCP Server",
+          items: [
+            "docs/mcp",
+            "docs/mcp/client-guide",
+            "docs/mcp/examples",
+            "docs/mcp/tools",
+            "docs/mcp/architecture",
+            "docs/mcp/hosting",
+          ],
+        },
         "docs/troubleshooting",
-        {
-          label: "Reference",
-          items: ["docs/configuration", "docs/errors", "docs/faq"],
-        },
-        {
-          label: "Project",
-          items: ["docs/roadmap", "docs/contributing"],
-        },
       ],
       components: {
         Hero: "./src/components/Hero.astro",
