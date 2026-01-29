@@ -1,19 +1,22 @@
 # Build stage
 FROM node:20-alpine AS builder
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm - use version from package.json packageManager field
+RUN corepack enable && corepack prepare pnpm@10.15.1 --activate
 
 WORKDIR /app
 
 # Copy workspace config
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 
+# Copy npmrc for timeout/retry configuration
+COPY packages/docs/.npmrc ./packages/docs/
+
 # Copy docs package.json
 COPY packages/docs/package.json ./packages/docs/
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile --filter @heb-sdk-unofficial/docs
+# Install dependencies with verbose output
+RUN pnpm install --frozen-lockfile --filter @heb-sdk-unofficial/docs --reporter=append-only
 
 # Copy source files
 COPY packages/docs/ ./packages/docs/
