@@ -35,7 +35,7 @@ FROM nginx:alpine AS runner
 COPY packages/docs/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built static files
-COPY --from=builder /app/packages/docs/dist /usr/share/nginx/html
+COPY --from=builder /app/packages/docs/dist/. /usr/share/nginx/html/
 
 EXPOSE 80
 
