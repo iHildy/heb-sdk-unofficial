@@ -411,12 +411,10 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
   });
 
   app.post('/mcp', mcpAuthMiddleware, async (req, res) => {
-    const userId = typeof req.auth?.extra?.['userId'] === 'string'
-      ? req.auth.extra['userId']
-      : null;
+    const userId = req.auth?.extra?.['userId'];
 
-    if (!userId) {
-      res.status(401).json({ error: 'Missing user context' });
+    if (typeof userId !== 'string' || !userId) {
+      res.status(401).json({ error: 'Missing or invalid user context' });
       return;
     }
 
