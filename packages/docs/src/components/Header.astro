@@ -13,7 +13,9 @@ const links = astroConfig.social || [];
 		<SiteTitle {...Astro.props} />
 	</div>
 	<div class="sl-flex middle-group">
-		<Search {...Astro.props} />
+		<div data-search-anchor="header">
+			<Search {...Astro.props} />
+		</div>
 	</div>
 	<div class="sl-hidden md:sl-flex right-group">
 		{

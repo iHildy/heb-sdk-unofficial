@@ -1,0 +1,40 @@
+---
+import SidebarPersister from "@astrojs/starlight/components/SidebarPersister.astro"
+import SidebarSublist from "@astrojs/starlight/components/SidebarSublist.astro"
+import MobileMenuFooter from "virtual:starlight/components/MobileMenuFooter"
+
+const { sidebar } = Astro.locals.starlightRoute
+---
+
+<SidebarPersister>
+  <div class="mobile-nav-search md:sl-hidden" data-search-anchor="sidebar"></div>
+  <SidebarSublist sublist={sidebar} />
+</SidebarPersister>
+
+<div class="md:sl-hidden">
+  <MobileMenuFooter />
+</div>
+
+<script is:inline>
+  (() => {
+    const headerAnchor = document.querySelector('[data-search-anchor="header"]')
+    const sidebarAnchor = document.querySelector('[data-search-anchor="sidebar"]')
+    const search = document.querySelector("site-search")
+    if (!headerAnchor || !sidebarAnchor || !search) return
+
+    const mediaQuery = window.matchMedia("(min-width: 50rem)")
+    const moveSearch = () => {
+      const target = mediaQuery.matches ? headerAnchor : sidebarAnchor
+      if (search.parentElement !== target) {
+        target.appendChild(search)
+      }
+    }
+
+    moveSearch()
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", moveSearch)
+    } else if (mediaQuery.addListener) {
+      mediaQuery.addListener(moveSearch)
+    }
+  })()
+</script>

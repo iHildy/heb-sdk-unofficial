@@ -207,6 +207,47 @@ site-search > button span {
   text-decoration: none !important;
 }
 
+/* Mobile nav search placement */
+.mobile-nav-search {
+  width: 100%;
+  padding-inline: 24px;
+}
+
+.mobile-nav-search button[data-open-modal] {
+  gap: 12px !important;
+  width: 100%;
+  justify-content: flex-start;
+  background: var(--color-background-weak);
+  border: 1px solid var(--color-border-weak) !important;
+  padding: 6px 12px !important;
+  border-radius: 4px;
+}
+
+.mobile-nav-search button[data-open-modal] > span {
+  display: inline !important;
+}
+
+.mobile-nav-search button[data-open-modal] > kbd {
+  display: none !important;
+}
+
+.mobile-preferences {
+  padding-inline: 24px;
+}
+
+starlight-menu-button > button {
+  border: 1px solid var(--color-border-weak) !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  color: var(--color-text-strong) !important;
+  box-shadow: none !important;
+}
+
+starlight-menu-button[aria-expanded="true"] > button {
+  background: transparent !important;
+  border-color: var(--color-border);
+}
+
 .starlight-aside {
   display: flex;
   gap: 16px;
