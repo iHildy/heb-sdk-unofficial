@@ -1,5 +1,5 @@
 {
-  "name": "heb-client",
+  "name": "heb-sdk",
   "version": "1.0.0",
   "description": "Unofficial TypeScript client library for the H-E-B API",
   "type": "module",

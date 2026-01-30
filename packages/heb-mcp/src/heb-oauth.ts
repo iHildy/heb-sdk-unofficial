@@ -1,6 +1,6 @@
 import type { HebOAuthConfig, HebTokenResponse } from 'heb-auth';
 import { DEFAULT_HEB_OAUTH_CONFIG, exchangeCode, refreshTokens, upsertUser } from 'heb-auth';
-import type { HEBAuthTokens } from 'heb-client';
+import type { HEBAuthTokens } from 'heb-sdk';
 
 const DEFAULT_UPSERT_ENABLED = true;
 

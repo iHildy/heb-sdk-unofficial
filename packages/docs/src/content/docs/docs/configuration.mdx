@@ -21,13 +21,13 @@ Bearer-only features include:
 - Weekly ad products
 
 ```ts
-import { createSessionFromCookies } from "heb-client"
+import { createSessionFromCookies } from "heb-sdk"
 
 const session = createSessionFromCookies(process.env.HEB_COOKIES ?? "")
 ```
 
 ```ts
-import { createTokenSession } from "heb-client"
+import { createTokenSession } from "heb-sdk"
 
 const session = createTokenSession({
   accessToken: process.env.HEB_ACCESS_TOKEN ?? "",
@@ -71,7 +71,7 @@ Use `isSessionValid` for expiry checks and `getSessionInfo` for store snapshots.
 This is handy before running scheduled jobs.
 
 ```ts
-import { getSessionInfo, isSessionValid } from "heb-client"
+import { getSessionInfo, isSessionValid } from "heb-sdk"
 
 if (!isSessionValid(session)) {
   throw new Error("Session expired")
@@ -88,7 +88,7 @@ Bearer sessions can auto-refresh when `session.refresh` is set.
 `graphqlRequest` and `persistedQuery` call it when tokens are near expiry.
 
 ```ts
-import { updateTokenSession } from "heb-client"
+import { updateTokenSession } from "heb-sdk"
 
 session.refresh = async () => {
   const tokens = await refreshTokens()

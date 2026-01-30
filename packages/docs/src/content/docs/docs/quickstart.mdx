@@ -9,9 +9,9 @@ Pick a session type before you code.
 ## Install
 
 ```bash
-npm install heb-client
+npm install heb-sdk
 # or
-pnpm add heb-client
+pnpm add heb-sdk
 ```
 
 ---
@@ -24,7 +24,7 @@ Bearer sessions use OAuth tokens and unlock mobile-only features.
 **Cookie session**
 
 ```ts
-import { createSessionFromCookies, HEBClient } from "heb-client"
+import { createSessionFromCookies, HEBClient } from "heb-sdk"
 
 const session = createSessionFromCookies(process.env.HEB_COOKIES ?? "")
 const heb = new HEBClient(session)
@@ -33,7 +33,7 @@ const heb = new HEBClient(session)
 **Bearer session**
 
 ```ts
-import { createTokenSession, HEBClient } from "heb-client"
+import { createTokenSession, HEBClient } from "heb-sdk"
 
 const session = createTokenSession({
   accessToken: process.env.HEB_ACCESS_TOKEN ?? "",
