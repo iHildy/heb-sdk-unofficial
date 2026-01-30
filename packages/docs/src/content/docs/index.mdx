@@ -16,7 +16,7 @@ Unofficial TypeScript monorepo for integrating with H‑E‑B grocery experience
 ## Packages
 
 <CardGrid>
-  <Card title="heb-client" icon="pwa">
+  <Card title="heb-sdk" icon="pwa">
     TypeScript SDK that wraps H‑E‑B web + mobile endpoints with typed models, formatters, and session helpers.
   </Card>
   <Card title="heb-auth" icon="setting">
@@ -46,7 +46,7 @@ Direct access to the H‑E‑B catalog, cart, and account features:
 ## How it fits together
 
 - The **cookie‑bridge extension** captures authenticated H‑E‑B cookies from a logged‑in browser.
-- **heb-mcp** stores sessions and exposes MCP tools backed by **heb-client**.
+- **heb-mcp** stores sessions and exposes MCP tools backed by **heb-sdk**.
 - **heb-auth** provides OAuth/PKCE helpers for linking mobile bearer tokens when needed.
 
 ## Example

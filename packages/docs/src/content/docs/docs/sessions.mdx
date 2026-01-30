@@ -75,7 +75,7 @@ Use `createSessionFromCookies` for a Cookie header or a DevTools JSON export.
 Bearer sessions use OAuth tokens and a mobile user agent by default.
 
 ```ts
-import { createSessionFromCookies, createTokenSession } from "heb-client"
+import { createSessionFromCookies, createTokenSession } from "heb-sdk"
 
 const cookies = createSessionFromCookies(process.env.HEB_COOKIES ?? "")
 
@@ -95,7 +95,7 @@ Set `session.refresh` so SDK calls can refresh near expiry.
 Update the session with `updateTokenSession` after you fetch new tokens.
 
 ```ts
-import { updateTokenSession } from "heb-client"
+import { updateTokenSession } from "heb-sdk"
 
 session.refresh = async () => {
   const tokens = await refreshTokens()
@@ -123,7 +123,7 @@ Use `isSessionValid` to check expiry and `getSessionInfo` for a snapshot.
 `isSessionAuthenticated` is a fast check for missing cookies or tokens.
 
 ```ts
-import { getSessionInfo, isSessionAuthenticated, isSessionValid } from "heb-client"
+import { getSessionInfo, isSessionAuthenticated, isSessionValid } from "heb-sdk"
 
 console.log(isSessionAuthenticated(session))
 console.log(isSessionValid(session))

@@ -6,11 +6,11 @@ import {
     isSessionValid,
     type HEBCookies,
     type HEBSession,
-} from 'heb-client';
+} from 'heb-sdk';
 import os from 'os';
 import path from 'path';
 
-const CONFIG_DIR = path.join(os.homedir(), '.heb-client');
+const CONFIG_DIR = path.join(os.homedir(), '.heb-sdk');
 const COOKIE_FILE = path.join(CONFIG_DIR, 'cookies.json');
 
 export const LOCAL_COOKIE_FILE = COOKIE_FILE;
@@ -18,7 +18,7 @@ export const LOCAL_COOKIE_FILE = COOKIE_FILE;
 /**
  * SessionManager provides a live-reloadable session.
  * 
- * Watches ~/.heb-client/cookies.json and auto-reloads when it changes.
+ * Watches ~/.heb-sdk/cookies.json and auto-reloads when it changes.
  * Tools should use `getClient()` instead of holding a stale reference.
  */
 export class SessionManager extends EventEmitter {
@@ -135,7 +135,7 @@ export const sessionManager = new SessionManager();
  * 
  * Priority:
  * 1. Environment variables (HEB_SAT, HEB_REESE84)
- * 2. Local file (~/.heb-client/cookies.json)
+ * 2. Local file (~/.heb-sdk/cookies.json)
  * 
  * @returns HEBSession or null if no valid session found
  */

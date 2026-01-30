@@ -20,7 +20,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { z } from 'zod';
 
-import type { HEBClient, HEBCookies, HEBSession } from 'heb-client';
+import type { HEBClient, HEBCookies, HEBSession } from 'heb-sdk';
 import { requireAuth, requireClerkAuth } from './auth.js';
 import {
   exchangeHebCode,
