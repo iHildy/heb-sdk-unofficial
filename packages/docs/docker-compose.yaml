@@ -5,8 +5,8 @@ services:
     build:
       context: ../..
       dockerfile: packages/docs/Dockerfile
-    ports:
-      - "3001:80"
+    expose:
+      - "80"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
