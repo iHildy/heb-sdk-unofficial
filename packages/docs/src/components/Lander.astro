@@ -4,7 +4,6 @@ import appConfig from "../../config.mjs"
 
 import CopyIcon from "../assets/lander/copy.svg"
 import CheckIcon from "../assets/lander/check.svg"
-import ShowcaseScreenshot from "../assets/lander/showcase.png"
 
 const { data } = Astro.locals.starlightRoute.entry
 const { title = data.title, tagline, image } = data.hero || {}
@@ -124,10 +123,6 @@ if (image) {
         </span>
       </button>
     </div>
-  </section>
-
-  <section class="images">
-    <Image src={ShowcaseScreenshot} alt="HEB SDK Showcase" />
   </section>
 
   <section class="footer">
@@ -291,21 +286,6 @@ section.content {
     li b {
       text-transform: uppercase;
     }
-  }
-}
-
-section.images {
-  border-top: 2px solid var(--sl-color-border);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: var(--padding);
-
-  img {
-    width: 100%;
-    height: auto;
-    display: block;
-    opacity: 1 !important;
   }
 }
 
