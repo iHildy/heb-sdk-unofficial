@@ -1,0 +1,61 @@
+# Usage examples
+
+These snippets assume you already created a session and `HEBClient`.
+Swap in your store ID and tokens.
+
+## Build a weekly ad feed
+
+Weekly ad calls require a bearer session and store context.
+
+```ts
+const ad = await heb.getWeeklyAdProducts({ storeCode: 790, limit: 12 })
+const topCategories = ad.categories.slice(0, 3)
+
+console.log(ad.products.map((product) => product.name))
+console.log(topCategories)
+```
+
+## Find curbside slots
+
+Slots are returned with local dates and availability.
+
+```ts
+const slots = await heb.getCurbsideSlots({ storeNumber: 790 })
+const openSlot = slots.find((slot) => slot.isAvailable)
+
+if (openSlot) {
+  const reservation = await heb.reserveCurbsideSlot(
+    openSlot.slotId,
+    openSlot.localDate,
+    "790"
+  )
+
+  console.log(reservation.deadlineMessage)
+}
+```
+
+## Summarize a cart
+
+Cart totals include subtotal, total, and fees.
+
+```ts
+const cart = await heb.getCart()
+
+console.log(`Items: ${cart.itemCount}`)
+console.log(`Total: ${cart.total.formatted}`)
+```
+
+## Browse shopping lists
+
+Lists return metadata plus item pages.
+
+```ts
+const lists = await heb.getShoppingLists()
+const firstList = lists.lists[0]
+
+if (firstList) {
+  const detail = await heb.getShoppingList(firstList.id, { size: 50 })
+  const names = detail.items.map((item) => item.name)
+  console.log(names)
+}
+```
