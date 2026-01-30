@@ -14,6 +14,8 @@
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { mcpAuthRouter, getOAuthProtectedResourceMetadataUrl } from '@modelcontextprotocol/sdk/server/auth/router.js';
+import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import express from 'express';
 import { dirname, join } from 'path';
@@ -30,7 +32,13 @@ import {
 } from './heb-oauth.js';
 import { createSessionStoreFromEnv, MultiTenantSessionManager } from './multi-tenant.js';
 import { startClerkDeviceFlow, pollClerkDeviceToken } from './clerk-device.js';
-import { createAuthorizeContextMiddleware, resolvePublicUrl } from './oauth.js';
+import {
+  ClerkOAuthProvider,
+  createAuthorizeContextMiddleware,
+  resolveIssuerUrl,
+  resolveOAuthScopes,
+  resolvePublicUrl,
+} from './oauth.js';
 import { LOCAL_COOKIE_FILE, saveSessionToFile, sessionManager } from './session.js';
 import { registerTools } from './tools.js';
 import { renderPage } from './utils.js';
@@ -156,6 +164,10 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
 
   const port = parseInt(process.env.PORT ?? '3000', 10);
   const publicUrl = resolvePublicUrl(port);
+  const issuerUrl = resolveIssuerUrl(publicUrl);
+  const resourceServerUrl = new URL('/mcp', publicUrl);
+  const oauthProvider = new ClerkOAuthProvider({ publicUrl: resourceServerUrl });
+  const oauthScopes = resolveOAuthScopes();
   const app = express();
 
   const deviceStartSchema = z.object({
@@ -178,9 +190,20 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     res.sendFile(join(__dirname, '..', 'favicon.ico'));
   });
 
-  app.use('/connect', createAuthorizeContextMiddleware({
+  const authorizeContextMiddleware = createAuthorizeContextMiddleware({
     publicUrl,
     signInUrl: process.env.CLERK_SIGN_IN_URL,
+  });
+
+  app.use('/connect', authorizeContextMiddleware);
+  app.use('/authorize', authorizeContextMiddleware);
+
+  app.use(mcpAuthRouter({
+    provider: oauthProvider,
+    issuerUrl,
+    resourceServerUrl,
+    scopesSupported: oauthScopes,
+    resourceName: 'HEB MCP',
   }));
 
   app.get('/health', (_req, res) => {
@@ -381,10 +404,21 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
     });
   });
 
-  app.post('/mcp', async (req, res) => {
-    const auth = await requireAuth(req, res);
-    if (!auth) return;
-    const userId = auth.userId;
+  const mcpAuthMiddleware = requireBearerAuth({
+    verifier: oauthProvider,
+    requiredScopes: [],
+    resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(resourceServerUrl),
+  });
+
+  app.post('/mcp', mcpAuthMiddleware, async (req, res) => {
+    const userId = typeof req.auth?.extra?.['userId'] === 'string'
+      ? req.auth.extra['userId']
+      : null;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Missing user context' });
+      return;
+    }
 
     try {
       await sessionManagerRemote.loadUser(userId);
