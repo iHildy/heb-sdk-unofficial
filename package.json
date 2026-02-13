@@ -4,7 +4,7 @@
   "description": "Unofficial H-E-B SDK monorepo",
   "type": "module",
   "scripts": {
-    "lint": "pnpm -r lint --if-present",
+    "lint": "pnpm -r --if-present lint",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "clean": "rm -rf packages/*/dist",
