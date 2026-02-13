@@ -51,11 +51,6 @@ export default defineConfig({
         headingLinks: false,
       },
       customCss: ["./src/styles/custom.css"],
-      logo: {
-        light: "./src/assets/sdk-wordmark-black.svg",
-        dark: "./src/assets/sdk-wordmark-white.svg",
-        replacesTitle: true,
-      },
       sidebar: [
         "docs/quickstart",
         "docs/sessions",
