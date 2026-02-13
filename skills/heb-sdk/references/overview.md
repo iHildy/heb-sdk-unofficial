@@ -10,7 +10,7 @@ A TypeScript client for the H-E-B APIs. It wraps web and mobile GraphQL endpoint
 
 ## Auth modes and endpoints
 - Cookie sessions target the web GraphQL host (`https://www.heb.com/graphql`).
-- Bearer sessions target the mobile GraphQL host (`https://api-edge.heb-ecom-api.hebdigital-prd.com/graphql`).
+- Bearer sessions target the configured mobile GraphQL host.
 - `createTokenSession` sets a mobile user agent by default; override via options if needed.
 
 ## Context rules

@@ -58,7 +58,7 @@ The cookie bridge extension is functional but no longer maintained. Use the `heb
 :::
 
 Install the cookie bridge extension and connect it to your MCP server.
-Log in to heb.com and keep a logged-in tab open so `sat` and `reese84` stay fresh.
+Use only authorized session credentials and refresh them when they expire.
 
 - Set the Server URL to your MCP host or `http://localhost:4321`
 - Sign in with Clerk in remote mode
@@ -71,7 +71,7 @@ Remote mode stores cookies per user after Clerk sign-in.
 
 ## Initialize sessions
 
-Use `createSessionFromCookies` for a Cookie header or a DevTools JSON export.
+Use `createSessionFromCookies` for a Cookie header string or JSON cookie export.
 Bearer sessions use OAuth tokens and a mobile user agent by default.
 
 ```ts

@@ -3,3 +3,5 @@ node_modules
 dist
 /har
 *.summary.json
+# Local HTTP client workspace exports
+/yaak

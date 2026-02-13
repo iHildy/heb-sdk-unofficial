@@ -39,27 +39,20 @@ console.log(product.name, product.skuId, product.price);
 await heb.addToCart(product.productId, product.skuId, 2);
 ```
 
-## Getting Session Cookies
+## Session Credentials
 
-Since H-E-B uses aggressive bot protection, you need to extract cookies from a logged-in browser session:
+Use only session credentials that you are authorized to use.
+Do not commit tokens/cookies to source control, logs, or issue trackers.
 
-1. Log in to [heb.com](https://www.heb.com)
-2. Open DevTools → Application → Cookies
-3. Copy the `sat`, `reese84`, and `incap_ses` cookie values
-
-**Pro Tip (The Easy Way):**
-1. Open DevTools → **Network** tab on heb.com.
-2. Click any request to `graphql` or `your-orders`.
-3. Go to **Request Headers** > **Cookie**.
-4. Right-click the value → **Copy value**.
-5. Paste this full string directly into your environment variable.
+For long-running and server-side integrations, prefer OAuth bearer sessions.
+Cookie sessions are supported for compatible web endpoints.
 
 ### Environment Variables
 
 To keep credentials secure, use the `HEB_COOKIES` environment variable:
 
 ```bash
-export HEB_COOKIES='sat=abc...; reese84=xyz...; CURR_SESSION_STORE=790'
+export HEB_COOKIES='cookie_a=...; cookie_b=...; CURR_SESSION_STORE=790'
 ```
 
 This format matches the browser's `Cookie` header (semicolon-separated). Use it with `createSessionFromCookies()`:
@@ -125,9 +118,8 @@ try {
 
 ## Notes
 
-- **Session expiry**: The `sat` token expires after ~24h. Re-extract cookies when you get auth errors.
-- **OAuth tokens (mobile)**: Access tokens expire in ~30 minutes. You must refresh using the `refresh_token`.
-- **Bot protection**: The `reese84` and `incap_ses` cookies can go stale. If requests fail with 403, refresh them.
+- **Session expiry**: sessions can expire; renew credentials when you get auth errors.
+- **OAuth tokens (mobile)**: access tokens are short-lived. Refresh using the `refresh_token`.
 - **Store context**: Set `CURR_SESSION_STORE` to get accurate pricing and availability for your store.
 - **Mobile GraphQL**: Search, product details, homepage, account, and orders require bearer sessions with a store ID.
 - **Weekly ad**: Weekly ad support is currently unavailable without Next.js endpoints.

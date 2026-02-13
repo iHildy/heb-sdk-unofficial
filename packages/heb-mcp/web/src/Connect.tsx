@@ -315,7 +315,7 @@ export default function Connect() {
                     value={codeInput}
                     onChange={(e) => setCodeInput(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl border border-border focus:border-heb-red focus:ring-1 focus:ring-heb-red outline-none text-sm font-mono min-h-[80px] bg-gray-50 placeholder:text-gray-400 resize-y" 
-                    placeholder="Paste com.heb.myheb://oauth2redirect... here"
+                    placeholder="Paste redirect URL or authorization code here"
                 />
                  {codeInput && (
                      <button onClick={() => setCodeInput('')} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
@@ -352,9 +352,8 @@ export default function Connect() {
                 <span className="group-open:rotate-90 transition-transform">▸</span> Help: Where do I find the code?
             </summary>
             <div className="pl-4 pt-2 leading-relaxed">
-                After logging in on the H‑E‑B page, if you see a blank page or "Address Not Found", check the URL bar. It should start with <code>com.heb.myheb://</code>. Copy that entire URL.
-                <br/>
-                If the browser hangs, open Developer Tools (F12) &gt; Network, and look for a request starting with <code>oauth2redirect</code>.
+                After login/consent, your browser will redirect to a callback URL containing a <code>code</code> query parameter.
+                Copy the full redirect URL from the address bar and paste it above, or paste the code value directly.
             </div>
           </details>
         </div>

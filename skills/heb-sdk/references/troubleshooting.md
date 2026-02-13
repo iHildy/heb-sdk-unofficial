@@ -9,7 +9,7 @@
 - Fix: use `createTokenSession` (bearer) for search/product/homepage/orders/account/weekly ad.
 
 ## 401/403 or UNAUTHORIZED
-- Cookie sessions: re-extract `sat`, `reese84`, `incap_ses` from a logged-in browser.
+- Cookie sessions: renew session credentials from your authorized source.
 - Bearer sessions: refresh tokens via `session.refresh` and `updateTokenSession`.
 
 ## Cart mutations behave like set

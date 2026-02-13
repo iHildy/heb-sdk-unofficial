@@ -21,10 +21,10 @@ Set `MCP_MODE=local` or `MCP_TRANSPORT=stdio` when you want local.
 ## Choose sessions
 
 heb-mcp supports cookie sessions and bearer-token sessions.
-Cookie sessions come from logged-in browser cookies, while bearer sessions come from H‑E‑B OAuth.
+Cookie sessions use authorized session cookies, while bearer sessions come from H‑E‑B OAuth.
 
-- Hosted: visit `/connect` to link H‑E‑B OAuth, or post cookies to `/api/cookies` with a Clerk bearer token
-- Local: set `HEB_SAT` and `HEB_REESE84`, or post cookies to http://localhost:4321/api/cookies
+- Hosted: visit `/connect` to link H‑E‑B OAuth, or post authorized cookies to `/api/cookies` with a Clerk bearer token
+- Local: set the required session env vars, or post authorized cookies to http://localhost:4321/api/cookies
 
 Use `heb_get_session_info` or `session://status` to confirm you are linked.
 

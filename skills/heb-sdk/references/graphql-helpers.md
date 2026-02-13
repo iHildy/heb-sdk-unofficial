@@ -25,5 +25,5 @@
 4. Export the new function in `packages/heb-sdk/src/index.ts`.
 
 ## Common error patterns
-- `UNAUTHORIZED`: refresh bearer tokens or re-extract cookies.
+- `UNAUTHORIZED`: refresh bearer tokens or renew session credentials.
 - `INVALID_PRODUCT_STORE`: missing or wrong `CURR_SESSION_STORE`.

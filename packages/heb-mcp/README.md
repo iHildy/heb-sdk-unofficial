@@ -59,7 +59,7 @@ Cookies are stored per Clerk user.
 
 ### 3. HEB OAuth (Mobile) Linking (Experimental)
 
-Since we are a third‑party, we impersonate the H‑E‑B mobile OAuth client. This uses Authorization Code + PKCE and returns Bearer tokens for the mobile GraphQL API.
+Use Authorization Code + PKCE with explicit user consent to obtain bearer tokens for supported APIs.
 
 Fastest way to link:
 
@@ -72,8 +72,8 @@ This page walks the user through H‑E‑B login and code exchange.
 Flow outline:
 
 1. Generate PKCE (`code_verifier`, `code_challenge`) on the client.
-2. Open the HEB auth URL (mobile client) and complete login + OTP.
-3. Intercept the `com.heb.myheb://oauth2redirect?...` redirect to capture the `code`.
+2. Open the auth URL and complete login + consent.
+3. Copy the returned redirect URL (or authorization code) from your browser.
 4. Exchange the code with:
 
 ```
@@ -150,8 +150,8 @@ Add to `~/.config/claude/config.json` (or `~/Library/Application Support/Claude/
       "args": ["/absolute/path/to/heb-mcp/dist/server.js"],
       "env": {
         "MCP_MODE": "local",
-        "HEB_SAT": "your-jwt-token",
-        "HEB_REESE84": "your-bot-protection-token",
+        "HEB_SAT": "your-session-token",
+        "HEB_REESE84": "your-session-cookie",
         "HEB_STORE_ID": "790"
       }
     }

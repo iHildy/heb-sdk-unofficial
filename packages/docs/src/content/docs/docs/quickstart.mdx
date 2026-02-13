@@ -18,7 +18,7 @@ pnpm add heb-sdk
 
 ## Create a session
 
-Cookie sessions use logged-in browser cookies.
+Cookie sessions use authorized session cookies.
 Bearer sessions use OAuth tokens and unlock mobile-only features.
 
 **Cookie session**
@@ -45,7 +45,7 @@ const session = createTokenSession({
 const heb = new HEBClient(session)
 ```
 
-Cookie input can be a Cookie header string or DevTools JSON.
+Cookie input can be a Cookie header string or JSON cookie export.
 Use a bearer session for search, product details, homepage, orders, account, and weekly ad.
 
 ---

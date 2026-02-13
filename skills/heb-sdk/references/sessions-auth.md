@@ -3,11 +3,11 @@
 ## Cookie sessions (web GraphQL)
 Use when you need cart, typeahead, store search, or shopping lists.
 
-- Required cookies: `sat`, `reese84`, `incap_ses`.
+- Provide authorized auth cookies from your session source.
 - `createSessionFromCookies(cookieInput)` accepts either:
-  - a Cookie header string (`sat=...; reese84=...; ...`), or
-  - a DevTools JSON export (array of cookie objects).
-- `createSessionFromCookies` throws if `sat` is missing.
+  - a Cookie header string, or
+  - a JSON cookie export (array of cookie objects).
+- `createSessionFromCookies` throws if required auth cookies are missing.
 
 ## Bearer sessions (mobile GraphQL)
 Use for search, product details, homepage, orders, account, and weekly ad.
