@@ -91,7 +91,7 @@ export default function Connect() {
         setStatus('Not linked');
         setStatusText('Not connected yet.');
       }
-    } catch (err) {
+    } catch {
       setStatus('Unknown');
       setStatusText('Unable to check status.');
     }
@@ -203,7 +203,7 @@ export default function Connect() {
       setExchangeStatus({ text: 'Linked successfully!', type: 'success' });
       await refreshStatus();
       setCodeInput('');
-    } catch (err) {
+    } catch {
       setExchangeStatus({ text: 'Failed to link. Try again or re-open login.', type: 'error' });
     } finally {
       setLoading(false);
@@ -223,7 +223,8 @@ export default function Connect() {
       }
       setCodeInput(text);
       setExchangeStatus({ text: 'Pasted from clipboard.', type: 'status' });
-    } catch (err) {
+    } catch {
+      setExchangeStatus({ text: 'Unable to read clipboard.', type: 'error' });
     }
   };
 
