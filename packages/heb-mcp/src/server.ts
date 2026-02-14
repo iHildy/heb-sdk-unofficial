@@ -102,9 +102,7 @@ async function startLocalCookieBridgeServer(): Promise<void> {
 
   app.use(express.json({ limit: '250kb' }));
 
-  const iconPath = mode === 'local' 
-    ? join(__dirname, '..', 'favicon.svg') 
-    : join(__dirname, '..', 'favicon.svg');
+  const iconPath = join(__dirname, '..', 'favicon.svg');
 
   app.get('/favicon.svg', (_req, res) => {
     res.sendFile(iconPath);
