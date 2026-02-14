@@ -9,11 +9,18 @@
     "skipLibCheck": true,
     "declaration": true,
     "declarationMap": true,
-    "outDir": "dist",
-    "rootDir": "src",
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "heb-sdk": ["./packages/heb-sdk/src/index.ts"],
+      "heb-auth": ["./packages/heb-auth/src/index.ts"]
+    }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "references": [
+    { "path": "./packages/heb-sdk" },
+    { "path": "./packages/heb-auth" },
+    { "path": "./packages/heb-mcp" }
+  ],
+  "files": []
 }
