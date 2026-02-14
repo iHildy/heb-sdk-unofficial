@@ -16,7 +16,7 @@ export default function OAuthInterstitial() {
       window.location.href = url.toString();
     } else {
       // Not signed in
-      const signInUrl = window.__connectConfig?.signInUrl;
+      const signInUrl = (window as { __connectConfig?: { signInUrl?: string } }).__connectConfig?.signInUrl;
       if (signInUrl) {
          window.location.href = signInUrl;
       } else {
