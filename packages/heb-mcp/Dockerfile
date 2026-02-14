@@ -58,7 +58,7 @@ COPY --from=builder /app/packages/heb-sdk/dist ./packages/heb-sdk/dist
 COPY --from=builder /app/packages/heb-mcp/package.json ./packages/heb-mcp/
 COPY --from=builder /app/packages/heb-mcp/dist ./packages/heb-mcp/dist
 COPY --from=builder /app/packages/heb-mcp/web/dist ./packages/heb-mcp/web/dist
-COPY --from=builder /app/packages/heb-mcp/favicon.ico ./packages/heb-mcp/favicon.ico
+COPY --from=builder /app/packages/heb-mcp/favicon.svg ./packages/heb-mcp/favicon.svg
 
 # Install production dependencies for the workspace, focused on heb-mcp
 # We use --prod to skip devDependencies and --ignore-scripts to avoid heavy post-installs

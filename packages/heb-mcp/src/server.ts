@@ -102,11 +102,9 @@ async function startLocalCookieBridgeServer(): Promise<void> {
 
   app.use(express.json({ limit: '250kb' }));
 
-  const iconPath = mode === 'local' 
-    ? join(__dirname, '..', 'favicon.ico') 
-    : join(__dirname, '..', 'favicon.ico');
+  const iconPath = join(__dirname, '..', 'favicon.svg');
 
-  app.get('/favicon.ico', (_req, res) => {
+  app.get('/favicon.svg', (_req, res) => {
     res.sendFile(iconPath);
   });
 
@@ -186,8 +184,8 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
   app.use(express.json({ limit: '250kb' }));
   app.set('trust proxy', 1); 
 
-  app.get('/favicon.ico', (_req, res) => {
-    res.sendFile(join(__dirname, '..', 'favicon.ico'));
+  app.get('/favicon.svg', (_req, res) => {
+    res.sendFile(join(__dirname, '..', 'favicon.svg'));
   });
 
   const authorizeContextMiddleware = createAuthorizeContextMiddleware({
