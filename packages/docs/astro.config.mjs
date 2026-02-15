@@ -61,6 +61,7 @@ export default defineConfig({
         "docs/sdk",
         "docs/examples",
         "docs/faq",
+        "docs/contributing",
         {
           label: "SDK Reference",
           items: ["docs/api-reference", "docs/data-models", "docs/configuration", "docs/errors"],

@@ -1,0 +1,49 @@
+---
+title: Contributing
+description: How to contribute to the HEB SDK (Unofficial) project.
+---
+
+This is an open-source project and contributions are welcome.
+
+---
+
+## Setup
+
+```bash
+git clone https://github.com/ihildy/heb-sdk-unofficial.git
+cd heb-sdk-unofficial
+pnpm install
+pnpm build
+```
+
+---
+
+## How This SDK Was Built
+
+This unofficial SDK was built by analyzing the H-E-B mobile app and website to understand their API patterns.
+
+### Tools Used
+
+- **mitmproxy**: Captured HTTPS traffic from the iOS app to analyze API requests and responses. This is preferred over browser inspection since the mobile API exposes more endpoints, and some pages are server-side rendered making them harder to scrape
+- **Browser DevTools**: Inspected network requests from the H-E-B website to understand web session handling
+- **HTTP Archive (HAR) files**: Saved and analyzed request patterns from browser sessions using AI coding tools to extract and structure the data
+
+### What I Learned
+
+- The API uses GraphQL with persisted queries (sha256 hashes)
+- Two authentication modes exist: cookie-based (web) and bearer token (mobile app)
+- Session management requires handling bot protection tokens (Reese84)
+- The mobile app uses OAuth PKCE for authentication
+
+This research was done for interoperability and educational purposes only.
+
+---
+
+## Contributing
+
+Open a pull request with:
+- Clear description of the change
+- Test against real H-E-B sessions if possible
+- Follow existing code patterns
+
+For questions or bug reports, open a GitHub issue.
