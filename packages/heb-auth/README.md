@@ -73,7 +73,7 @@ console.log(tokens.refresh_token); // new refresh token (if rotated)
 Use tokens to create a bearer session for the SDK.
 
 ```typescript
-import { createTokenSession, HEBClient } from 'heb-sdk-unofficial';
+import { createTokenSession, HEBClient, updateTokenSession } from 'heb-sdk-unofficial';
 import { refreshTokens } from 'heb-auth-unofficial';
 
 const session = createTokenSession({
@@ -86,10 +86,7 @@ const session = createTokenSession({
 // Enable automatic token refresh
 session.refresh = async () => {
   const newTokens = await refreshTokens({ refreshToken: session.refreshToken! });
-  session.accessToken = newTokens.access_token;
-  session.refreshToken = newTokens.refresh_token ?? session.refreshToken;
-  session.idToken = newTokens.id_token ?? session.idToken;
-  session.expiresAt = Date.now() + (newTokens.expires_in ?? 1800) * 1000;
+  updateTokenSession(session, newTokens);
 };
 
 const heb = new HEBClient(session);
