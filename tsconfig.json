@@ -13,8 +13,8 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "heb-sdk": ["./packages/heb-sdk/src/index.ts"],
-      "heb-auth": ["./packages/heb-auth/src/index.ts"]
+      "heb-sdk-unofficial": ["./packages/heb-sdk/src/index.ts"],
+      "heb-auth-unofficial": ["./packages/heb-auth/src/index.ts"]
     }
   },
   "references": [

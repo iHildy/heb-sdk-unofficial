@@ -1,4 +1,4 @@
-# heb-sdk overview
+# heb-sdk-unofficial overview
 
 ## Purpose
 A TypeScript client for the H-E-B APIs. It wraps web and mobile GraphQL endpoints behind a single `HEBSession` and exposes a high-level `HEBClient` plus low-level helpers.

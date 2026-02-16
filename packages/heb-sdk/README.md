@@ -1,19 +1,19 @@
-# heb-sdk
+# heb-sdk-unofficial
 
 Unofficial TypeScript client library for the H-E-B Grocery API.
 
 ## Installation
 
 ```bash
-npm install heb-sdk
+npm install heb-sdk-unofficial
 # or
-pnpm add heb-sdk
+pnpm add heb-sdk-unofficial
 ```
 
 ## Quick Start
 
 ```typescript
-import { createTokenSession, HEBClient } from 'heb-sdk';
+import { createTokenSession, HEBClient } from 'heb-sdk-unofficial';
 
 // Create session from OAuth tokens (mobile)
 const session = createTokenSession({
@@ -112,7 +112,7 @@ const weeklyAd = await heb.getWeeklyAdProducts({
 The library exports typed error classes:
 
 ```typescript
-import { HEBAuthError, HEBCartError, HEBProductError } from 'heb-sdk';
+import { HEBAuthError, HEBCartError, HEBProductError } from 'heb-sdk-unofficial';
 
 try {
   await heb.addToCart(productId, skuId, 1);

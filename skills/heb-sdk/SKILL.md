@@ -1,12 +1,12 @@
 ---
-name: heb-sdk
-description: Guide for implementing and using the heb-sdk TypeScript client in apps or automations. Use when wiring sessions (cookie vs bearer), setting store/shopping context, calling HEBClient methods, handling errors, or using low-level GraphQL helpers in application code.
+name: heb-sdk-unofficial
+description: Guide for implementing and using the heb-sdk-unofficial TypeScript client in apps or automations. Use when wiring sessions (cookie vs bearer), setting store/shopping context, calling HEBClient methods, handling errors, or using low-level GraphQL helpers in application code.
 ---
 
-# heb-sdk
+# heb-sdk-unofficial
 
 ## Overview
-Use this skill to integrate the `heb-sdk` client into apps and automations. Focus on the session model, store context, and which endpoints require bearer vs cookie auth.
+Use this skill to integrate the `heb-sdk-unofficial` client into apps and automations. Focus on the session model, store context, and which endpoints require bearer vs cookie auth.
 
 ## Workflow
 1. Identify the feature you need and its auth requirements.

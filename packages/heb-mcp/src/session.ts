@@ -6,11 +6,11 @@ import {
     isSessionValid,
     type HEBCookies,
     type HEBSession,
-} from 'heb-sdk';
+} from 'heb-sdk-unofficial';
 import os from 'os';
 import path from 'path';
 
-const CONFIG_DIR = path.join(os.homedir(), '.heb-sdk');
+const CONFIG_DIR = path.join(os.homedir(), '.heb-sdk-unofficial');
 const COOKIE_FILE = path.join(CONFIG_DIR, 'cookies.json');
 
 export const LOCAL_COOKIE_FILE = COOKIE_FILE;
@@ -18,7 +18,7 @@ export const LOCAL_COOKIE_FILE = COOKIE_FILE;
 /**
  * SessionManager provides a live-reloadable session.
  * 
- * Watches ~/.heb-sdk/cookies.json and auto-reloads when it changes.
+ * Watches ~/.heb-sdk-unofficial/cookies.json and auto-reloads when it changes.
  * Tools should use `getClient()` instead of holding a stale reference.
  */
 export class SessionManager extends EventEmitter {
@@ -51,13 +51,13 @@ export class SessionManager extends EventEmitter {
       this.client = new HEBClient(this.session);
       const newValid = isSessionValid(this.session);
       
-      console.error(`[heb-mcp] Session reloaded: ${getSessionStatus(this.session)}`);
+      console.error(`[heb-mcp-unofficial] Session reloaded: ${getSessionStatus(this.session)}`);
 
       // Emit event for tools that need to know
       this.emit('session-changed', { session: this.session, wasValid: oldValid, isValid: newValid });
     } else {
       this.client = null;
-      console.error('[heb-mcp] Session reloaded: No valid session found.');
+      console.error('[heb-mcp-unofficial] Session reloaded: No valid session found.');
       this.emit('session-changed', { session: null, wasValid: oldValid, isValid: false });
     }
   }
@@ -79,15 +79,15 @@ export class SessionManager extends EventEmitter {
             clearTimeout(this.debounceTimer);
           }
           this.debounceTimer = setTimeout(() => {
-            console.error('[heb-mcp] Cookie file changed, reloading session...');
+            console.error('[heb-mcp-unofficial] Cookie file changed, reloading session...');
             this.reload();
           }, 100);
         }
       });
 
-      console.error(`[heb-mcp] Watching ${COOKIE_FILE} for changes`);
+      console.error(`[heb-mcp-unofficial] Watching ${COOKIE_FILE} for changes`);
     } catch (err) {
-      console.error('[heb-mcp] Failed to watch cookie file:', err);
+      console.error('[heb-mcp-unofficial] Failed to watch cookie file:', err);
     }
   }
 
@@ -135,7 +135,7 @@ export const sessionManager = new SessionManager();
  * 
  * Priority:
  * 1. Environment variables (HEB_SAT, HEB_REESE84)
- * 2. Local file (~/.heb-sdk/cookies.json)
+ * 2. Local file (~/.heb-sdk-unofficial/cookies.json)
  * 
  * @returns HEBSession or null if no valid session found
  */
@@ -185,7 +185,7 @@ export function loadSessionFromFile(): HEBSession | null {
 
     // Validate structure (basic check)
     if (!cookies.sat) {
-      console.error('[heb-mcp] Invalid cookie file: missing sat');
+      console.error('[heb-mcp-unofficial] Invalid cookie file: missing sat');
       return null;
     }
 
@@ -194,7 +194,7 @@ export function loadSessionFromFile(): HEBSession | null {
 
     return createSession(cookies);
   } catch (error) {
-    console.error('[heb-mcp] Failed to load session from file:', error);
+    console.error('[heb-mcp-unofficial] Failed to load session from file:', error);
     return null;
   }
 }
@@ -209,9 +209,9 @@ export function saveSessionToFile(cookies: HEBCookies): void {
     }
 
     fs.writeFileSync(COOKIE_FILE, JSON.stringify(cookies, null, 2), 'utf-8');
-    console.error(`[heb-mcp] Saved cookies to ${COOKIE_FILE}`);
+    console.error(`[heb-mcp-unofficial] Saved cookies to ${COOKIE_FILE}`);
   } catch (error) {
-    console.error('[heb-mcp] Failed to save session to file:', error);
+    console.error('[heb-mcp-unofficial] Failed to save session to file:', error);
   }
 }
 

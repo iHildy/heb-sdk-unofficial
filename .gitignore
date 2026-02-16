@@ -4,3 +4,8 @@ dist
 /har
 *.summary.json
 *.tsbuildinfo
+*.d.ts
+*.d.ts.map
+*.js.map
+packages/*/src/*.js
+**/tsconfig.build.json

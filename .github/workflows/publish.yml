@@ -20,9 +20,20 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - name: heb-sdk-unofficial
+            path: packages/heb-sdk
+            export: HEBClient
+          - name: heb-auth-unofficial
+            path: packages/heb-auth
+            export: HEBAuth
     outputs:
       requested_tag: ${{ steps.publish.outputs.requested_tag }}
-      version: ${{ steps.version.outputs.version }}
+      heb_sdk_version: ${{ steps.version.outputs.heb_sdk_version }}
+      heb_auth_version: ${{ steps.version.outputs.heb_auth_version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -40,14 +51,14 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm --filter heb-sdk build
+        run: pnpm --filter ${{ matrix.package.name }} build
 
       - id: inputs
         uses: simenandre/setup-inputs@v1
 
       - name: Publish candidate to npm with OIDC
         id: publish
-        working-directory: packages/heb-sdk
+        working-directory: ${{ matrix.package.path }}
         run: |
           TAG="${{ steps.inputs.outputs.tag }}"
           if [ -z "$TAG" ]; then
@@ -57,29 +68,43 @@ jobs:
           echo "requested_tag=$TAG" >> "$GITHUB_OUTPUT"
 
           CANDIDATE_TAG="next"
-          echo "Publishing candidate with tag: $CANDIDATE_TAG (requested: $TAG)"
+          echo "Publishing ${{ matrix.package.name }} with tag: $CANDIDATE_TAG (requested: $TAG)"
           npm publish --access public --tag "$CANDIDATE_TAG"
 
       - name: Resolve published version
         id: version
         run: |
-          VERSION=$(npm view heb-sdk@next version)
+          PACKAGE_NAME="${{ matrix.package.name }}"
+          SAFE_NAME=$(echo "$PACKAGE_NAME" | tr '-' '_')
+          VERSION=$(npm view "$PACKAGE_NAME"@next version)
           if [ -z "$VERSION" ]; then
             echo "Failed to resolve version from npm tag: next"
             exit 1
           fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "${SAFE_NAME}_version=$VERSION" >> "$GITHUB_OUTPUT"
 
-  smoke:
+  smoke-sdk:
     needs: publish
     uses: ./.github/workflows/smoke.yml
     with:
-      version: ${{ needs.publish.outputs.version }}
+      package: heb-sdk-unofficial
+      version: ${{ needs.publish.outputs.heb_sdk_version }}
+      export: HEBClient
       timeout: 20
     continue-on-error: true
 
-  promote_latest:
-    needs: [publish, smoke]
+  smoke-auth:
+    needs: publish
+    uses: ./.github/workflows/smoke.yml
+    with:
+      package: heb-auth-unofficial
+      version: ${{ needs.publish.outputs.heb_auth_version }}
+      export: HEBAuth
+      timeout: 20
+    continue-on-error: true
+
+  promote-latest-sdk:
+    needs: [publish, smoke-sdk]
     if: needs.publish.outputs.requested_tag == 'latest'
     runs-on: ubuntu-latest
     permissions:
@@ -91,13 +116,35 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Promote latest dist-tag
+      - name: Promote heb-sdk-unofficial to latest
         run: |
-          VERSION="${{ needs.publish.outputs.version }}"
+          VERSION="${{ needs.publish.outputs.heb_sdk_version }}"
           if [ -z "$VERSION" ]; then
             echo "Missing published version."
             exit 1
           fi
+          echo "Promoting heb-sdk-unofficial@$VERSION to latest"
+          npm dist-tag add "heb-sdk-unofficial@$VERSION" latest
 
-          echo "Promoting heb-sdk@$VERSION to latest"
-          npm dist-tag add "heb-sdk@$VERSION" latest
+  promote-latest-auth:
+    needs: [publish, smoke-auth]
+    if: needs.publish.outputs.requested_tag == 'latest'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Promote heb-auth-unofficial to latest
+        run: |
+          VERSION="${{ needs.publish.outputs.heb_auth_version }}"
+          if [ -z "$VERSION" ]; then
+            echo "Missing published version."
+            exit 1
+          fi
+          echo "Promoting heb-auth-unofficial@$VERSION to latest"
+          npm dist-tag add "heb-auth-unofficial@$VERSION" latest

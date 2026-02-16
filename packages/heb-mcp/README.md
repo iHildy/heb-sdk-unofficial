@@ -5,7 +5,7 @@ MCP (Model Context Protocol) server that exposes H‑E‑B grocery functionality
 ## Modes
 
 - **Remote (default)**: SSE transport + Clerk auth + multi‑tenant cookie store.
-- **Local testing**: STDIO transport + local cookie bridge (`http://localhost:4321`). (Note: The bridge is unmaintained; use `heb-auth` for better reliability).
+- **Local testing**: STDIO transport + local cookie bridge (`http://localhost:4321`). (Note: The bridge is unmaintained; use `heb-auth-unofficial` for better reliability).
 
 ## Remote Deployment (Recommended)
 
@@ -94,7 +94,7 @@ Optional utilities:
 
 Tokens are encrypted and stored per user in the same file store as cookies (`HEB_SESSION_ENCRYPTION_KEY` required).
 
-Helper utilities for PKCE and auth URL generation live in the `heb-auth` package (see `packages/heb-auth`).
+Helper utilities for PKCE and auth URL generation live in the `heb-auth-unofficial` package (see `packages/heb-auth`).
 
 ### 4. OAuth Endpoints (ChatGPT)
 
