@@ -32,7 +32,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
 
@@ -58,9 +58,7 @@ jobs:
 
           CANDIDATE_TAG="next"
           echo "Publishing candidate with tag: $CANDIDATE_TAG (requested: $TAG)"
-          npm publish --access public --tag "$CANDIDATE_TAG" --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm publish --access public --tag "$CANDIDATE_TAG"
 
       - name: Resolve published version
         id: version
@@ -90,7 +88,7 @@ jobs:
     steps:
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Promote latest dist-tag
@@ -103,5 +101,3 @@ jobs:
 
           echo "Promoting heb-sdk@$VERSION to latest"
           npm dist-tag add "heb-sdk@$VERSION" latest
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
