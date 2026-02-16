@@ -1,6 +1,6 @@
 ---
 title: Hosting
-description: Deploy a multi-tenant heb-mcp service safely
+description: Deploy a multi-tenant heb-mcp-unofficial service safely
 ---
 
 Remote mode runs as a Streamable HTTP service with MCP OAuth and Clerk auth.
@@ -40,7 +40,7 @@ Put these paths on durable storage in production.
 Build the package once and run the compiled server.
 
 ```bash
-pnpm --filter heb-mcp build
+pnpm --filter heb-mcp-unofficial build
 node packages/heb-mcp/dist/server.js
 ```
 

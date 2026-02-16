@@ -12,17 +12,17 @@
 - If the operation is missing, it throws `Unknown operation` with available names.
 
 ## Mobile name mapping
-`MOBILE_QUERY_MAP` in `packages/heb-sdk/src/api.ts` maps web-style names to mobile operation names:
+`MOBILE_QUERY_MAP` in `packages/heb-sdk-unofficial/src/api.ts` maps web-style names to mobile operation names:
 - `cartItemV2` -> `addItemToCartV2`
 - `cartEstimated` -> `cartV2`
 - `typeaheadContent` -> `TypeaheadContent`
 - `ReserveTimeslot` -> `reserveTimeslotV3`
 
 ## Extending with new operations
-1. Add the persisted query hash to `packages/heb-sdk/src/types.ts` in the right map.
+1. Add the persisted query hash to `packages/heb-sdk-unofficial/src/types.ts` in the right map.
 2. If the mobile operation name differs, add to `MOBILE_QUERY_MAP`.
 3. Use `persistedQuery(session, operationName, variables)` in your module.
-4. Export the new function in `packages/heb-sdk/src/index.ts`.
+4. Export the new function in `packages/heb-sdk-unofficial/src/index.ts`.
 
 ## Common error patterns
 - `UNAUTHORIZED`: refresh bearer tokens or re-extract cookies.

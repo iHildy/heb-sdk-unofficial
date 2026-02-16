@@ -1,12 +1,12 @@
 /**
  * MCP Tool definitions for H-E-B grocery API.
  *
- * Each tool wraps functionality from the heb-sdk library.
+ * Each tool wraps functionality from the heb-sdk-unofficial library.
  * Tools resolve the client lazily at call time to support hot-reload.
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { type HEBClient, type HEBCookies, type HEBSession, type ShoppingContext, formatter } from 'heb-sdk';
+import { type HEBClient, type HEBCookies, type HEBSession, type ShoppingContext, formatter } from 'heb-sdk-unofficial';
 import { z } from 'zod';
 import { getSessionStatus, saveSessionToFile } from './session.js';
 

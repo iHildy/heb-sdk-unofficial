@@ -22,7 +22,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { z } from 'zod';
 
-import type { HEBClient, HEBCookies, HEBSession } from 'heb-sdk';
+import type { HEBClient, HEBCookies, HEBSession } from 'heb-sdk-unofficial';
 import { requireAuth, requireClerkAuth } from './auth.js';
 import {
   exchangeHebCode,
@@ -136,25 +136,25 @@ async function startLocalCookieBridgeServer(): Promise<void> {
         message: `Cookies saved to ${LOCAL_COOKIE_FILE} and session will reload automatically`,
       });
     } catch (err) {
-      console.error('[heb-mcp] Error saving cookies:', err);
+      console.error('[heb-mcp-unofficial] Error saving cookies:', err);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
   app.listen(PORT, () => {
-    console.error(`[heb-mcp] Local Cookie Bridge listening on http://localhost:${PORT}`);
+    console.error(`[heb-mcp-unofficial] Local Cookie Bridge listening on http://localhost:${PORT}`);
   }).on('error', (err) => {
-    console.error(`[heb-mcp] Failed to start Local Cookie Bridge on port ${PORT}:`, err.message);
+    console.error(`[heb-mcp-unofficial] Failed to start Local Cookie Bridge on port ${PORT}:`, err.message);
   });
 }
 
 async function startSTDIOServer(server: McpServer): Promise<void> {
-  console.error('[heb-mcp] Starting STDIO transport (local mode)...');
+  console.error('[heb-mcp-unofficial] Starting STDIO transport (local mode)...');
 
   const transportInstance = new StdioServerTransport();
   await server.connect(transportInstance);
 
-  console.error('[heb-mcp] Server running on STDIO');
+  console.error('[heb-mcp-unofficial] Server running on STDIO');
 }
 
 async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager): Promise<void> {
@@ -241,7 +241,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
 
       res.status(200).send(html);
     } catch (err) {
-      console.error('[heb-mcp] Error rendering connect page:', err);
+      console.error('[heb-mcp-unofficial] Error rendering connect page:', err);
       res.status(500).send('Internal server error');
     }
   });
@@ -253,7 +253,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
 
       res.status(200).send(html);
     } catch (err) {
-      console.error('[heb-mcp] Error rendering success page:', err);
+      console.error('[heb-mcp-unofficial] Error rendering success page:', err);
       res.status(500).send('Internal server error');
     }
   });
@@ -269,7 +269,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
       const result = await startClerkDeviceFlow(scopeInput);
       res.status(result.status).json(result.body);
     } catch (error) {
-      console.error('[heb-mcp] Device flow start failed:', error);
+      console.error('[heb-mcp-unofficial] Device flow start failed:', error);
       res.status(500).json({ error: 'device_flow_start_failed' });
     }
   });
@@ -289,7 +289,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
       const result = await pollClerkDeviceToken(deviceCode);
       res.status(result.status).json(result.body);
     } catch (error) {
-      console.error('[heb-mcp] Device flow poll failed:', error);
+      console.error('[heb-mcp-unofficial] Device flow poll failed:', error);
       res.status(500).json({ error: 'device_flow_poll_failed' });
     }
   });
@@ -308,7 +308,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
       await sessionManagerRemote.saveCookies(auth.userId, { sat, reese84, ...req.body });
       res.json({ success: true, message: 'Cookies saved for user.' });
     } catch (error) {
-      console.error('[heb-mcp] Failed to save user cookies:', error);
+      console.error('[heb-mcp-unofficial] Failed to save user cookies:', error);
       res.status(500).json({ error: 'Failed to save cookies' });
     }
   });
@@ -349,7 +349,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
           userAgent: config.userAgent,
         });
         if (upsert && !upsert.ok) {
-          console.warn('[heb-mcp] UpsertUserMutation failed:', upsert.errors);
+          console.warn('[heb-mcp-unofficial] UpsertUserMutation failed:', upsert.errors);
         }
       }
 
@@ -358,7 +358,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
         expiresAt: tokens.expiresAt ? tokens.expiresAt.toISOString() : null,
       });
     } catch (error) {
-      console.error('[heb-mcp] Failed to exchange HEB OAuth code:', error);
+      console.error('[heb-mcp-unofficial] Failed to exchange HEB OAuth code:', error);
       res.status(500).json({ error: 'Failed to exchange HEB OAuth code' });
     }
   });
@@ -380,7 +380,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
         expiresAt: session.expiresAt ? session.expiresAt.toISOString() : null,
       });
     } catch (error) {
-      console.error('[heb-mcp] Failed to refresh HEB OAuth tokens:', error);
+      console.error('[heb-mcp-unofficial] Failed to refresh HEB OAuth tokens:', error);
       res.status(500).json({ error: 'Failed to refresh tokens' });
     }
   });
@@ -440,7 +440,7 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
       await server.connect(transportInstance);
       await transportInstance.handleRequest(req, res, req.body);
     } catch (error) {
-      console.error('[heb-mcp] Error handling MCP request:', error);
+      console.error('[heb-mcp-unofficial] Error handling MCP request:', error);
       if (!res.headersSent) {
         res.status(500).send('Error handling request');
       }
@@ -448,12 +448,12 @@ async function startRemoteServer(sessionManagerRemote: MultiTenantSessionManager
   });
 
   app.listen(port, () => {
-    console.error(`[heb-mcp] Streamable HTTP server listening on http://localhost:${port}`);
-    console.error(`[heb-mcp] MCP endpoint: http://localhost:${port}/mcp`);
+    console.error(`[heb-mcp-unofficial] Streamable HTTP server listening on http://localhost:${port}`);
+    console.error(`[heb-mcp-unofficial] MCP endpoint: http://localhost:${port}/mcp`);
   });
 }
 
 main().catch((error) => {
-  console.error('[heb-mcp] Fatal error:', error);
+  console.error('[heb-mcp-unofficial] Fatal error:', error);
   process.exit(1);
 });

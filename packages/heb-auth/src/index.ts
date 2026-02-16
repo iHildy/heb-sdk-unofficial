@@ -2,7 +2,7 @@ export type {
   HebOAuthConfig,
   HebOAuthContext,
   HebTokenResponse,
-} from './oauth.js';
+} from './oauth';
 
 export {
   DEFAULT_HEB_OAUTH_CONFIG,
@@ -15,4 +15,4 @@ export {
   exchangeCode,
   refreshTokens,
   upsertUser,
-} from './oauth.js';
+} from './oauth';

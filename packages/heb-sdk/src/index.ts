@@ -4,12 +4,12 @@
 // ─────────────────────────────────────────────────────────────
 
 // Main client class
-export { HEBClient } from './client.js';
+export { HEBClient } from './client';
 
 // ─────────────────────────────────────────────────────────────
 // Authentication
 // ─────────────────────────────────────────────────────────────
-export { createSessionFromCookies, parseCookies } from './cookies.js';
+export { createSessionFromCookies, parseCookies } from './cookies';
 export {
     buildBearerHeaders, buildHeaders, createSession,
     createTokenSession, ensureFreshSession, formatCookieHeader, getSessionInfo,
@@ -19,7 +19,7 @@ export {
     resolveEndpoint,
     resolveShoppingContext,
     updateTokenSession
-} from './session.js';
+} from './session';
 
 // ─────────────────────────────────────────────────────────────
 // Products
@@ -34,7 +34,7 @@ export {
     type NutritionInfo,
     type Product,
     type ProductPrice
-} from './product.js';
+} from './product';
 
 // ─────────────────────────────────────────────────────────────
 // Search
@@ -46,7 +46,7 @@ export {
     type SearchResult,
     type TypeaheadResult,
     type TypeaheadSuggestion
-} from './search.js';
+} from './search';
 
 // ─────────────────────────────────────────────────────────────
 // Weekly Ad
@@ -58,7 +58,7 @@ export {
     type WeeklyAdOptions,
     type WeeklyAdProduct,
     type WeeklyAdResult
-} from './weekly-ad.js';
+} from './weekly-ad';
 
 // ─────────────────────────────────────────────────────────────
 // Cart
@@ -76,7 +76,7 @@ export {
     type CartResponse,
     type DisplayPrice,
     type PaymentGroup
-} from './cart.js';
+} from './cart';
 
 // ─────────────────────────────────────────────────────────────
 // Orders
@@ -94,7 +94,7 @@ export {
     type OrderDetailsResponse,
     type OrderHistoryResponse,
     type RawHistoryOrder
-} from './orders.js';
+} from './orders';
 
 // ─────────────────────────────────────────────────────────────
 // Shopping Lists
@@ -110,7 +110,7 @@ export {
     type ShoppingListsPageInfo,
     type ShoppingListsResult,
     type ShoppingListItem
-} from './shopping-list.js';
+} from './shopping-list';
 
 // ─────────────────────────────────────────────────────────────
 // Account
@@ -120,7 +120,7 @@ export {
     formatAccountDetails,
     type AccountAddress,
     type AccountDetails
-} from './account.js';
+} from './account';
 
 // ─────────────────────────────────────────────────────────────
 // Homepage
@@ -135,7 +135,7 @@ export {
     type HomepageOptions,
     type HomepagePromotion,
     type HomepageSection
-} from './homepage.js';
+} from './homepage';
 
 // ─────────────────────────────────────────────────────────────
 // Fulfillment (Delivery & Curbside)
@@ -148,7 +148,7 @@ export {
     formatCurbsideSlots,
     type FulfillmentSlot,
     type ReserveSlotResult
-} from './fulfillment.js';
+} from './fulfillment';
 
 // ─────────────────────────────────────────────────────────────
 // Stores
@@ -159,7 +159,7 @@ export {
     formatStoreSearch,
     type Store,
     type StoreSearchResult
-} from './stores.js';
+} from './stores';
 
 
 // ─────────────────────────────────────────────────────────────
@@ -174,7 +174,7 @@ export {
     type GraphQLPayload,
     type GraphQLResponse,
     type HEBAPIError
-} from './api.js';
+} from './api';
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -187,7 +187,7 @@ export type {
     HEBSession,
     LoginOptions,
     ShoppingContext
-} from './types.js';
+} from './types';
 
 // ─────────────────────────────────────────────────────────────
 // Errors
@@ -199,19 +199,19 @@ export {
     HEBProductError,
     HEBSearchError,
     HEBSessionError
-} from './errors.js';
+} from './errors';
 
-export { ENDPOINTS, GRAPHQL_HASHES, MOBILE_GRAPHQL_HASHES, SHOPPING_CONTEXT_TO_CATEGORIES } from './types.js';
+export { ENDPOINTS, GRAPHQL_HASHES, MOBILE_GRAPHQL_HASHES, SHOPPING_CONTEXT_TO_CATEGORIES } from './types';
 
-import { formatAccountDetails } from './account.js';
-import { formatCart } from './cart.js';
-import { formatDeliverySlots, formatCurbsideSlots } from './fulfillment.js';
-import { formatHomepageData } from './homepage.js';
-import { formatOrderHistory, formatOrderDetails } from './orders.js';
-import { formatProductListItem, formatProductDetails } from './product.js';
-import { formatShoppingLists, formatShoppingList } from './shopping-list.js';
-import { formatStoreSearch } from './stores.js';
-import { formatWeeklyAd, formatWeeklyAdCategories } from './weekly-ad.js';
+import { formatAccountDetails } from './account';
+import { formatCart } from './cart';
+import { formatDeliverySlots, formatCurbsideSlots } from './fulfillment';
+import { formatHomepageData } from './homepage';
+import { formatOrderHistory, formatOrderDetails } from './orders';
+import { formatProductListItem, formatProductDetails } from './product';
+import { formatShoppingLists, formatShoppingList } from './shopping-list';
+import { formatStoreSearch } from './stores';
+import { formatWeeklyAd, formatWeeklyAdCategories } from './weekly-ad';
 
 export const formatter = {
   account: formatAccountDetails,

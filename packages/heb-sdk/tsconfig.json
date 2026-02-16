@@ -10,8 +10,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
-    "rootDir": "./src",
-    "lib": ["ES2022"],
+    "rootDir": ".",
+"lib": ["ES2022"],
     "composite": true
   },
   "include": ["src/**/*.ts"],

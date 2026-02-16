@@ -1,9 +1,9 @@
 # HEB Cookie Bridge Extension
 
 > [!CAUTION]
-> This extension is functional but no longer maintained. We recommend using the `heb-auth` package instead.
+> This extension is functional but no longer maintained. We recommend using the `heb-auth-unofficial` package instead.
 
-This Chrome/Firefox extension securely hands off your H‑E‑B session cookies to your `heb-mcp` server. In remote mode, it uses Clerk authentication so cookies are only stored for the signed‑in user. In local mode, it can still push cookies to `http://localhost:4321` for testing.
+This Chrome/Firefox extension securely hands off your H‑E‑B session cookies to your `heb-mcp-unofficial` server. In remote mode, it uses Clerk authentication so cookies are only stored for the signed‑in user. In local mode, it can still push cookies to `http://localhost:4321` for testing.
 
 ## Installation
 
@@ -20,7 +20,7 @@ This Chrome/Firefox extension securely hands off your H‑E‑B session cookies 
 
 ## Remote (Recommended)
 
-1. Deploy `heb-mcp` with Clerk enabled (see `packages/heb-mcp/README.md`).
+1. Deploy `heb-mcp-unofficial` with Clerk enabled (see `packages/heb-mcp/README.md`).
 2. (Optional) Populate `packages/cookie-bridge-extension/config.json` from the repo root `.env`:
 
 ```
@@ -31,14 +31,14 @@ Supported env keys: `MCP_SERVER_URL`, `CLERK_PUBLISHABLE_KEY`, `CLERK_JWT_TEMPLA
 3. Open the extension popup and set:
    - **Server URL**: your hosted MCP URL (e.g. `https://mcp.example.com`).
    - **Clerk Publishable Key**: the same Clerk app as the server.
-   - **JWT Template Name** (optional): use the same template name you configured in Clerk (e.g. `heb-mcp`).
+   - **JWT Template Name** (optional): use the same template name you configured in Clerk (e.g. `heb-mcp-unofficial`).
 4. Click **Save Settings** and grant host permissions.
 5. Sign in via the embedded Clerk UI.
 6. Log in to [heb.com](https://www.heb.com) and the extension will sync cookies automatically.
 
 ## Local Testing
 
-1. Run `heb-mcp` locally in STDIO mode (local testing) and keep the cookie bridge on `http://localhost:4321`.
+1. Run `heb-mcp-unofficial` locally in STDIO mode (local testing) and keep the cookie bridge on `http://localhost:4321`.
 2. In the extension popup, set **Server URL** to `http://localhost:4321` and click **Save Settings**.
 3. No Clerk sign‑in is required for local testing.
 

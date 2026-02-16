@@ -3,8 +3,16 @@ name: Smoke Test
 on:
   workflow_call:
     inputs:
+      package:
+        description: 'Package name to test'
+        required: true
+        type: string
       version:
         description: 'Package version to test'
+        required: true
+        type: string
+      export:
+        description: 'Main export to test'
         required: true
         type: string
       timeout:
@@ -14,10 +22,20 @@ on:
         default: 10
   workflow_dispatch:
     inputs:
+      package:
+        description: 'Package name to test'
+        required: true
+        type: string
+        default: 'heb-sdk-unofficial'
       version:
         description: 'Package version to test'
         required: true
         type: string
+      export:
+        description: 'Main export to test'
+        required: true
+        type: string
+        default: 'HEBClient'
       timeout:
         description: 'Timeout in minutes'
         required: false
@@ -35,11 +53,12 @@ jobs:
 
       - name: Wait for package availability
         run: |
+          PACKAGE="${{ inputs.package }}"
           VERSION="${{ inputs.version }}"
-          echo "Waiting for heb-sdk@$VERSION to be available on npm..."
+          echo "Waiting for $PACKAGE@$VERSION to be available on npm..."
           for i in {1..30}; do
-            if npm view "heb-sdk@$VERSION" version &>/dev/null; then
-              echo "Package heb-sdk@$VERSION is available!"
+            if npm view "$PACKAGE@$VERSION" version &>/dev/null; then
+              echo "Package $PACKAGE@$VERSION is available!"
               exit 0
             fi
             echo "Attempt $i: Package not yet available, waiting 10s..."
@@ -53,18 +72,18 @@ jobs:
           mkdir -p /tmp/smoke-test
           cd /tmp/smoke-test
           npm init -y
-          npm install "heb-sdk@${{ inputs.version }}"
+          npm install "${{ inputs.package }}@${{ inputs.version }}"
 
       - name: Test import
         working-directory: /tmp/smoke-test
         run: |
           cat > test.mjs << 'EOF'
-          import { HEBClient } from 'heb-sdk';
+          import { ${{ inputs.export }} } from '${{ inputs.package }}';
           
-          // Test that the client can be imported and instantiated
-          const client = new HEBClient();
-          console.log('HEBClient imported and instantiated successfully');
-          console.log('Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(client)).filter(m => m !== 'constructor'));
+          // Test that the package can be imported and instantiated
+          const instance = new ${{ inputs.export }}();
+          console.log('${{ inputs.export }} imported and instantiated successfully');
+          console.log('Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(instance)).filter(m => m !== 'constructor'));
           EOF
           node test.mjs
 
@@ -73,9 +92,9 @@ jobs:
         run: |
           npm install typescript @types/node --save-dev
           cat > test.ts << 'EOF'
-          import { HEBClient, Product, Store } from 'heb-sdk';
+          import { ${{ inputs.export }} } from '${{ inputs.package }}';
           
-          const client: HEBClient = new HEBClient();
+          const instance: ${{ inputs.export }} = new ${{ inputs.export }}();
           console.log('TypeScript types check passed');
           EOF
           npx tsc --init --strict --esModuleInterop --module NodeNext --moduleResolution NodeNext --target ES2022

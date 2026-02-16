@@ -16,13 +16,13 @@ Unofficial TypeScript monorepo for integrating with H‑E‑B grocery experience
 ## Packages
 
 <CardGrid>
-  <Card title="heb-sdk" icon="pwa">
+  <Card title="heb-sdk-unofficial" icon="pwa">
     TypeScript SDK that wraps H‑E‑B web + mobile endpoints with typed models, formatters, and session helpers.
   </Card>
-  <Card title="heb-auth" icon="setting">
+  <Card title="heb-auth-unofficial" icon="setting">
     PKCE + OAuth utilities used to link H‑E‑B mobile bearer tokens.
   </Card>
-  <Card title="heb-mcp" icon="puzzle">
+  <Card title="heb-mcp-unofficial" icon="puzzle">
     MCP server exposing H‑E‑B tools over MCP (remote streamable HTTP + OAuth/Clerk, or local STDIO).
   </Card>
   <Card title="cookie-bridge" icon="external">
@@ -46,21 +46,21 @@ Direct access to the H‑E‑B catalog, cart, and account features:
 ## How it fits together
 
 - The **cookie‑bridge extension** captures authenticated H‑E‑B cookies from a logged‑in browser.
-- **heb-mcp** stores sessions and exposes MCP tools backed by **heb-sdk**.
-- **heb-auth** provides OAuth/PKCE helpers for linking mobile bearer tokens when needed.
+- **heb-mcp-unofficial** stores sessions and exposes MCP tools backed by **heb-sdk-unofficial**.
+- **heb-auth-unofficial** provides OAuth/PKCE helpers for linking mobile bearer tokens when needed.
 
 ## Example
 
 ```ts
-import { createClient } from "@heb-sdk-unofficial/client"
+import { createTokenSession, HEBClient } from "heb-sdk-unofficial"
 
-const client = createClient({
-  session: { cookie: "..." },
-  store: { id: "..." },
+const session = createTokenSession({
+  accessToken: process.env.HEB_ACCESS_TOKEN ?? ""
 })
 
-const results = await client.catalog.search({ query: "milk" })
-console.log(results.items)
+const heb = new HEBClient(session)
+const results = await heb.search("milk", { limit: 10 })
+console.log(results.products.map(p => p.name))
 ```
 
 Ready to build? [Start with the Quickstart](/docs/quickstart).

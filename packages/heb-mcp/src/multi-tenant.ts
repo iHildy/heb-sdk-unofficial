@@ -10,7 +10,7 @@ import {
   type HEBAuthTokens,
   type HEBCookies,
   type HEBSession,
-} from 'heb-sdk';
+} from 'heb-sdk-unofficial';
 import { refreshHebTokens, resolveHebOAuthConfig } from './heb-oauth.js';
 
 const DEFAULT_STORE_DIR = path.join(process.cwd(), 'data', 'sessions');

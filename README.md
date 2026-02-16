@@ -9,7 +9,7 @@ Unofficial TypeScript monorepo for integrating with H‑E‑B grocery experience
 - `packages/heb-mcp/web` Minimal web UI used for OAuth linking and connect flows.
 - `packages/cookie-bridge-extension` Chrome/Firefox extension that syncs authenticated H‑E‑B cookies to the MCP server, enabling cookie-based sessions.
 
-**Capabilities (via `heb-sdk` and MCP tools)**
+**Capabilities (via `heb-sdk-unofficial` and MCP tools)**
 - Product search, typeahead, and product detail retrieval.
 - Cart operations (add/update/remove) and cart summary.
 - Order history + order details.
@@ -21,11 +21,11 @@ Unofficial TypeScript monorepo for integrating with H‑E‑B grocery experience
 
 **How it fits together**
 - The cookie‑bridge extension captures authenticated H‑E‑B cookies from a logged‑in browser and sends them to the server.
-- `heb-mcp` stores sessions (local file or encrypted per‑user store) and exposes MCP tools backed by `heb-sdk`.
-- `heb-auth` provides OAuth/PKCE helpers for linking mobile bearer tokens when needed.
+- `heb-mcp-unofficial` stores sessions (local file or encrypted per‑user store) and exposes MCP tools backed by `heb-sdk-unofficial`.
+- `heb-auth-unofficial` provides OAuth/PKCE helpers for linking mobile bearer tokens when needed.
 
 **Extensibility**
-- Reuse the existing MCP tool set as building blocks, or register your own tools by wiring new `heb-sdk` calls in `packages/heb-mcp/src/tools.ts`.
+- Reuse the existing MCP tool set as building blocks, or register your own tools by wiring new `heb-sdk-unofficial` calls in `packages/heb-mcp/src/tools.ts`.
 - Wrap the SDK however you want (for example, build a `heb-cli`, a cron worker, or a custom service layer).
 - Extend API coverage in `packages/heb-sdk` (new endpoints, formatters, types) as your needs grow.
 

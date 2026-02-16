@@ -9,31 +9,22 @@ Pick a session type before you code.
 ## Install
 
 ```bash
-npm install heb-sdk
+npm install heb-sdk-unofficial
 # or
-pnpm add heb-sdk
+pnpm add heb-sdk-unofficial
 ```
 
 ---
 
 ## Create a session
 
-Cookie sessions use logged-in browser cookies.
-Bearer sessions use OAuth tokens and unlock mobile-only features.
+Bearer sessions use OAuth tokens and work with search, orders, and account APIs.
+Cookie sessions use browser cookies and work with cart and shopping lists.
 
-**Cookie session**
-
-```ts
-import { createSessionFromCookies, HEBClient } from "heb-sdk"
-
-const session = createSessionFromCookies(process.env.HEB_COOKIES ?? "")
-const heb = new HEBClient(session)
-```
-
-**Bearer session**
+Use `heb-auth-unofficial` to generate tokens via PKCE flow. Or use `createTokenSession` directly.
 
 ```ts
-import { createTokenSession, HEBClient } from "heb-sdk"
+import { createTokenSession, HEBClient } from "heb-sdk-unofficial"
 
 const session = createTokenSession({
   accessToken: process.env.HEB_ACCESS_TOKEN ?? "",
@@ -45,8 +36,7 @@ const session = createTokenSession({
 const heb = new HEBClient(session)
 ```
 
-Cookie input can be a Cookie header string or DevTools JSON.
-Use a bearer session for search, product details, homepage, orders, account, and weekly ad.
+See the [sessions guide](/docs/sessions) for heb-auth-unofficial setup, token refresh, and cookie bridge options.
 
 ---
 

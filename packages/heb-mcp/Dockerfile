@@ -62,7 +62,7 @@ COPY --from=builder /app/packages/heb-mcp/favicon.svg ./packages/heb-mcp/favicon
 
 # Install production dependencies for the workspace, focused on heb-mcp
 # We use --prod to skip devDependencies and --ignore-scripts to avoid heavy post-installs
-RUN pnpm install --prod --frozen-lockfile --filter heb-mcp --ignore-scripts
+RUN pnpm install --prod --frozen-lockfile --filter heb-mcp-unofficial --ignore-scripts
 
 # Default to remote mode for container deployment
 ENV MCP_MODE=remote

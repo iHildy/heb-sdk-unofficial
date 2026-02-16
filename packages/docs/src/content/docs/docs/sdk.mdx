@@ -3,7 +3,7 @@ title: Client Guide
 description: Core methods and data shapes for the SDK.
 ---
 
-This guide maps the main API surfaces in `heb-sdk`.
+This guide maps the main API surfaces in `heb-sdk-unofficial`.
 It also notes which calls require a bearer session and store context.
 
 ## Pick a session
@@ -53,7 +53,7 @@ Formatting helpers return quick, display-ready strings.
 Use the `formatter` object or the exported `formatX` functions.
 
 ```ts
-import { formatter } from "heb-sdk"
+import { formatter } from "heb-sdk-unofficial"
 
 const cart = await heb.getCart()
 console.log(formatter.cart(cart))
@@ -67,7 +67,7 @@ Types are exported for all response shapes and inputs.
 Common ones include `Product`, `Cart`, `ShoppingListDetails`, `FulfillmentSlot`, and `WeeklyAdResult`.
 
 ```ts
-import type { Cart, Product } from "heb-sdk"
+import type { Cart, Product } from "heb-sdk-unofficial"
 ```
 
 ---
@@ -78,7 +78,7 @@ Reach for `graphqlRequest` or `persistedQuery` when you need an unsupported oper
 Operation names must exist in the persisted query hash list.
 
 ```ts
-import { persistedQuery } from "heb-sdk"
+import { persistedQuery } from "heb-sdk-unofficial"
 
 const response = await persistedQuery(session, "typeaheadContent", { query: "milk" })
 console.log(response.data)
