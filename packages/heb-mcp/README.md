@@ -147,7 +147,7 @@ Add to `~/.config/claude/config.json` (or `~/Library/Application Support/Claude/
   "mcpServers": {
     "heb": {
       "command": "node",
-      "args": ["/absolute/path/to/heb-mcp-unofficial/dist/server.js"],
+      "args": ["/absolute/path/to/heb-mcp/dist/server.js"],
       "env": {
         "MCP_MODE": "local",
         "HEB_SAT": "your-jwt-token",
