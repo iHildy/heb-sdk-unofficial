@@ -1,0 +1,82 @@
+name: Smoke Test
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Package version to test'
+        required: true
+        type: string
+      timeout:
+        description: 'Timeout in minutes'
+        required: false
+        type: number
+        default: 10
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version to test'
+        required: true
+        type: string
+      timeout:
+        description: 'Timeout in minutes'
+        required: false
+        type: number
+        default: 10
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Wait for package availability
+        run: |
+          VERSION="${{ inputs.version }}"
+          echo "Waiting for heb-sdk@$VERSION to be available on npm..."
+          for i in {1..30}; do
+            if npm view "heb-sdk@$VERSION" version &>/dev/null; then
+              echo "Package heb-sdk@$VERSION is available!"
+              exit 0
+            fi
+            echo "Attempt $i: Package not yet available, waiting 10s..."
+            sleep 10
+          done
+          echo "Timeout waiting for package"
+          exit 1
+
+      - name: Create test project
+        run: |
+          mkdir -p /tmp/smoke-test
+          cd /tmp/smoke-test
+          npm init -y
+          npm install "heb-sdk@${{ inputs.version }}"
+
+      - name: Test import
+        working-directory: /tmp/smoke-test
+        run: |
+          cat > test.mjs << 'EOF'
+          import { HEBClient } from 'heb-sdk';
+          
+          // Test that the client can be imported and instantiated
+          const client = new HEBClient();
+          console.log('HEBClient imported and instantiated successfully');
+          console.log('Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(client)).filter(m => m !== 'constructor'));
+          EOF
+          node test.mjs
+
+      - name: Test TypeScript types
+        working-directory: /tmp/smoke-test
+        run: |
+          npm install typescript @types/node --save-dev
+          cat > test.ts << 'EOF'
+          import { HEBClient, Product, Store } from 'heb-sdk';
+          
+          const client: HEBClient = new HEBClient();
+          console.log('TypeScript types check passed');
+          EOF
+          npx tsc --init --strict --esModuleInterop --module NodeNext --moduleResolution NodeNext --target ES2022
+          npx tsc --noEmit test.ts

@@ -28,8 +28,19 @@
     "grocery",
     "graphql"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": {
+    "name": "Ian Hildebrand"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ihildy/heb-sdk-unofficial.git",
+    "directory": "packages/heb-sdk"
+  },
+  "homepage": "https://github.com/ihildy/heb-sdk-unofficial/tree/main/packages/heb-sdk",
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=18"
   },
