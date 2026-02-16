@@ -1,6 +1,6 @@
 {
   "name": "heb-auth-unofficial",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "HEB mobile OAuth helpers (PKCE + token exchange)",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -1,6 +1,6 @@
 {
   "name": "heb-sdk-unofficial",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Unofficial TypeScript client library for the H-E-B API",
   "type": "module",
   "main": "./dist/index.cjs",
