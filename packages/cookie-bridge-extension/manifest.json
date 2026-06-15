@@ -5,12 +5,21 @@
   "description": "Securely bridges your HEB session to your local MCP server.",
   "permissions": [
     "cookies",
-    "storage"
+    "storage",
+    "webNavigation"
   ],
   "host_permissions": [
     "*://*.heb.com/*",
-    "http://localhost:4321/*"
+    "http://localhost:4321/*",
+    "https://mealtime.eando.dev/*"
   ],
+  "externally_connectable": {
+    "matches": [
+      "https://mealtime.eando.dev/*",
+      "http://localhost:4321/*",
+      "http://localhost:*/*"
+    ]
+  },
   "optional_host_permissions": [
     "https://*/*",
     "http://*/*"

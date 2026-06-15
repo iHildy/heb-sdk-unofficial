@@ -246,7 +246,7 @@ chrome.runtime.onInstalled.addListener(() => {
   sendCookies('install');
 });
 
-// Listen for messages from popup
+// Listen for messages from popup and external websites
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'sync') {
     sendCookies('manual')
@@ -254,4 +254,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch(() => sendResponse({ success: false, status: lastBadgeText }));
     return true;
   }
+
+  // Return the captured H-E-B OAuth redirect URL
+  if (message.action === 'getHebRedirectUrl') {
+    chrome.storage.local.get(['hebRedirectUrl'], (result) => {
+      if (result.hebRedirectUrl) {
+        sendResponse({ url: result.hebRedirectUrl });
+        // Clear after delivering so it's not reused
+        chrome.storage.local.remove('hebRedirectUrl');
+      } else {
+        sendResponse({ url: null });
+      }
+    });
+    return true;
+  }
+});
+
+// Intercept H-E-B OAuth redirect (com.heb.myheb://)
+// The H-E-B login flow redirects to this custom scheme after auth.
+// We capture the full URL, store it, and close the tab.
+chrome.webNavigation.onBeforeNavigate.addListener((details) => {
+  if (details.url.startsWith('com.heb.myheb://')) {
+    // Store the redirect URL so the website can poll for it
+    chrome.storage.local.set({ hebRedirectUrl: details.url });
+    // Close the H-E-B auth tab since we've captured what we need
+    if (details.tabId > 0) {
+      chrome.tabs.remove(details.tabId);
+    }
+  }
+}, {
+  url: [{ urlPrefix: 'com.heb.myheb://' }]
 });
