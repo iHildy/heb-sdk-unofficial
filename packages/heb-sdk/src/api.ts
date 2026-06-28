@@ -47,6 +47,12 @@ export const ERROR_CODES = {
 
 /**
  * Execute a GraphQL request against the HEB API.
+ *
+ * Includes a 20-second timeout via AbortController — Node.js fetch has no
+ * default timeout, so without this a slow H-E-B backend (e.g. initialising
+ * a new bearer session) can hang indefinitely, causing the first request
+ * after linking to time out while subsequent requests succeed once the
+ * server-side session is warm.
  */
 export async function graphqlRequest<T>(
   session: HEBSession,
@@ -55,21 +61,30 @@ export async function graphqlRequest<T>(
   await ensureFreshSession(session);
   const headers = normalizeHeaders(session.headers);
   logDebug(session, `${payload.operationName} request`, payload);
-  const response = await fetch(resolveEndpoint(session, 'graphql'), {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-  });
 
-  if (!response.ok) {
-    const body = await response.text();
-    logDebug(session, `${payload.operationName} error response`, body);
-    throw new Error(`HEB API request failed: ${response.status} ${response.statusText}\n${body}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20_000);
+
+  try {
+    const response = await fetch(resolveEndpoint(session, 'graphql'), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      logDebug(session, `${payload.operationName} error response`, body);
+      throw new Error(`HEB API request failed: ${response.status} ${response.statusText}\n${body}`);
+    }
+
+    const json = await response.json();
+    logDebug(session, `${payload.operationName} response`, json);
+    return json as GraphQLResponse<T>;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const json = await response.json();
-  logDebug(session, `${payload.operationName} response`, json);
-  return json as GraphQLResponse<T>;
 }
 
 /**
