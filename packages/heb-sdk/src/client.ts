@@ -1,5 +1,6 @@
 import { getAccountDetails, type AccountDetails } from './account.js';
 import { addToCart, getCart, quickAdd, removeFromCart, updateCartItem, type Cart, type CartResponse } from './cart.js';
+import { checkoutCart, commitCheckout, type CheckoutResult, type CommitCheckoutResult } from './checkout.js';
 import { getCurbsideSlots, getDeliverySlots, reserveSlot, type FulfillmentSlot, type ReserveSlotResult, type GetCurbsideSlotsOptions, type GetDeliverySlotsOptions } from './fulfillment.js';
 import { getHomepage, type HomepageData } from './homepage.js';
 import { getOrder, getOrders, type GetOrdersOptions, type OrderDetailsResponse, type OrderHistoryResponse } from './orders.js';
@@ -217,6 +218,31 @@ export class HEBClient {
   async addToCartById(productId: string, quantity: number): Promise<CartResponse> {
     const skuId = await this.getSkuId(productId);
     return this.addToCart(productId, skuId, quantity);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Checkout
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Begin checkout for the current cart.
+   *
+   * Validates the cart, reserved timeslot, and payment method.
+   * Does NOT place the order — call {@link commitCheckout} after reviewing.
+   */
+  async checkoutCart(): Promise<CheckoutResult> {
+    return checkoutCart(this.session);
+  }
+
+  /**
+   * Commit checkout and place the order.
+   *
+   * Charges the default payment method and creates the order.
+   *
+   * @param tosToken - Terms-of-service acknowledgement token
+   */
+  async commitCheckout(tosToken?: string): Promise<CommitCheckoutResult> {
+    return commitCheckout(this.session, tosToken);
   }
 
   // ─────────────────────────────────────────────────────────────

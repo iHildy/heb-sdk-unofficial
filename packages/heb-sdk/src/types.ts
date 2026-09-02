@@ -160,6 +160,8 @@ export const GRAPHQL_HASHES = {
   SelectPickupFulfillment: '8fa3c683ee37ad1bab9ce22b99bd34315b2a89cfc56208d63ba9efc0c49a6323',
   getShoppingListsV2: '954a24fe9f3cf6f904fdb602b412e355271dbc8b919303ae84c8328e555e99fa',
   getShoppingListV2: '085fcaef4f2f05ee16ea44c1489801e7ae7e7a95311cbf6d7a3f09135f0ea557',
+  checkoutCart: '03e4113cfab0823bc8b1293a394a5810340510e8e6979d0a8e007f8aaa0dc9cb',
+  commitCheckout: '8e5cf5d2970c566514c3a82ad4f5442d466050c66a263afd5198ac7f66f12b17',
 } as const;
 
 /**
