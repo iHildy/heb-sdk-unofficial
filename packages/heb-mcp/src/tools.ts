@@ -27,8 +27,171 @@ const responseFormatParam = {
     .describe('Output format. Markdown is always returned; JSON is included as structuredContent when requested.'),
 };
 
+const verboseParam = {
+  verbose: z
+    .boolean()
+    .optional()
+    .describe('If false, returns a slim projection of items in structuredContent (enough to drive follow-up tool calls). Markdown content is unchanged. Default: true.'),
+};
+
 function resolveResponseFormat(format?: ResponseFormat): ResponseFormat {
   return format === 'json' ? 'json' : 'markdown';
+}
+
+// ─────────────────────────────────────────────────────────────
+// Slim projections (used when verbose=false) to reduce token cost
+// for LLM consumers. Each helper keeps the fields needed for
+// follow-up tool calls and drops images, long text, nutrition, etc.
+// ─────────────────────────────────────────────────────────────
+
+function slimProduct(p: any): Record<string, unknown> {
+  return {
+    productId: p?.productId,
+    skuId: p?.skuId,
+    name: p?.name,
+    brand: p?.brand,
+    size: p?.size,
+    price: p?.price?.formatted ?? null,
+    inStock: p?.inStock ?? null,
+    isAvailable: p?.isAvailable ?? null,
+  };
+}
+
+function slimCartItem(it: any): Record<string, unknown> {
+  return {
+    productId: it?.productId,
+    skuId: it?.skuId,
+    name: it?.name,
+    brand: it?.brand,
+    quantity: it?.quantity,
+    price: it?.price?.formatted ?? null,
+    inStock: it?.inStock ?? null,
+  };
+}
+
+function slimHistoryOrder(o: any): Record<string, unknown> {
+  return {
+    orderId: o?.orderId,
+    status: o?.status ?? o?.orderStatusMessageShort ?? null,
+    fulfillmentType: o?.fulfillmentType,
+    storeName: o?.store?.name,
+    formattedDate: o?.orderTimeslot?.formattedDate,
+    total: o?.totalPrice?.formattedAmount ?? o?.priceDetails?.total?.formattedAmount ?? null,
+    productCount: o?.productCount,
+  };
+}
+
+function slimOrderDetails(order: any): Record<string, unknown> {
+  if (!order) return order;
+  const items = Array.isArray(order.items)
+    ? order.items.map((i: any) => ({
+        id: i?.id,
+        name: i?.name,
+        quantity: i?.quantity,
+        price: i?.price,
+      }))
+    : order.items;
+  return {
+    orderId: order.orderId,
+    status: order.status,
+    fulfillmentType: order.fulfillmentType,
+    orderPlacedOnDateTime: order.orderPlacedOnDateTime,
+    orderTimeslot: order.orderTimeslot,
+    priceDetails: order.priceDetails,
+    items,
+  };
+}
+
+function slimShoppingListSummary(l: any): Record<string, unknown> {
+  return {
+    id: l?.id,
+    name: l?.name,
+    itemCount: l?.itemCount,
+    storeId: l?.store?.id,
+    storeName: l?.store?.name,
+    updatedAt: l?.updatedAt,
+  };
+}
+
+function slimShoppingListItem(it: any): Record<string, unknown> {
+  const totalAmount = typeof it?.price?.total === 'number' ? it.price.total : null;
+  return {
+    id: it?.id,
+    productId: it?.productId,
+    name: it?.name,
+    brand: it?.brand,
+    quantity: it?.quantity,
+    checked: it?.checked,
+    category: it?.category,
+    price: totalAmount,
+    inStock: it?.inStock ?? null,
+  };
+}
+
+function slimSlot(s: any): Record<string, unknown> {
+  return {
+    slotId: s?.slotId,
+    localDate: s?.localDate,
+    formattedDate: s?.formattedDate,
+    formattedStartTime: s?.formattedStartTime,
+    formattedEndTime: s?.formattedEndTime,
+    fee: s?.fee,
+    isAvailable: s?.isAvailable,
+  };
+}
+
+function slimWeeklyAdProduct(p: any): Record<string, unknown> {
+  return {
+    id: p?.id,
+    name: p?.name,
+    brand: p?.brand,
+    priceText: p?.priceText,
+    saleStory: p?.saleStory,
+    upc: p?.upc,
+    skuId: p?.skuId,
+    categories: p?.categories,
+  };
+}
+
+function slimHomepageItem(it: any): Record<string, unknown> {
+  return {
+    id: it?.id,
+    type: it?.type,
+    title: it?.title,
+    productId: it?.productId,
+    name: it?.name,
+    brand: it?.brand,
+    price: it?.priceFormatted ?? null,
+  };
+}
+
+function slimHomepage(h: any): Record<string, unknown> {
+  if (!h) return h;
+  return {
+    banners: Array.isArray(h.banners)
+      ? h.banners.map((b: any) => ({ id: b?.id, title: b?.title, position: b?.position }))
+      : h.banners,
+    promotions: Array.isArray(h.promotions)
+      ? h.promotions.map((p: any) => ({ id: p?.id, title: p?.title }))
+      : h.promotions,
+    featuredProducts: Array.isArray(h.featuredProducts)
+      ? h.featuredProducts.map((p: any) => ({
+          productId: p?.productId,
+          name: p?.name,
+          brand: p?.brand,
+          price: p?.priceFormatted ?? null,
+        }))
+      : h.featuredProducts,
+    sections: Array.isArray(h.sections)
+      ? h.sections.map((s: any) => ({
+          id: s?.id,
+          type: s?.type,
+          title: s?.title,
+          itemCount: s?.itemCount,
+          items: Array.isArray(s?.items) ? s.items.map(slimHomepageItem) : s?.items,
+        }))
+      : h.sections,
+  };
 }
 
 function buildToolResponse(
@@ -186,7 +349,11 @@ export function registerTools(
     "heb_search_products",
     {
       title: "Search Products",
-      description: "Search for products in the H-E-B catalog",
+      description: `Search for products in the H-E-B catalog.
+
+Returns structuredContent: { query, count, total_count, page, has_more, facets, items[] }.
+- verbose=true (default): each item is the full Product (images, nutrition, descriptions, fulfillment, ...).
+- verbose=false: items are slim {productId, skuId, name, brand, size, price, inStock, isAvailable}; facets are omitted.`,
       inputSchema: {
         query: z
           .string()
@@ -197,6 +364,7 @@ export function registerTools(
           .max(20)
           .optional()
           .describe("Max results to return (default: 20)"),
+        ...verboseParam,
         ...responseFormatParam,
       },
       annotations: {
@@ -206,7 +374,7 @@ export function registerTools(
         openWorldHint: true,
       },
     },
-    async ({ query, limit, response_format }) => {
+    async ({ query, limit, verbose, response_format }) => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
       const { client } = result;
@@ -215,22 +383,25 @@ export function registerTools(
         const requestedLimit = limit ?? 20;
         const results = await client.search(query, { limit: requestedLimit });
         const products = results.products.slice(0, requestedLimit);
+        const isVerbose = verbose !== false;
 
-        const data = {
+        const data: Record<string, unknown> = {
           query,
           count: products.length,
           total_count: results.totalCount,
           page: results.page,
           has_more: results.hasNextPage,
-          facets: results.facets ?? [],
-          items: products,
+          items: isVerbose ? products : products.map(slimProduct),
         };
+        if (isVerbose) {
+          data.facets = results.facets ?? [];
+        }
 
         if (products.length === 0) {
           return buildToolResponse(`No products found for "${query}"`, data, response_format);
         }
 
-        const formatted = products.map((p, i) => formatter.productListItem(p, i)).join('\n');
+        const formatted = products.map((p: any, i: number) => formatter.productListItem(p, i)).join('\n');
 
         return buildToolResponse(
           `Found ${products.length} products:\n\n${formatted}`,
@@ -255,8 +426,11 @@ export function registerTools(
     "heb_get_buy_it_again",
     {
       title: "Get Buy It Again",
-      description:
-        'Get previously purchased products ("Buy It Again"). Use this instead of searching shopping lists for recently bought items. This tool returns the specific "Buy It Again" products from the user history, not a shopping list.',
+      description: `Get previously purchased products ("Buy It Again"). Use this instead of searching shopping lists for recently bought items. This tool returns the specific "Buy It Again" products from the user history, not a shopping list.
+
+Returns structuredContent: { count, total_count, page, has_more, facets, items[] }.
+- verbose=true (default): items are full Product objects.
+- verbose=false: items are slim {productId, skuId, name, brand, size, price, inStock, isAvailable}; facets omitted.`,
       inputSchema: {
         limit: z
           .number()
@@ -264,6 +438,7 @@ export function registerTools(
           .max(20)
           .optional()
           .describe("Max results to return (default: 20)"),
+        ...verboseParam,
         ...responseFormatParam,
       },
       annotations: {
@@ -273,7 +448,7 @@ export function registerTools(
         openWorldHint: true,
       },
     },
-    async ({ limit, response_format }) => {
+    async ({ limit, verbose, response_format }) => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
       const { client } = result;
@@ -282,21 +457,24 @@ export function registerTools(
         const results = await client.getBuyItAgain({ limit });
         const requestedLimit = limit ?? 20;
         const products = results.products.slice(0, requestedLimit);
+        const isVerbose = verbose !== false;
 
-        const data = {
+        const data: Record<string, unknown> = {
           count: products.length,
           total_count: results.totalCount,
           page: results.page,
           has_more: results.hasNextPage,
-          facets: results.facets ?? [],
-          items: products,
+          items: isVerbose ? products : products.map(slimProduct),
         };
+        if (isVerbose) {
+          data.facets = results.facets ?? [];
+        }
 
         if (products.length === 0) {
           return buildToolResponse('No "Buy It Again" products found.', data, response_format);
         }
 
-        const formatted = products.map((p, i) => formatter.productListItem(p, i)).join('\n');
+        const formatted = products.map((p: any, i: number) => formatter.productListItem(p, i)).join('\n');
 
         return buildToolResponse(
           `Found ${products.length} "Buy It Again" products:\n\n${formatted}`,
@@ -325,9 +503,14 @@ export function registerTools(
     "heb_get_product",
     {
       title: "Get Product",
-      description: "Get detailed information about a specific product",
+      description: `Get detailed information about a specific product.
+
+Returns structuredContent: { product }.
+- verbose=true (default): full Product (images, nutrition, descriptions, fulfillment, ...).
+- verbose=false: slim {productId, skuId, name, brand, size, price, inStock, isAvailable}.`,
       inputSchema: {
         product_id: z.string().describe("Product ID from search results"),
+        ...verboseParam,
         ...responseFormatParam,
       },
       annotations: {
@@ -337,7 +520,7 @@ export function registerTools(
         openWorldHint: true,
       },
     },
-    async ({ product_id, response_format }) => {
+    async ({ product_id, verbose, response_format }) => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
       const { client } = result;
@@ -345,8 +528,13 @@ export function registerTools(
       try {
         const product = await client.getProduct(product_id);
         const details = formatter.productDetails(product);
+        const isVerbose = verbose !== false;
 
-        return buildToolResponse(details, { product }, response_format);
+        return buildToolResponse(
+          details,
+          { product: isVerbose ? product : slimProduct(product) },
+          response_format,
+        );
       } catch (error) {
         return {
           content: [
@@ -556,8 +744,15 @@ export function registerTools(
     "heb_get_cart",
     {
       title: "Get Cart",
-      description: "Get the current cart contents with items, prices, and totals",
-      inputSchema: { ...responseFormatParam },
+      description: `Get the current cart contents with items, prices, and totals.
+
+Returns structuredContent: { id, items[], itemCount, isTruncated, subtotal, total, tax, savings, paymentGroups, fees, count, total_count, has_more }.
+- verbose=true (default): items are full CartItem objects (includes images, brand, price detail).
+- verbose=false: items are slim {productId, skuId, name, brand, quantity, price, inStock}; paymentGroups and fees omitted.`,
+      inputSchema: {
+        ...verboseParam,
+        ...responseFormatParam,
+      },
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -565,21 +760,26 @@ export function registerTools(
         openWorldHint: true,
       },
     },
-    async ({ response_format }) => {
+    async ({ verbose, response_format }) => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
       const { client } = result;
 
       try {
         const cart = await client.getCart();
-        const { items, ...cartDetails } = cart;
-        const data = {
+        const { items, paymentGroups, fees, ...cartDetails } = cart;
+        const isVerbose = verbose !== false;
+        const data: Record<string, unknown> = {
           ...cartDetails,
-          items,
+          items: isVerbose ? items : items.map(slimCartItem),
           count: items.length,
           total_count: cart.itemCount,
           has_more: cart.isTruncated,
         };
+        if (isVerbose) {
+          data.paymentGroups = paymentGroups;
+          data.fees = fees;
+        }
 
         if (cart.items.length === 0) {
           return buildToolResponse('Your cart is empty.', data, response_format);
@@ -608,7 +808,11 @@ export function registerTools(
     "heb_get_order_history",
     {
       title: "Get Order History",
-      description: "Get past order history to see what the user has bought before.",
+      description: `Get past order history to see what the user has bought before.
+
+Returns structuredContent: { page, page_size, count, has_more, next_page, active_count, completed_count, items[] }.
+- verbose=true (default): items are full RawHistoryOrder objects.
+- verbose=false: items are slim {orderId, status, fulfillmentType, storeName, formattedDate, total, productCount}.`,
       inputSchema: {
         page: z.number().min(1).optional().describe("Page number (default: 1)"),
         page_size: z
@@ -617,6 +821,7 @@ export function registerTools(
           .max(50)
           .optional()
           .describe("Page size (default: 10)"),
+        ...verboseParam,
         ...responseFormatParam,
       },
       annotations: {
@@ -626,7 +831,7 @@ export function registerTools(
         openWorldHint: true,
       },
     },
-    async ({ page, page_size, response_format }) => {
+    async ({ page, page_size, verbose, response_format }) => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
       const { client } = result;
@@ -638,6 +843,7 @@ export function registerTools(
         const currentPage = pagination?.page ?? (page ?? 1);
         const pageSize = pagination?.size ?? (page_size ?? 10);
         const hasMore = pagination?.hasMore ?? false;
+        const isVerbose = verbose !== false;
         const data = {
           page: currentPage,
           page_size: pageSize,
@@ -646,7 +852,7 @@ export function registerTools(
           next_page: hasMore ? (pagination?.nextPage ?? currentPage + 1) : null,
           active_count: pagination?.activeCount ?? 0,
           completed_count: pagination?.completedCount ?? 0,
-          items: orders,
+          items: isVerbose ? orders : orders.map(slimHistoryOrder),
         };
 
         if (orders.length === 0) {
@@ -672,9 +878,14 @@ export function registerTools(
     "heb_get_order_details",
     {
       title: "Get Order Details",
-      description: "Get specific items and details for a past order.",
+      description: `Get specific items and details for a past order.
+
+Returns structuredContent: { order }.
+- verbose=true (default): full OrderDetailsPageOrder (raw items, store details, all metadata).
+- verbose=false: slim {orderId, status, fulfillmentType, orderPlacedOnDateTime, orderTimeslot, priceDetails, items[{id, name, quantity, price}]}.`,
       inputSchema: {
         order_id: z.string().describe("Order ID from order history"),
+        ...verboseParam,
         ...responseFormatParam,
       },
       annotations: {
@@ -684,7 +895,7 @@ export function registerTools(
         openWorldHint: true,
       },
     },
-    async ({ order_id, response_format }) => {
+    async ({ order_id, verbose, response_format }) => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
       const { client } = result;
@@ -697,9 +908,10 @@ export function registerTools(
             throw new Error('Order details not found');
         }
 
+        const isVerbose = verbose !== false;
         return buildToolResponse(
           formatter.orderDetails(pageOrder),
-          { order: pageOrder },
+          { order: isVerbose ? pageOrder : slimOrderDetails(pageOrder) },
           response_format,
         );
       } catch (error) {
@@ -779,7 +991,11 @@ BEFORE calling this tool without filters, STOP and ask the user what they want t
 - "Just show me 5 items per section" (items_per_section: 5)
 - "Show everything" (no filters - will be very long)
 
-Only call without filters if the user explicitly requests full/unfiltered homepage content.`,
+Only call without filters if the user explicitly requests full/unfiltered homepage content.
+
+Returns structuredContent: { homepage: { banners[], promotions[], featuredProducts[], sections[] } }.
+- verbose=true (default): full HomepageData (banners/promotions include images, links, subtitles; sections items include all fields).
+- verbose=false: slim shape — banners {id, title, position}; promotions {id, title}; featuredProducts {productId, name, brand, price}; sections.items {id, type, title, productId, name, brand, price}.`,
       inputSchema: {
         max_sections: z
           .number()
@@ -823,6 +1039,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           .describe(
             "Hide the top-level featured products array (default: false)",
           ),
+        ...verboseParam,
         ...responseFormatParam,
       },
       annotations: {
@@ -841,6 +1058,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
       hide_banners,
       hide_promotions,
       hide_products,
+      verbose,
       response_format,
     }) => {
       const result = requireClient(getClient);
@@ -863,9 +1081,10 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           includeFeaturedProducts: !hide_products,
         });
 
+        const isVerbose = verbose !== false;
         return buildToolResponse(
           formatter.homepage(homepage),
-          { homepage },
+          { homepage: isVerbose ? homepage : slimHomepage(homepage) },
           response_format,
         );
       } catch (error) {
@@ -890,8 +1109,11 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
     "heb_get_delivery_slots",
     {
       title: "Get Delivery Slots",
-      description:
-        "Get available delivery time slots. NOTE: This tool requires a valid address to fetch slots.",
+      description: `Get available delivery time slots. NOTE: This tool requires a valid address to fetch slots.
+
+Returns structuredContent: { count, total_count, has_more, items[] }.
+- verbose=true (default): items are full FulfillmentSlot objects (includes raw upstream payload).
+- verbose=false: items are slim {slotId, localDate, formattedDate, formattedStartTime, formattedEndTime, fee, isAvailable}.`,
       inputSchema: {
         street: z.string().describe('Street address (e.g. "123 Main St")'),
         city: z.string().describe("City"),
@@ -901,6 +1123,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           .number()
           .optional()
           .describe("Number of days to fetch (default: 14)"),
+        ...verboseParam,
         ...responseFormatParam,
       },
       annotations: {
@@ -910,7 +1133,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
         openWorldHint: true,
       },
     },
-    async ({ street, city, state, zip, days, response_format }) => {
+    async ({ street, city, state, zip, days, verbose, response_format }) => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
       const { client } = result;
@@ -926,11 +1149,12 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           days,
         });
 
+        const isVerbose = verbose !== false;
         const data = {
           count: slots.length,
           total_count: slots.length,
           has_more: false,
-          items: slots,
+          items: isVerbose ? slots : slots.map(slimSlot),
         };
 
         if (slots.length === 0) {
@@ -1047,13 +1271,18 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
     "heb_get_curbside_slots",
     {
       title: "Get Curbside Slots",
-      description: "Get available curbside pickup time slots for a store",
+      description: `Get available curbside pickup time slots for a store.
+
+Returns structuredContent: { store_id, count, total_count, has_more, items[] }.
+- verbose=true (default): items are full FulfillmentSlot objects (includes raw upstream payload).
+- verbose=false: items are slim {slotId, localDate, formattedDate, formattedStartTime, formattedEndTime, fee, isAvailable}.`,
       inputSchema: {
         store_id: z.string().describe('Store ID (e.g. "790" for Plano)'),
         days: z
           .number()
           .optional()
           .describe("Number of days to fetch (default: 14)"),
+        ...verboseParam,
         ...responseFormatParam,
       },
       annotations: {
@@ -1063,7 +1292,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
         openWorldHint: true,
       },
     },
-    async ({ store_id, days, response_format }) => {
+    async ({ store_id, days, verbose, response_format }) => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
       const { client } = result;
@@ -1074,12 +1303,13 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           days,
         });
 
+        const isVerbose = verbose !== false;
         const data = {
           store_id,
           count: slots.length,
           total_count: slots.length,
           has_more: false,
-          items: slots,
+          items: isVerbose ? slots : slots.map(slimSlot),
         };
 
         if (slots.length === 0) {
@@ -1173,9 +1403,15 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
     "heb_get_shopping_lists",
     {
       title: "Get Shopping Lists",
-      description:
-        'Get all shopping lists for the current user. Note: This does NOT include "Buy It Again" items; use heb_get_buy_it_again for previously purchased products.',
-      inputSchema: { ...responseFormatParam },
+      description: `Get all shopping lists for the current user. Note: This does NOT include "Buy It Again" items; use heb_get_buy_it_again for previously purchased products.
+
+Returns structuredContent: { page, page_size, total_count, count, has_more, next_page, sort, sort_direction, items[] }.
+- verbose=true (default): items are full ShoppingList objects (includes createdAt, updatedAt).
+- verbose=false: items are slim {id, name, itemCount, storeId, storeName, updatedAt}.`,
+      inputSchema: {
+        ...verboseParam,
+        ...responseFormatParam,
+      },
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -1183,7 +1419,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
         openWorldHint: true,
       },
     },
-    async ({ response_format }) => {
+    async ({ verbose, response_format }) => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
       const { client } = result;
@@ -1192,6 +1428,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
         const listsResult = await client.getShoppingLists();
         const lists = listsResult.lists;
         const pageInfo = listsResult.pageInfo;
+        const isVerbose = verbose !== false;
         const data = {
           page: pageInfo.page,
           page_size: pageInfo.size,
@@ -1201,7 +1438,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           next_page: pageInfo.nextPage ?? null,
           sort: pageInfo.sort,
           sort_direction: pageInfo.sortDirection,
-          items: lists,
+          items: isVerbose ? lists : lists.map(slimShoppingListSummary),
         };
 
         if (lists.length === 0) {
@@ -1231,7 +1468,11 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
     "heb_get_shopping_list",
     {
       title: "Get Shopping List",
-      description: "Get items in a specific shopping list",
+      description: `Get items in a specific shopping list.
+
+Returns structuredContent: { id, name, description, role, visibility, store, createdAt, updatedAt, items[], page, page_size, total_count, has_more, count }.
+- verbose=true (default): items are full ShoppingListItem objects (includes imageUrl, full price breakdown).
+- verbose=false: items are slim {id, productId, name, brand, quantity, checked, category, price, inStock}.`,
       inputSchema: {
         list_id: z.string().describe("Shopping list ID from heb_get_shopping_lists"),
         page: z.number().min(0).optional().describe("Page number (0-indexed, default: 0)"),
@@ -1244,6 +1485,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           .enum(['ASC', 'DESC'])
           .optional()
           .describe("Sort direction (default: ASC)"),
+        ...verboseParam,
         ...responseFormatParam,
       },
       annotations: {
@@ -1253,7 +1495,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
         openWorldHint: true,
       },
     },
-    async ({ list_id, page, size, sort, sort_direction, response_format }) => {
+    async ({ list_id, page, size, sort, sort_direction, verbose, response_format }) => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
       const { client } = result;
@@ -1268,9 +1510,10 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
         const { items, pageInfo: listPageInfo, ...listDetails } = list;
         const currentPage = listPageInfo?.page ?? (page ?? 0);
         const pageSize = listPageInfo?.size ?? (size ?? 500);
+        const isVerbose = verbose !== false;
         const data = {
           ...listDetails,
-          items,
+          items: isVerbose ? items : items.map(slimShoppingListItem),
           page: currentPage,
           page_size: pageSize,
           total_count: listPageInfo?.totalCount ?? null,
@@ -1375,7 +1618,11 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
     "heb_get_weekly_ad",
     {
       title: "Get Weekly Ad",
-      description: "Get products from the current store's weekly ad flyer.",
+      description: `Get products from the current store's weekly ad flyer.
+
+Returns structuredContent: { store_id, category_id, count, total_count, has_more, next_cursor, items[], categories[], valid_from, valid_to }.
+- verbose=true (default): items are full WeeklyAdProduct objects (imageUrl, description, disclaimerText, validFrom/To, storeLocation).
+- verbose=false: items are slim {id, name, brand, priceText, saleStory, upc, skuId, categories}.`,
       inputSchema: {
         limit: z
           .number()
@@ -1394,6 +1641,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           .optional()
           .describe('Override the current store ID (e.g. "796")'),
         page_cursor: z.string().optional().describe("Cursor for pagination"),
+        ...verboseParam,
         ...responseFormatParam,
       },
       annotations: {
@@ -1403,7 +1651,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
         openWorldHint: true,
       },
     },
-    async ({ limit, category_id, store_id, page_cursor, response_format }) => {
+    async ({ limit, category_id, store_id, page_cursor, verbose, response_format }) => {
       const result = requireClient(getClient);
       if ("error" in result) return result.error;
       const { client } = result;
@@ -1416,6 +1664,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           cursor: page_cursor,
         });
 
+        const isVerbose = verbose !== false;
         const data = {
           store_id: adResults.storeCode,
           category_id: category_id ?? null,
@@ -1423,7 +1672,7 @@ Only call without filters if the user explicitly requests full/unfiltered homepa
           total_count: adResults.totalCount,
           has_more: Boolean(adResults.cursor),
           next_cursor: adResults.cursor ?? null,
-          items: adResults.products,
+          items: isVerbose ? adResults.products : adResults.products.map(slimWeeklyAdProduct),
           categories: adResults.categories,
           valid_from: adResults.validFrom ?? null,
           valid_to: adResults.validTo ?? null,
